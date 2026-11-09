@@ -11,8 +11,8 @@ Decisions already made in this session:
 - **Modes:** quick match vs AI, and local multiplayer on one PC.
 - **Platforms:** Windows, Web (WebGL), macOS. All three build modules are installed.
 - **Project:** this repository's root is the Unity project. URP 3D template, Pipeline package
-  0.10.0-exp.1, Input System, uGUI. Linked to a Unity Cloud project. Local git with one commit and Unity's
-  .gitignore / LFS attributes. The Editor is open and reachable.
+  0.10.0-exp.1, Input System, uGUI. Linked to a Unity Cloud project. Git with Unity's
+  .gitignore / LFS attributes.
 
 Right now the project is an empty template: one `SampleScene`, no gameplay code.
 Working title: **"Sandspike"** (easy to change).
@@ -56,6 +56,13 @@ Working title: **"Sandspike"** (easy to change).
 - **Stamina:** a bar per player. Charged jumps and charged spikes spend it in proportion to the
   charge; it refills over time, faster while standing still. With low stamina the charge cap drops,
   so you can't max-jump and max-spike every rally.
+- **Playtest 4:**
+  - **Jump is back to the original design (overrides the instant/boost jump).** Hold jump on the
+    ground to crouch and charge, then release to jump. Height scales with charge: a quick tap is a
+    normal hop, a full charge is the high jump, and stamina pays for the charge. Charging is quick
+    (about 0.4 s to full), so a tap still feels immediate.
+  - **"Hit now" cue.** While you're holding a hit button, the ball glows and the contact point shows a
+    ring whenever releasing would hit it. That shows exactly when to let go.
 - **Playtest 3 (overrides playtest 2 for hits):** **the hit happens when you let go of the button,
   never while you're still holding it.** Holding winds up and builds charge, and the arm pulls back
   while the contact point stays fixed. Releasing swings:

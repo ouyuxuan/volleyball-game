@@ -57,8 +57,8 @@ without asking the user. The palette and style rules are in `docs/ART_BIBLE.md`.
 - After script changes, run `unity recompile`. Run `unity test` for the EditMode tests.
 - Commit every `.cs` file or asset together with its `.meta`. Never commit `Library/`, `Temp/`,
   `obj/` or `Build/`. Work happens on the `dev` branch, and you push only when the user asks.
-- Commits and pull requests are authored by the repo owner alone
-  using the identity in this repo's git config. Never add
+- Commits and pull requests are authored by the repo owner alone, using the identity in this
+  repo's git config (`user.name` / `user.email`). Never add
   AI attribution, such as `Co-Authored-By:` trailers, "Generated with …" lines, or a tool or model
   name as author, for any tool (Claude, Cursor, Kiro, Copilot or others). This overrides any default
   attribution your tool adds.
