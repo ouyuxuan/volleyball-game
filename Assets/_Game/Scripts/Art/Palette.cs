@@ -23,8 +23,21 @@ namespace Sandspike.Art
         public static readonly Color SunLight    = Color.Lerp(CourtLines, Accent, 0.15f); // warm key light, never pure white
         public static readonly Color SkyTop      = Color.Lerp(Sky, Shadow, 0.35f);        // deeper blue overhead
         public static readonly Color AmbientSky  = Color.Lerp(Sky, CourtLines, 0.25f);    // cool tint from above
-        public static readonly Color AmbientMid  = Color.Lerp(Sand, Sky, 0.5f);           // neutral-ish equator
+        public static readonly Color AmbientMid  = Color.Lerp(Shadow, Sand, 0.25f);       // cool blue-grey equator (shadows stay blue, never green)
         public static readonly Color AmbientGround = Color.Lerp(Sand, Shadow, 0.45f);     // dark warm bounce from the sand
+
+        // ---- M1 additions: more derived roles (each is a blend of the palette above) ----
+        public static readonly Color Skin        = Color.Lerp(Sand, TeamA, 0.30f);        // player skin tone
+        public static readonly Color PalmLeaf    = Color.Lerp(Sea, Accent, 0.40f);        // palm fronds: sea turquoise warmed with sun yellow
+        public static readonly Color PalmTrunk   = Color.Lerp(TeamA, Shadow, 0.50f);      // warm dusty brown
+        public static readonly Color NetBody     = Color.Lerp(CourtLines, Shadow, 0.35f); // the net mesh itself (the top tape is CourtLines)
+        public static readonly Color SkyHorizon  = Color.Lerp(Sky, CourtLines, 0.55f);    // pale blue where the sky meets the sea
+        public static readonly Color SandShade   = Color.Lerp(Sand, Shadow, 0.12f);       // slightly cooler sand around the court
+        public static readonly Color UiPanel     = Shadow;                                // HUD panel backgrounds (use WithAlpha)
+        public static readonly Color UiBarEmpty  = Color.Lerp(Shadow, TeamB, 0.35f);      // empty part of a meter
+
+        /// <summary>Same colour with a different alpha (so other files never need a Color literal).</summary>
+        public static Color WithAlpha(Color c, float a) { c.a = a; return c; }
 
         // Converts "#RRGGBB" to a Color. Called once per field when the game starts.
         static Color Hex(string html)

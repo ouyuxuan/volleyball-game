@@ -49,15 +49,40 @@ Working title: **"Sandspike"** (easy to change).
 
 **Charging, stamina and timing**
 - **Jump:** tap Space for a normal hop; hold to charge and release for a higher jump (up to a cap).
-- **Spike / serve:** hold the spike button to charge power, release to swing. Charge can start on the
-  ground or in the air.
+- **Spike / serve / bump / set:** every hit button charges. Hold to charge power, release to hit.
+  A light tap gives a soft hit, and a full charge gives a hard one. A charged bump or set travels
+  farther and faster, and a light one drops short and soft. Charge can start on the ground or in the
+  air.
 - **Stamina:** a bar per player. Charged jumps and charged spikes spend it in proportion to the
   charge; it refills over time, faster while standing still. With low stamina the charge cap drops,
   so you can't max-jump and max-spike every rally.
-- **Timing:** every hit has an ideal contact moment. Final hit quality = charge × timing. A perfect
-  release is fast and lands on your aim point; early or late releases lose speed and scatter around
-  it. Releasing a spike far outside the window is a whiff.
-- HUD shows the stamina bar, a jump-charge and spike-charge meter, and "Perfect / Good / Late" feedback.
+- **Timing is about contact with your body, never about the ball landing.** Each hit type has a
+  contact point on the player that moves with them: **forearms at waist height for a bump, hands
+  just above the head for a set, the hitting hand at full overhead reach for a spike or serve.** The
+  ideal moment is when the ball passes closest to that contact point, and you get graded on how close
+  your button release is to that moment.
+  - **Slightly off timing still connects. A complete miss doesn't.** Timing has a generous window.
+    Inside it, the hit always happens and timing only nudges how good it is. Outside it, you miss:
+
+    | Release vs. ideal moment | Result | Power / speed | Scatter around aim point |
+    |---|---|---|---|
+    | within 0.08 s | Perfect | 100% | none |
+    | within 0.20 s | Good | 90% | up to 0.5 m |
+    | within 0.35 s | OK | 80% | up to 1.0 m |
+    | further off | **Miss** | no contact | the ball keeps falling |
+
+  - **A miss means the ball drops.** It isn't touched, it lands on the sand, and if that's on your
+    side you lose the point (scoring arrives in M2).
+  - **Early presses are held, not wasted.** A release inside the window but before the ball arrives
+    waits and fires when the ball reaches your contact point.
+  - Because the contact point rides on your body, **jumping is part of a spike.** A slightly mistimed
+    jump puts your hand lower when the ball arrives, so the spike comes out flatter and weaker. Way
+    off and you miss it.
+  - **Out of reach is also a miss.** If the ball never comes within reach of the contact point,
+    pressing does nothing and the ball drops.
+  - Final hit quality = charge × timing multiplier. Charge (and stamina) decides most of a spike's
+    power. Timing is the smaller factor on top. All of these numbers are tunable.
+- HUD shows the stamina bar, a jump-charge and spike-charge meter, and "Perfect / Good / OK / Miss" feedback.
 
 **Ball: computed arcs, not free physics.** Each hit picks a landing target and a flight time, and the
 ball follows that exact arc (gravity plus a net check). This is the standard arcade approach and it
