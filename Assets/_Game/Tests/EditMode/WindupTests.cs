@@ -8,7 +8,7 @@ namespace Sandspike.Tests
     /// <summary>Wind-up hits and the instant variable jump (the parts that do not need a ball in flight).</summary>
     public class WindupTests
     {
-        const float G = 25f, Tap = 0.9f, Full = 1.6f, Boost = 0.35f;
+        const float G = 25f, Tap = 0.9f, Full = 1.6f, Boost = 0.35f, Grace = 0.08f;
 
         // Mirrors PlayerController.UpdateJump/Move: takeoff at the tap speed, then extra accel while held. Returns the apex.
         static float SimulateJump(float holdSeconds, Stamina stamina = null)
@@ -22,9 +22,7 @@ namespace Sandspike.Tests
             {
                 if (meter.IsCharging && t < holdSeconds && v > 0f)
                 {
-                    float before = meter.Value;
-                    meter.Tick(dt, stamina != null ? stamina.MaxChargeAllowed : 1f);
-                    float used = meter.Value - before;
+                    float used = meter.TickDelayed(dt, stamina != null ? stamina.MaxChargeAllowed : 1f, Grace);
                     v += a * used * Boost;
                     stamina?.SpendJump(used);
                 }
@@ -41,7 +39,27 @@ namespace Sandspike.Tests
         public void Jump_Tap_PeaksAtAbout09m() => Assert.AreEqual(0.9f, SimulateJump(0f), 0.02f);
 
         [Test]
-        public void Jump_FullHold_PeaksAtAbout16m() => Assert.AreEqual(1.6f, SimulateJump(1f), 0.03f);
+        public void Jump_FullHold_PeaksAtAbout16m() => Assert.AreEqual(1.6f, SimulateJump(1f), 0.05f);
+
+        [Test]
+        public void Jump_QuickTapUnderGrace_GetsNoBoost() => Assert.AreEqual(0.9f, SimulateJump(0.06f), 0.02f);
+
+        [Test]
+        public void Jump_HoldingClearlyBeatsATap()
+        {
+            Assert.Greater(SimulateJump(0.4f), SimulateJump(0.06f) + 0.5f);   // held to full vs a quick tap
+            Assert.Greater(SimulateJump(0.25f), SimulateJump(0.12f));          // longer hold goes higher
+        }
+
+        [Test]
+        public void ChargeMeter_TickDelayed_GivesNothingInGraceThenCatchesUp()
+        {
+            var m = new ChargeMeter { secondsToFull = 1f };
+            m.Begin();
+            Assert.AreEqual(0f, m.TickDelayed(0.05f, 1f, 0.1f), 1e-5f);
+            Assert.AreEqual(0.1f, m.TickDelayed(0.05f, 1f, 0.1f), 1e-5f);     // grace over: the whole 0.1 comes at once
+            Assert.AreEqual(0.05f, m.TickDelayed(0.05f, 1f, 0.1f), 1e-5f);    // then each frame's gain
+        }
 
         [Test]
         public void Jump_ShortHold_IsBetweenTapAndFull()

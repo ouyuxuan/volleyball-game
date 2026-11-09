@@ -43,6 +43,7 @@ namespace Sandspike.Players
         [SerializeField] float fullJumpHeight = 1.6f;
         [SerializeField] float gravity = 25f;        // the player's gravity (snappier than the ball's)
         [SerializeField] float boostSeconds = 0.35f; // how long after takeoff holding the button adds height
+        [SerializeField] float tapGrace = 0.08f;     // a press shorter than this is a plain tap (no boost); hold past it to go higher
 
         [Header("Court limits (this player's half)")]
         [SerializeField] float courtSide = -1f;      // -1: z below the net, +1: z above
@@ -165,10 +166,8 @@ namespace Sandspike.Players
             if (!jumpCharge.IsCharging) return;
             if (!jump.Held || verticalVelocity <= 0f) { jumpCharge.Lock(); return; }   // released early / past the apex: boost over
 
-            float before = jumpCharge.Value;
-            jumpCharge.Tick(dt, stamina.MaxChargeAllowed);           // the stamina cap limits the boost
-            float used = jumpCharge.Value - before;
-            if (used <= 0f) { jumpCharge.Lock(); return; }
+            float used = jumpCharge.TickDelayed(dt, stamina.MaxChargeAllowed, tapGrace);   // stamina caps it; none during the tap grace
+            if (used <= 0f) return;
             verticalVelocity += ContactTiming.JumpBoostAccel(gravity, tapJumpHeight, fullJumpHeight, boostSeconds) * used * boostSeconds;
             stamina.SpendJump(used);                                 // cost is proportional to the boost used
         }
