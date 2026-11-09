@@ -45,6 +45,8 @@ namespace Sandspike.Ball
         Vector3 spinAxis = Vector3.right;
 
         public bool IsInFlight => inFlight;
+        /// <summary>Counts launches, so a queued hit can tell someone else touched the ball.</summary>
+        public int LaunchCount { get; private set; }
         public Vector3 Position => transform.position;
         public Vector3 Velocity => inFlight ? BallTrajectory.VelocityAt(arc.v0, elapsed, gravity) : Vector3.zero;
         /// <summary>Where the ball will touch the sand (y = 0), counting a net drop.</summary>
@@ -68,6 +70,7 @@ namespace Sandspike.Ball
         /// </summary>
         public void Launch(Vector3 start, Vector3 groundTarget, float flightTime, bool isHit = true)
         {
+            LaunchCount++;
             flightTime = Mathf.Max(0.05f, flightTime);
             Vector3 centreTarget = new Vector3(groundTarget.x, ballRadius, groundTarget.z);
 

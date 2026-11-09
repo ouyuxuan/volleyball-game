@@ -9,7 +9,7 @@ namespace Sandspike.Tests
     public class ContactTimingTests
     {
         const float G = 9.81f;
-        const float Reach = 0.6f;
+        const float Reach = 1.0f;
         static readonly HitResolver Resolver = new HitResolver(new HitTuning(), new System.Random(1));
 
         // A ball whose arc is at 'where' exactly 'atTime' seconds from now.
@@ -39,7 +39,7 @@ namespace Sandspike.Tests
             Assert.AreEqual(HitGrade.Perfect, Grade(HitType.Bump, 0.8f, ideal).grade);
             Assert.AreEqual(HitGrade.Good, Grade(HitType.Bump, 0.9f, ideal).grade);
             Assert.AreEqual(HitGrade.Ok, Grade(HitType.Bump, 1.05f, ideal).grade);
-            Assert.AreEqual(HitGrade.Miss, Grade(HitType.Bump, 1.2f, ideal).grade);
+            Assert.AreEqual(HitGrade.Ok, Grade(HitType.Bump, 1.2f, ideal).grade);   // timing never misses
         }
 
         [Test]
@@ -74,11 +74,11 @@ namespace Sandspike.Tests
         }
 
         [Test]
-        public void Spike_WayOffTiming_IsAMiss()
+        public void Spike_WayOffTiming_StillConnects_PowerAtLeast85()
         {
             var r = Grade(HitType.Spike, 1.0f + 0.36f, 1.0f);
-            Assert.AreEqual(HitGrade.Miss, r.grade);
-            Assert.IsFalse(r.contact);
+            Assert.IsTrue(r.contact);
+            Assert.GreaterOrEqual(r.timingMultiplier, 0.85f);
         }
 
         [Test]
@@ -100,8 +100,8 @@ namespace Sandspike.Tests
             var ball = BallThrough(forearms, 0.5f);
             float ideal = ContactTiming.FindIdealTime(ball, t => forearms, -0.4f, 1.0f, out float dist);
             Assert.AreEqual(0.5f, ideal, 0.01f);          // the hit fires 0.5 s from now (the moment of contact)
-            // released now: error = -0.5 (too early, Miss); released 0.3 s early: error -0.3 -> connects as Ok at the ideal time
-            Assert.AreEqual(HitGrade.Miss, Grade(HitType.Bump, 0f, ideal).grade);
+            // pressed now (0.5 s early) it still connects; pressed 0.3 s early it connects as Ok at the ideal time
+            Assert.IsTrue(Grade(HitType.Bump, 0f, ideal).contact);   // a very early press still queues and connects
             var held = Grade(HitType.Bump, ideal - 0.3f, ideal);
             Assert.IsTrue(held.contact);
             Assert.AreEqual(HitGrade.Ok, held.grade);
@@ -117,13 +117,43 @@ namespace Sandspike.Tests
                 var ball = go.AddComponent<BallController>();
                 ball.Launch(new Vector3(0f, 2f, 6f), new Vector3(1f, 0f, -4f), 2f, false);
                 Vector3 before = ball.LandingPoint;
-                var miss = Grade(HitType.Bump, 0.36f, 0f);       // what the controller gets for a swing that is too far off
+                var miss = Resolver.Resolve(new HitInput { type = HitType.Bump, closestDistance = 5f, reachRadius = Reach, aimPoint = new Vector3(0, 0, 4), hitterPosition = Vector3.zero });
                 Assert.IsFalse(miss.contact);                     // the controller then does not call Launch
                 Assert.AreEqual(before, ball.LandingPoint);
                 Assert.AreEqual(1f, ball.LandingPoint.x, 1e-3f);
                 Assert.AreEqual(-4f, ball.LandingPoint.z, 1e-3f);
             }
             finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void Tap_ZeroCharge_IsANormalConnectingTouch()
+        {
+            foreach (var type in new[] { HitType.Bump, HitType.Set, HitType.Spike })
+            {
+                var r = Resolver.Resolve(new HitInput { type = type, charge = 0f, timingError = 0f, closestDistance = 0.2f, reachRadius = Reach, contactHeight = 2.3f, aimPoint = new Vector3(0, 0, 4), hitterPosition = new Vector3(0, 0, -4) });
+                Assert.IsTrue(r.contact, type.ToString());
+                Assert.Greater(r.flightTime, 0.3f);
+            }
+        }
+
+        [Test]
+        public void EarlyPress_SearchesWholeArc_FindsContactLater()
+        {
+            Vector3 forearms = new Vector3(0f, 0.9f, 0.35f);
+            var ball = BallThrough(forearms, 0.8f);
+            float ideal = ContactTiming.FindIdealTime(ball, t => forearms, 0f, 6f, out float dist);
+            Assert.AreEqual(0.8f, ideal, 0.02f);
+            Assert.LessOrEqual(dist, Reach);
+        }
+
+        [Test]
+        public void PressAfterBallPassed_IsOutOfReach()
+        {
+            Vector3 forearms = new Vector3(0f, 0.9f, 0.35f);
+            var passing = BallThrough(forearms, -0.8f);   // it was at the player 0.8 s ago, now going away
+            ContactTiming.FindIdealTime(passing, t => forearms, 0f, 6f, out float dist);
+            Assert.Greater(dist, Reach);
         }
 
         [Test]

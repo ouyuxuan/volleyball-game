@@ -16,7 +16,7 @@ namespace Sandspike.Tests
                 charge = charge,
                 timingError = timingError,
                 closestDistance = closest,
-                reachRadius = 0.6f,
+                reachRadius = 1.0f,
                 contactHeight = contactHeight,
                 aimPoint = aim ?? new Vector3(0f, 0f, 4f),
                 hitterPosition = new Vector3(0f, 0f, -4f),
@@ -24,16 +24,18 @@ namespace Sandspike.Tests
             };
         }
 
-        // ---- timing grades: boundaries at 0.08 / 0.20 / 0.35 s ----
+        // ---- timing grades (internal): 0.08 / 0.20 / 0.35 s; power never below 85% ----
         [TestCase(0.0f, HitGrade.Perfect, 1.0f)]
         [TestCase(0.08f, HitGrade.Perfect, 1.0f)]
         [TestCase(-0.08f, HitGrade.Perfect, 1.0f)]
-        [TestCase(0.081f, HitGrade.Good, 0.9f)]
-        [TestCase(0.20f, HitGrade.Good, 0.9f)]
-        [TestCase(-0.20f, HitGrade.Good, 0.9f)]
-        [TestCase(0.201f, HitGrade.Ok, 0.8f)]
-        [TestCase(0.35f, HitGrade.Ok, 0.8f)]
-        [TestCase(-0.35f, HitGrade.Ok, 0.8f)]
+        [TestCase(0.081f, HitGrade.Good, 0.93f)]
+        [TestCase(0.20f, HitGrade.Good, 0.93f)]
+        [TestCase(-0.20f, HitGrade.Good, 0.93f)]
+        [TestCase(0.201f, HitGrade.Ok, 0.85f)]
+        [TestCase(0.35f, HitGrade.Ok, 0.85f)]
+        [TestCase(-0.35f, HitGrade.Ok, 0.85f)]
+        [TestCase(0.36f, HitGrade.Ok, 0.85f)]
+        [TestCase(-2.0f, HitGrade.Ok, 0.85f)]
         public void GradeBoundaries(float error, HitGrade grade, float multiplier)
         {
             var r = Make().Resolve(Input(HitType.Bump, error));
@@ -46,12 +48,12 @@ namespace Sandspike.Tests
         [TestCase(HitType.Set)]
         [TestCase(HitType.Spike)]
         [TestCase(HitType.Serve)]
-        public void FarOffRelease_IsAMiss_NoContact(HitType type)
+        public void FarOffTiming_NeverMisses_PowerFloor85(HitType type)
         {
-            var r = Make().Resolve(Input(type, 0.36f));
-            Assert.AreEqual(HitGrade.Miss, r.grade);
-            Assert.IsFalse(r.contact);
-            Assert.AreEqual(0f, r.flightTime);   // nothing is launched: the ball keeps its own arc
+            var r = Make().Resolve(Input(type, 0.36f, 1f));
+            Assert.IsTrue(r.contact);
+            Assert.GreaterOrEqual(r.timingMultiplier, 0.85f);
+            Assert.Greater(r.flightTime, 0f);
         }
 
         [Test]
@@ -65,10 +67,10 @@ namespace Sandspike.Tests
         [Test]
         public void OutOfReach_IsAMiss_EvenWithPerfectTiming()
         {
-            var r = Make().Resolve(Input(HitType.Bump, 0f, 1f, null, 3.6f, 0.61f));
+            var r = Make().Resolve(Input(HitType.Bump, 0f, 1f, null, 3.6f, 1.01f));
             Assert.AreEqual(HitGrade.Miss, r.grade);
             Assert.IsFalse(r.contact);
-            Assert.IsTrue(Make().Resolve(Input(HitType.Bump, 0f, 1f, null, 3.6f, 0.59f)).contact);
+            Assert.IsTrue(Make().Resolve(Input(HitType.Bump, 0f, 1f, null, 3.6f, 0.99f)).contact);
         }
 
         // ---- charge scaling ----
@@ -77,17 +79,17 @@ namespace Sandspike.Tests
         {
             var none = Make().Resolve(Input(HitType.Spike, 0f, 0f));
             var full = Make().Resolve(Input(HitType.Spike, 0f, 1f));
-            Assert.AreEqual(0.4f, none.quality, 1e-4f);
+            Assert.AreEqual(0.65f, none.quality, 1e-4f);
             Assert.AreEqual(1.0f, full.quality, 1e-4f);
-            Assert.AreEqual(Mathf.Lerp(0.9f, 0.35f, 0.4f), none.flightTime, 1e-3f);
+            Assert.AreEqual(Mathf.Lerp(0.9f, 0.35f, 0.65f), none.flightTime, 1e-3f);
             Assert.AreEqual(0.35f, full.flightTime, 1e-3f);
         }
 
         [Test]
         public void Spike_QualityIsTimingTimesChargeFactor()
         {
-            var r = Make().Resolve(Input(HitType.Spike, 0.1f, 0.5f)); // Good (0.9) x lerp(0.4,1,0.5)=0.7
-            Assert.AreEqual(0.9f * 0.7f, r.quality, 1e-4f);
+            var r = Make().Resolve(Input(HitType.Spike, 0.1f, 0.5f)); // Good (0.9) x lerp(0.65,1,0.5)
+            Assert.AreEqual(0.93f * Mathf.Lerp(0.65f, 1f, 0.5f), r.quality, 1e-4f);
         }
 
         [Test]
@@ -113,7 +115,7 @@ namespace Sandspike.Tests
         public void Serve_FlightTimeScalesWithQuality()
         {
             Assert.AreEqual(0.8f, Make().Resolve(Input(HitType.Serve, 0f, 1f)).flightTime, 1e-3f);
-            Assert.AreEqual(1.6f - 0.4f * 0.8f, Make().Resolve(Input(HitType.Serve, 0f, 0f)).flightTime, 1e-3f);
+            Assert.AreEqual(Mathf.Lerp(1.6f, 0.8f, 0.65f), Make().Resolve(Input(HitType.Serve, 0f, 0f)).flightTime, 1e-3f);
         }
 
         [Test]
@@ -124,10 +126,10 @@ namespace Sandspike.Tests
             var hard = Make().Resolve(Input(HitType.Bump, 0f, 1f, aim));
             float softDist = Vector3.Distance(soft.target, new Vector3(0f, 0f, -4f));
             float hardDist = Vector3.Distance(hard.target, new Vector3(0f, 0f, -4f));
-            Assert.AreEqual(8f * 0.6f, softDist, 1e-3f);
+            Assert.AreEqual(8f * 0.85f, softDist, 1e-3f);
             Assert.AreEqual(8f * 1.2f, hardDist, 1e-3f);
             Assert.Less(softDist, hardDist);
-            Assert.AreEqual(1.8f, soft.flightTime, 1e-4f);
+            Assert.AreEqual(1.6f, soft.flightTime, 1e-4f);
             Assert.AreEqual(1.2f, hard.flightTime, 1e-4f);
         }
 
@@ -137,12 +139,12 @@ namespace Sandspike.Tests
             var aim = new Vector3(0f, 0f, -0.2f);
             var soft = Make().Resolve(Input(HitType.Set, 0f, 0f, aim));
             var hard = Make().Resolve(Input(HitType.Set, 0f, 1f, aim));
-            Assert.AreEqual(1.5f, soft.flightTime, 1e-4f);
+            Assert.AreEqual(1.4f, soft.flightTime, 1e-4f);
             Assert.AreEqual(1.1f, hard.flightTime, 1e-4f);
         }
 
 
-        // ---- scatter: none for Perfect, up to 0.5 m for Good, up to 1.0 m for Ok ----
+        // ---- scatter: none for Perfect, at most 0.5 m otherwise ----
         [Test]
         public void PerfectHit_LandsExactlyOnAim()
         {
@@ -159,15 +161,15 @@ namespace Sandspike.Tests
             float goodFar = 0f, okFar = 0f;
             for (int i = 0; i < 500; i++)
             {
-                float g = Vector3.Distance(resolver.Resolve(Input(HitType.Bump, 0.15f, 2f / 3f, aim)).target, aim);
-                float o = Vector3.Distance(resolver.Resolve(Input(HitType.Bump, 0.3f, 2f / 3f, aim)).target, aim);
-                Assert.LessOrEqual(g, 0.5f + 1e-3f);
-                Assert.LessOrEqual(o, 1.0f + 1e-3f);
+                float g = Vector3.Distance(resolver.Resolve(Input(HitType.Bump, 0.15f, 0.15f / 0.35f, aim)).target, aim);
+                float o = Vector3.Distance(resolver.Resolve(Input(HitType.Bump, 0.3f, 0.15f / 0.35f, aim)).target, aim);
+                Assert.LessOrEqual(g, 0.25f + 1e-3f);
+                Assert.LessOrEqual(o, 0.5f + 1e-3f);
                 goodFar = Mathf.Max(goodFar, g);
                 okFar = Mathf.Max(okFar, o);
             }
-            Assert.Greater(goodFar, 0.25f);   // it really scatters
-            Assert.Greater(okFar, 0.5f);
+            Assert.Greater(goodFar, 0.12f);   // it really scatters
+            Assert.Greater(okFar, 0.25f);
         }
 
         [Test]

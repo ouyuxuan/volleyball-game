@@ -10,21 +10,21 @@ namespace Sandspike.Players
         [Header("Timing windows (seconds, absolute error)")]
         public float perfectWindow = 0.08f;
         public float goodWindow = 0.20f;
-        public float okWindow = 0.35f;        // beyond this the swing is a Miss (the ball is not touched)
+        public float okWindow = 0.35f;        // beyond this is still a hit (graded Ok); timing never causes a Miss
 
         [Header("Timing multipliers (power)")]
         public float perfectMultiplier = 1.0f;
-        public float goodMultiplier = 0.9f;
-        public float okMultiplier = 0.8f;
+        public float goodMultiplier = 0.93f;
+        public float okMultiplier = 0.85f;
 
         [Header("Scatter radius (metres around the aim point)")]
         public float perfectScatter = 0f;
-        public float goodScatter = 0.5f;
-        public float okScatter = 1.0f;
+        public float goodScatter = 0.25f;
+        public float okScatter = 0.5f;
 
 
         [Header("Spike / serve power")]
-        public float minChargeFactor = 0.4f;   // quality factor at zero charge (1.0 at full charge)
+        public float minChargeFactor = 0.65f;   // quality factor at zero charge (1.0 at full charge)
 
         [Header("Spike contact height (a low hand = flatter, weaker spike)")]
         public float lowHandHeight = 2.3f;     // hand height when standing
@@ -32,13 +32,13 @@ namespace Sandspike.Players
         public float lowHandQualityFactor = 0.85f;
 
         [Header("Flight times (seconds)")]
-        public float bumpDistanceScaleSoft = 0.6f;   // charge 0: lands at 60% of the distance to the aim point
+        public float bumpDistanceScaleSoft = 0.85f;  // charge 0: lands at 60% of the distance to the aim point
         public float bumpDistanceScaleHard = 1.2f;   // charge 1: lands 120% of the way (past the aim)
-        public float bumpTimeSoft = 1.8f;
+        public float bumpTimeSoft = 1.6f;
         public float bumpTimeHard = 1.2f;
-        public float setDistanceScaleSoft = 0.6f;
+        public float setDistanceScaleSoft = 0.9f;
         public float setDistanceScaleHard = 1.1f;
-        public float setTimeSoft = 1.5f;
+        public float setTimeSoft = 1.4f;
         public float setTimeHard = 1.1f;
         public float spikeSlowTime = 0.9f;     // quality 0
         public float spikeFastTime = 0.35f;    // quality 1
@@ -73,7 +73,7 @@ namespace Sandspike.Players
             if (absError <= t.perfectWindow) { grade = HitGrade.Perfect; multiplier = t.perfectMultiplier; scatter = t.perfectScatter; }
             else if (absError <= t.goodWindow) { grade = HitGrade.Good; multiplier = t.goodMultiplier; scatter = t.goodScatter; }
             else if (absError <= t.okWindow) { grade = HitGrade.Ok; multiplier = t.okMultiplier; scatter = t.okScatter; }
-            else { grade = HitGrade.Miss; multiplier = 0f; scatter = 0f; }
+            else { grade = HitGrade.Ok; multiplier = t.okMultiplier; scatter = t.okScatter; }   // timing never misses
         }
 
         public HitResult Resolve(HitInput input)
@@ -81,8 +81,8 @@ namespace Sandspike.Players
             var result = new HitResult { contact = true };
             GradeTiming(Mathf.Abs(input.timingError), out result.grade, out result.timingMultiplier, out float scatter);
 
-            // Out of reach, or a swing way off the ideal moment: a Miss. The ball is not touched.
-            if (input.closestDistance > input.reachRadius || result.grade == HitGrade.Miss)
+            // Out of reach is the only Miss. The ball is not touched.
+            if (input.closestDistance > input.reachRadius)
             {
                 result.grade = HitGrade.Miss;
                 result.contact = false;

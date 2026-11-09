@@ -50,14 +50,14 @@ namespace Sandspike.Players
         [SerializeField] float backLimit = 11f;
 
         [Header("Hitting")]
-        [SerializeField] float reachRadius = 0.6f;          // ball must pass this close to the contact point
+        [SerializeField] float reachRadius = 1.0f;          // ball must pass this close to the contact point
         [Tooltip("Contact points relative to the player (x right, y up from the feet, z forward). They move with the player and the jump.")]
         [SerializeField] Vector3 bumpContactOffset = new Vector3(0f, 0.9f, 0.35f);    // forearms at waist height
         [SerializeField] Vector3 setContactOffset = new Vector3(0f, 2.0f, 0.15f);     // hands just above the head
         [SerializeField] Vector3 spikeContactOffset = new Vector3(0f, 2.3f, 0.3f);    // hitting hand at full overhead reach (spike and serve)
         [SerializeField] float hitCooldown = 0.25f;
-        [SerializeField] float timingLookBack = 0.4f;      // how far into the past / future we search for the ideal moment
-        [SerializeField] float timingLookAhead = 1.0f;
+        [SerializeField] float timingLookBack = 0f;      // a ball that has already passed the player is a miss
+        [SerializeField] float timingLookAhead = 6f;      // look all the way to the landing: a press queues the hit
 
         [Header("Charge, stamina, hit numbers")]
         [SerializeField] Stamina stamina = new Stamina();
@@ -221,20 +221,21 @@ namespace Sandspike.Players
         public Vector3 HitPoint(HitType type) => ContactPointAt(type, 0f);
 
         // A swing that is inside the timing window but early: held until the moment of contact.
-        struct PendingHit { public bool active; public float fireAt; public HitType type; public HitResult result; public float timingError; public float charge; public Vector3 contactPoint; public float idealTime; public float releaseTime; public Vector3 aim; }
+        struct PendingHit { public bool active; public float fireAt; public HitType type; public HitResult result; public float timingError; public float charge; public Vector3 contactPoint; public float idealTime; public float releaseTime; public Vector3 aim; public int launchCount; }
         PendingHit pending;
 
         /// <summary>
         /// A hit attempt (the button release for spike/serve, the press for bump/set).
-        /// - ball out of reach of the contact point, or |release - ideal| beyond the Ok window: MISS, nothing is touched;
-        /// - otherwise the hit connects, graded by the timing error. If the release was early, the hit is held and
+        /// - ball never comes within reach (or already passed): MISS, nothing is touched;
+        /// - otherwise the hit connects (timing only nudges power >= 85% and scatter <= 0.5 m). If the ball is not there yet, the hit is queued and
         ///   executes at the moment of contact (closest approach).
         /// timingOverride (seconds, release minus ideal) replaces the real timing; for checks.
         /// Returns true if an attempt was registered (hit, held hit or miss).
         /// </summary>
         public bool AttemptHit(HitType type, float charge, float? timingOverride = null)
         {
-            if (ball == null || !ball.IsInFlight || cooldownLeft > 0f || pending.active) return false;
+            if (ball == null || !ball.IsInFlight || cooldownLeft > 0f) return false;
+            pending.active = false;   // a new press replaces a queued hit
 
             // Ideal contact = when the ball's arc passes closest to the (moving) contact point.
             if (!ball.TryFindContact(d => ContactPointAt(type, d), timingLookBack, timingLookAhead, out float offset, out float distance)) return false;
@@ -257,12 +258,11 @@ namespace Sandspike.Players
             });
 
             if (type == HitType.Spike || type == HitType.Serve) stamina.SpendSpike(charge); else stamina.SpendHit(charge);
-            cooldownLeft = hitCooldown;
 
             // Early release inside the window: hold it until the ball reaches the contact point.
-            if (result.contact && offset > 0f && !timingOverride.HasValue)
+            if (result.contact && offset > 0.02f && !timingOverride.HasValue)
             {
-                pending = new PendingHit { active = true, fireAt = Time.time + offset, type = type, result = result, timingError = timingError, charge = charge, contactPoint = contactPoint, idealTime = Time.time + offset, releaseTime = Time.time, aim = aim };
+                pending = new PendingHit { active = true, fireAt = Time.time + offset, type = type, result = result, timingError = timingError, charge = charge, contactPoint = contactPoint, idealTime = Time.time + offset, releaseTime = Time.time, aim = aim, launchCount = ball.LaunchCount };
                 return true;
             }
 
@@ -274,7 +274,10 @@ namespace Sandspike.Players
         void Finish(HitType type, float charge, HitResult result, float timingError, Vector3 contactPoint, float idealTime, float releaseTime, Vector3 aim)
         {
             if (result.contact)
+            {
+                cooldownLeft = hitCooldown;
                 ball.Launch(ball.Position, result.target, result.flightTime, true);
+            }
 
             var report = new HitReport
             {
@@ -283,13 +286,14 @@ namespace Sandspike.Players
                 contactPoint = contactPoint, idealTime = idealTime, releaseTime = releaseTime,
             };
             LastReport = report;
+            Debug.Log($"[Hit] {type} contact={result.contact} grade={result.grade} err={timingError:F2} charge={charge:F2} quality={result.quality:F2} flight={result.flightTime:F2} target={result.target}");
             OnHitAttempt?.Invoke(report);
         }
 
         void UpdatePending()
         {
             if (!pending.active) return;
-            if (ball == null || !ball.IsInFlight) { pending.active = false; return; }
+            if (ball == null || !ball.IsInFlight || ball.LaunchCount != pending.launchCount) { pending.active = false; return; }
             if (Time.time < pending.fireAt) return;
             pending.active = false;
             Finish(pending.type, pending.charge, pending.result, pending.timingError, pending.contactPoint, pending.idealTime, pending.releaseTime, pending.aim);

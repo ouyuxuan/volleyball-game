@@ -56,6 +56,10 @@ Working title: **"Sandspike"** (easy to change).
 - **Stamina:** a bar per player. Charged jumps and charged spikes spend it in proportion to the
   charge; it refills over time, faster while standing still. With low stamina the charge cap drops,
   so you can't max-jump and max-spike every rally.
+- **Update after playtest (overrides the timing details below):** a press always does the action
+  when the ball comes within reach. A tap with no charge is a normal, softer touch, and an early press
+  waits for the ball. Timing only nudges power and accuracy a little. The only miss is being out of
+  position, or pressing after the ball has already gone past. There are no on-screen grade texts.
 - **Timing is about contact with your body, never about the ball landing.** Each hit type has a
   contact point on the player that moves with them: **forearms at waist height for a bump, hands
   just above the head for a set, the hitting hand at full overhead reach for a spike or serve.** The

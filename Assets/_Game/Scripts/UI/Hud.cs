@@ -9,7 +9,7 @@ namespace Sandspike.UI
 {
     /// <summary>
     /// The in-game HUD (uGUI + TextMeshPro, built into the scene): stamina bar, jump and spike charge meters,
-    /// the PERFECT / GOOD / OK / MISS pop after each hit, and the 1st-person crosshair.
+    /// and the 1st-person crosshair.
     /// All colours come from Palette. M2 adds the score.
     /// </summary>
     public class Hud : MonoBehaviour
@@ -24,17 +24,12 @@ namespace Sandspike.UI
         [SerializeField] Image spikeFill;
         [SerializeField] Image[] capMarkers;         // thin lines on the charge meters showing the current max charge
 
-        [Header("Hit pop")]
-        [SerializeField] TMP_Text popText;
-        [SerializeField] float popSeconds = 0.9f;
-        [SerializeField] float popStartScale = 1.5f;
 
         [Header("Crosshair (1st person only)")]
         [SerializeField] GameObject crosshair;
 
         [SerializeField] float lowStaminaFraction = 0.4f;
 
-        float popTimer;
 
         void Awake()
         {
@@ -50,14 +45,8 @@ namespace Sandspike.UI
 
         void Start()
         {
-            if (player != null) player.OnHitAttempt += OnHit;
-            if (popText != null) popText.alpha = 0f;
         }
 
-        void OnDestroy()
-        {
-            if (player != null) player.OnHitAttempt -= OnHit;
-        }
 
         void Update()
         {
@@ -82,31 +71,7 @@ namespace Sandspike.UI
             if (crosshair != null && rig != null && crosshair.activeSelf != rig.IsFirstPerson)
                 crosshair.SetActive(rig.IsFirstPerson);
 
-            UpdatePop();
         }
 
-        void OnHit(HitReport report)
-        {
-            if (popText == null) return;
-            switch (report.grade)
-            {
-                case HitGrade.Perfect: popText.text = "PERFECT"; popText.color = Palette.Accent; break;
-                case HitGrade.Good:    popText.text = "GOOD";    popText.color = Palette.CourtLines; break;
-                case HitGrade.Miss:    popText.text = "MISS";    popText.color = Palette.TeamA; break;
-                default:               popText.text = "OK";      popText.color = Palette.Sky; break;
-            }
-            popTimer = popSeconds;
-        }
-
-        void UpdatePop()
-        {
-            if (popText == null) return;
-            if (popTimer <= 0f) { popText.alpha = 0f; return; }
-            popTimer -= Time.deltaTime;
-            float k = Mathf.Clamp01(popTimer / popSeconds);             // 1 -> 0
-            float pop = Mathf.Lerp(1f, popStartScale, Mathf.Pow(k, 4f)); // quick pop at the start, then settle
-            popText.rectTransform.localScale = Vector3.one * pop;
-            popText.alpha = Mathf.Clamp01(k * 3f);                       // hold, then fade at the end
-        }
     }
 }
