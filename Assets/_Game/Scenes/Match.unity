@@ -2425,7 +2425,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5712126402815434030, guid: f3022a98b9b2e094da4004f07c9ddb45, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1098672772}
   m_SourcePrefab: {fileID: 100100000, guid: f3022a98b9b2e094da4004f07c9ddb45, type: 3}
 --- !u!4 &527901061 stripped
 Transform:
@@ -2469,7 +2472,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4510931411001988097, guid: f3022a98b9b2e094da4004f07c9ddb45, type: 3}
   m_PrefabInstance: {fileID: 527901060}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1098672771}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 11d9b59c3eae71e44ad64c63d8374035, type: 3}
@@ -2480,7 +2483,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4911366926808683706, guid: f3022a98b9b2e094da4004f07c9ddb45, type: 3}
   m_PrefabInstance: {fileID: 527901060}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1098672771}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4df267f4838e0404584aa8430b1d2f76, type: 3}
@@ -5591,6 +5594,26 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1087218987}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1098672771 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5712126402815434030, guid: f3022a98b9b2e094da4004f07c9ddb45, type: 3}
+  m_PrefabInstance: {fileID: 527901060}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1098672772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1098672771}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2218d420f933f9479f99e428a7cdc00, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Sandspike::Sandspike.Players.HitCue
+  player: {fileID: 0}
+  glowIntensity: 3
+  ringThickness: 0.12
 --- !u!1 &1105388718
 GameObject:
   m_ObjectHideFlags: 0

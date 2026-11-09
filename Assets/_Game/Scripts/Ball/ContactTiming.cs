@@ -23,21 +23,8 @@ namespace Sandspike.Ball
         /// <summary>Takeoff speed for a jump that peaks at 'apex' metres: v = sqrt(2*g*h).</summary>
         public static float JumpSpeed(float gravity, float apex) => Mathf.Sqrt(2f * gravity * apex);
 
-        /// <summary>
-        /// Extra upward acceleration (m/s^2) that, applied for 'boostSeconds' while rising, lifts a tap jump
-        /// (apex 'tapApex') to 'fullApex'. Solves apex(a) = fullApex for the physical (smaller net-gravity) root.
-        /// </summary>
-        public static float JumpBoostAccel(float gravity, float tapApex, float fullApex, float boostSeconds)
-        {
-            float v0 = JumpSpeed(gravity, tapApex), t = boostSeconds;
-            // apex = v0*t - n*t^2/2 + (v0 - n*t)^2/(2g), with n = g - a the net gravity during the boost.
-            float qa = t * t / (2f * gravity);
-            float qb = -(t * t / 2f + v0 * t / gravity);
-            float qc = v0 * t - (fullApex - tapApex);
-            float disc = Mathf.Max(0f, qb * qb - 4f * qa * qc);
-            float n = (-qb - Mathf.Sqrt(disc)) / (2f * qa);
-            return gravity - n;
-        }
+        /// <summary>True when the ball is within 'reach' metres of the contact point (drives the "hit now" cue).</summary>
+        public static bool InReach(Vector3 ball, Vector3 contact, float reach) => (ball - contact).sqrMagnitude <= reach * reach;
 
         /// <summary>
         /// Finds the time in [tMin, tMax] when ballAt(t) is closest to contactAt(t).

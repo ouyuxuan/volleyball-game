@@ -32,6 +32,7 @@ namespace Sandspike.Players
         [SerializeField] float stretchOnRise = 1.08f;
         [SerializeField] float squashOnLand = 0.86f;
         [SerializeField] float squashSeconds = 0.12f;
+        [SerializeField] float crouchAtFullCharge = 0.8f;   // body height factor while a jump is fully charged
         [SerializeField] float armsUpDegrees = 160f;
         [SerializeField] float swingSeconds = 0.12f;   // length of the hit swing
 
@@ -113,6 +114,7 @@ namespace Sandspike.Players
             float sy = 1f;
             if (!grounded && player.VerticalVelocity > 0.5f) sy = stretchOnRise;
             if (squashTimer > 0f) sy = Mathf.Lerp(1f, squashOnLand, squashTimer / squashSeconds);
+            if (grounded && player.JumpCharge.IsCharging) sy = Mathf.Lerp(1f, crouchAtFullCharge, player.JumpCharge.Value);   // crouch while charging a jump
             float sxz = 1f / Mathf.Sqrt(sy);                   // keep the volume roughly constant
             Vector3 target = new Vector3(rootScaleBase.x * sxz, rootScaleBase.y * sy, rootScaleBase.z * sxz);
             transform.localScale = Vector3.Lerp(transform.localScale, target, dt * 18f);

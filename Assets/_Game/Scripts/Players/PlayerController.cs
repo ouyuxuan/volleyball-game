@@ -42,8 +42,7 @@ namespace Sandspike.Players
         [SerializeField] float tapJumpHeight = 0.9f;
         [SerializeField] float fullJumpHeight = 1.6f;
         [SerializeField] float gravity = 25f;        // the player's gravity (snappier than the ball's)
-        [SerializeField] float boostSeconds = 0.35f; // how long after takeoff holding the button adds height
-        [SerializeField] float tapGrace = 0.08f;     // a press shorter than this is a plain tap (no boost); hold past it to go higher
+        [SerializeField] float chargeSeconds = 0.4f; // holding jump this long on the ground gives a full charge
 
         [Header("Court limits (this player's half)")]
         [SerializeField] float courtSide = -1f;      // -1: z below the net, +1: z above
@@ -86,6 +85,7 @@ namespace Sandspike.Players
         public float Speed01 => Mathf.Clamp01(planarVelocity.magnitude / moveSpeed);
         public Vector3 PlanarVelocity => planarVelocity;
         public float ReachRadius => reachRadius;
+        public BallController Ball => ball;
         public Transform HeadTarget => headTarget;
         public HitReport LastReport { get; private set; }
         public float LastHitTime { get; private set; } = -99f;   // Time.time of the last connected hit (the visual swings on it)
@@ -97,7 +97,7 @@ namespace Sandspike.Players
             controller = GetComponent<CharacterController>();
             brain = GetComponent<IPlayerBrain>();
             resolver = new HitResolver(hitTuning);
-            jumpCharge.secondsToFull = boostSeconds;   // the jump meter measures the boost window
+            jumpCharge.secondsToFull = chargeSeconds;
         }
 
         void Update()
@@ -156,27 +156,28 @@ namespace Sandspike.Players
 
         // ---------------- jump ----------------
 
-        // Jump fires the instant you press. Holding while rising adds a boost (stamina-limited) up to fullJumpHeight.
-        // The jump meter shows the boost used (0..1 over boostSeconds).
+        // Hold jump on the ground to charge (the body crouches), release to jump: height = lerp(tap, full, charge).
+        // A quick tap releases at once, so it still jumps right away at the tap height. Stamina caps the charge.
         void UpdateJump(float dt)
         {
             ButtonState jump = brain.Jump;
-            if (grounded) jumpCharge.Cancel();                       // landed: the meter resets
-            if (jump.Down && grounded) { Jump(); jumpCharge.Begin(); }
+            if (jump.Down && grounded) jumpCharge.Begin();
             if (!jumpCharge.IsCharging) return;
-            if (!jump.Held || verticalVelocity <= 0f) { jumpCharge.Lock(); return; }   // released early / past the apex: boost over
-
-            float used = jumpCharge.TickDelayed(dt, stamina.MaxChargeAllowed, tapGrace);   // stamina caps it; none during the tap grace
-            if (used <= 0f) return;
-            verticalVelocity += ContactTiming.JumpBoostAccel(gravity, tapJumpHeight, fullJumpHeight, boostSeconds) * used * boostSeconds;
-            stamina.SpendJump(used);                                 // cost is proportional to the boost used
+            if (jump.Up || !jump.Held)
+            {
+                float charge = jumpCharge.Release();
+                if (grounded) Jump(charge);
+            }
+            else if (!jump.Down) jumpCharge.Tick(dt, stamina.MaxChargeAllowed);   // charge builds after the press frame, so a tap stays a pure tap
         }
 
-        /// <summary>Jumps straight away to the tap height (the hold boost is added later, in UpdateJump).</summary>
-        public void Jump()
+        /// <summary>Jumps with the given charge (0 = tap hop, 1 = full jump) and spends stamina in proportion.</summary>
+        public void Jump(float charge)
         {
-            verticalVelocity = ContactTiming.JumpSpeed(gravity, tapJumpHeight);
+            float apex = Mathf.Lerp(tapJumpHeight, fullJumpHeight, Mathf.Clamp01(charge));
+            verticalVelocity = ContactTiming.JumpSpeed(gravity, apex);
             grounded = false;
+            stamina.SpendJump(charge);
         }
 
         // ---------------- hitting ----------------
@@ -205,6 +206,17 @@ namespace Sandspike.Players
                     if (!AttemptHit(chargingType, spikeCharge.Value)) spikeCharge.Cancel();   // nothing reachable: the swing does nothing
                 }
             }
+        }
+
+        /// <summary>
+        /// "Hit now" cue: true while a hit button is held and the ball is inside the reach of that hit's contact point.
+        /// 'type' is which hit is being held (where the ring goes).
+        /// </summary>
+        public bool HitReady(out HitType type)
+        {
+            type = chargingType;
+            if (!spikeCharge.IsCharging || ball == null || !ball.IsInFlight || cooldownLeft > 0f) return false;
+            return ContactTiming.InReach(ball.Position, ContactPointAt(type), reachRadius);
         }
 
         /// <summary>The contact offset (player-relative) for this kind of hit.</summary>
