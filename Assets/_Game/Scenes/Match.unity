@@ -2399,6 +2399,10 @@ PrefabInstance:
       value: 0.93
       objectReference: {fileID: 0}
     - target: {fileID: 4510931411001988097, guid: f3022a98b9b2e094da4004f07c9ddb45, type: 3}
+      propertyPath: jumpCharge.secondsToFull
+      value: 0.35
+      objectReference: {fileID: 0}
+    - target: {fileID: 4510931411001988097, guid: f3022a98b9b2e094da4004f07c9ddb45, type: 3}
       propertyPath: hitTuning.minChargeFactor
       value: 0.65
       objectReference: {fileID: 0}

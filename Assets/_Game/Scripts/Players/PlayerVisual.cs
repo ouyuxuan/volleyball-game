@@ -5,7 +5,7 @@ namespace Sandspike.Players
     /// <summary>
     /// Procedural motion for the primitive-built player (no animation clips): idle breathing,
     /// a walking/running swing of legs and arms, a lean into movement, stretch on jumps, squash on landing,
-    /// and arms thrown up while charging a spike. Everything is a tunable number.
+    /// and arms that wind back while charging a hit and swing through the contact point. Everything is a tunable number.
     /// </summary>
     public class PlayerVisual : MonoBehaviour
     {
@@ -33,6 +33,7 @@ namespace Sandspike.Players
         [SerializeField] float squashOnLand = 0.86f;
         [SerializeField] float squashSeconds = 0.12f;
         [SerializeField] float armsUpDegrees = 160f;
+        [SerializeField] float swingSeconds = 0.12f;   // length of the hit swing
 
         Vector3 bodyBase;
         Vector3 rootScaleBase;
@@ -83,10 +84,25 @@ namespace Sandspike.Players
             Swing(legLeft, swing * legSwingDegrees);
             Swing(legRight, -swing * legSwingDegrees);
 
-            bool armsUp = player.SpikeCharge.IsCharging || !player.IsGrounded;
-            float armTarget = armsUp ? -armsUpDegrees * Mathf.Max(0.4f, player.SpikeCharge.IsCharging ? 0.5f + player.SpikeCharge.Value * 0.5f : 0.6f) : 0f;
-            SwingSmooth(armLeft, armsUp ? armTarget : -swing * armSwingDegrees, dt);
-            SwingSmooth(armRight, armsUp ? armTarget : swing * armSwingDegrees, dt);
+            // Arms: a hit wind-up pulls them BACK by the charge (never above the contact point); the hit plays a quick swing
+            // through the contact pose; otherwise they hang / swing with the gait, or sit mid-raised in the air.
+            bool swinging = Time.time - player.LastHitTime < swingSeconds;
+            if (swinging || player.WindingUp)
+            {
+                HitType type = swinging ? player.LastReport.type : player.WindUpType;
+                float charge = swinging ? 0f : player.SpikeCharge.Value;
+                ArmPose(type, charge, swinging, out float left, out float right);
+                float rate = swinging ? 40f : 14f;
+                SwingSmooth(armLeft, left, dt, rate);
+                SwingSmooth(armRight, right, dt, rate);
+            }
+            else
+            {
+                bool armsUp = !player.IsGrounded;     // -96 degrees: well below the spike contact point
+                float armTarget = -armsUpDegrees * 0.6f;
+                SwingSmooth(armLeft, armsUp ? armTarget : -swing * armSwingDegrees, dt);
+                SwingSmooth(armRight, armsUp ? armTarget : swing * armSwingDegrees, dt);
+            }
 
             // Stretch while rising, squash briefly on landing.
             bool grounded = player.IsGrounded;
@@ -102,14 +118,33 @@ namespace Sandspike.Players
             transform.localScale = Vector3.Lerp(transform.localScale, target, dt * 18f);
         }
 
+        // Arm angles in degrees about the shoulder (0 = hanging down, negative = raised forward / up, -180 = straight up).
+        // The hitter's arm cocks back as the charge grows; the swing pose is the contact pose (the highest the hand goes).
+        static void ArmPose(HitType type, float charge, bool swing, out float left, out float right)
+        {
+            switch (type)
+            {
+                case HitType.Bump:   // arms low and together; pulled back as charge builds, swung up to the waist-high contact
+                    left = right = swing ? -60f : Mathf.Lerp(-25f, 15f, charge);
+                    break;
+                case HitType.Set:    // hands at the forehead; elbows draw in a little with charge, swing to the overhead contact
+                    left = right = swing ? -150f : Mathf.Lerp(-125f, -100f, charge);
+                    break;
+                default:             // spike / serve: off arm up for balance, hitting arm cocked back behind the head
+                    left = -100f;
+                    right = swing ? -175f : Mathf.Lerp(-140f, -225f, charge);
+                    break;
+            }
+        }
+
         static void Swing(Transform t, float degrees)
         {
             if (t != null) t.localRotation = Quaternion.Euler(degrees, 0f, 0f);
         }
 
-        static void SwingSmooth(Transform t, float degrees, float dt)
+        static void SwingSmooth(Transform t, float degrees, float dt, float rate = 14f)
         {
-            if (t != null) t.localRotation = Quaternion.Slerp(t.localRotation, Quaternion.Euler(degrees, 0f, 0f), dt * 14f);
+            if (t != null) t.localRotation = Quaternion.Slerp(t.localRotation, Quaternion.Euler(degrees, 0f, 0f), dt * rate);
         }
     }
 }

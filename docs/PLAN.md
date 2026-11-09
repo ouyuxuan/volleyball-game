@@ -56,6 +56,12 @@ Working title: **"Sandspike"** (easy to change).
 - **Stamina:** a bar per player. Charged jumps and charged spikes spend it in proportion to the
   charge; it refills over time, faster while standing still. With low stamina the charge cap drops,
   so you can't max-jump and max-spike every rally.
+- **Playtest 2 (overrides the charge details above):** charging is a **wind-up**. While you hold a
+  hit button the arm pulls back, but the contact point never moves. The hit fires as a swing through
+  that fixed point when the ball arrives, with whatever charge you've built by then. Releasing early
+  just locks the charge. **Jump fires the instant you press.** Holding it while rising carries you
+  higher, up to the cap, and that extra height costs stamina. A plain press and a plain hit with no
+  holding just work.
 - **Update after playtest (overrides the timing details below):** a press always does the action
   when the ball comes within reach. A tap with no charge is a normal, softer touch, and an early press
   waits for the ball. Timing only nudges power and accuracy a little. The only miss is being out of
@@ -177,6 +183,18 @@ with move, charged jump, bump/set/charged spike, stamina; 3rd-person cursor aim 
 crosshair aim with the V toggle; landing and aim markers; full gamepad bindings with right-stick
 aim and device-aware button prompts. EditMode tests for trajectory, hit
 resolution (charge × timing) and stamina.
+
+**Feel additions (after looking at genre reference footage; general ideas only, our own art):**
+- **Readable ball:** a slightly oversized ball with a bright outline. Hard hits leave a speed trail
+  whose length scales with power. → M5 (outline in M2, so rallies are readable from the start)
+- **Higher, wider 3rd-person camera:** raise and pull back the default 3rd-person view so both
+  sides of the court and the ball's arc are readable at once. → small tuning right after the
+  current hit-feel fix, before M2
+- **Dive:** a new action (keyboard: Shift, gamepad: B / Circle, both currently free)
+  that throws the player a few metres toward the move direction. It extends bump reach low and far
+  and costs some stamina, with a short get-up recovery. AI uses it too. → M2 for the player, M3 for AI
+- **Clean HUD:** score at the top and a small marker over your player. Stamina and charge move to a
+  compact ring at the player's feet, instead of screen-corner bars. → M2 (HUD rebuild)
 
 **M2 — Full rally and rules.** `RulesEngine`, `MatchManager`, charged serve, scoring to 11 / 21 / 25
 with win by 2, HUD (score, serve indicator, touch count, stamina bar, charge meters, timing

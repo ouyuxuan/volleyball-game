@@ -18,7 +18,7 @@ namespace Sandspike.Players
         public float flightTime;
         public Vector3 contactPoint;   // where the hands/forearms were at the ideal moment
         public float idealTime;        // Time.time of the ideal contact moment
-        public float releaseTime;      // Time.time when the button was released (or pressed, for bump/set)
+        public float pressTime;        // Time.time when the button was pressed
     }
 
     /// <summary>
@@ -42,6 +42,7 @@ namespace Sandspike.Players
         [SerializeField] float tapJumpHeight = 0.9f;
         [SerializeField] float fullJumpHeight = 1.6f;
         [SerializeField] float gravity = 25f;        // the player's gravity (snappier than the ball's)
+        [SerializeField] float boostSeconds = 0.35f; // how long after takeoff holding the button adds height
 
         [Header("Court limits (this player's half)")]
         [SerializeField] float courtSide = -1f;      // -1: z below the net, +1: z above
@@ -86,12 +87,16 @@ namespace Sandspike.Players
         public float ReachRadius => reachRadius;
         public Transform HeadTarget => headTarget;
         public HitReport LastReport { get; private set; }
+        public float LastHitTime { get; private set; } = -99f;   // Time.time of the last connected hit (the visual swings on it)
+        public bool WindingUp => spikeCharge.IsCharging || spikeCharge.Value > 0f;
+        public HitType WindUpType => chargingType;
 
         void Awake()
         {
             controller = GetComponent<CharacterController>();
             brain = GetComponent<IPlayerBrain>();
             resolver = new HitResolver(hitTuning);
+            jumpCharge.secondsToFull = boostSeconds;   // the jump meter measures the boost window
         }
 
         void Update()
@@ -150,51 +155,57 @@ namespace Sandspike.Players
 
         // ---------------- jump ----------------
 
+        // Jump fires the instant you press. Holding while rising adds a boost (stamina-limited) up to fullJumpHeight.
+        // The jump meter shows the boost used (0..1 over boostSeconds).
         void UpdateJump(float dt)
         {
             ButtonState jump = brain.Jump;
-            if (jump.Down && grounded) jumpCharge.Begin();
-            if (jumpCharge.IsCharging)
-            {
-                jumpCharge.Tick(dt, stamina.MaxChargeAllowed);
-                if (jump.Up || !jump.Held)
-                {
-                    float charge = jumpCharge.Release();
-                    if (grounded) Jump(charge);
-                }
-            }
+            if (grounded) jumpCharge.Cancel();                       // landed: the meter resets
+            if (jump.Down && grounded) { Jump(); jumpCharge.Begin(); }
+            if (!jumpCharge.IsCharging) return;
+            if (!jump.Held || verticalVelocity <= 0f) { jumpCharge.Lock(); return; }   // released early / past the apex: boost over
+
+            float before = jumpCharge.Value;
+            jumpCharge.Tick(dt, stamina.MaxChargeAllowed);           // the stamina cap limits the boost
+            float used = jumpCharge.Value - before;
+            if (used <= 0f) { jumpCharge.Lock(); return; }
+            verticalVelocity += ContactTiming.JumpBoostAccel(gravity, tapJumpHeight, fullJumpHeight, boostSeconds) * used * boostSeconds;
+            stamina.SpendJump(used);                                 // cost is proportional to the boost used
         }
 
-        /// <summary>Jumps with the given charge (0 = tap hop, 1 = full jump) and spends stamina.</summary>
-        public void Jump(float charge)
+        /// <summary>Jumps straight away to the tap height (the hold boost is added later, in UpdateJump).</summary>
+        public void Jump()
         {
-            float apex = Mathf.Lerp(tapJumpHeight, fullJumpHeight, Mathf.Clamp01(charge));
-            verticalVelocity = Mathf.Sqrt(2f * gravity * apex);      // v = sqrt(2*g*h)
+            verticalVelocity = ContactTiming.JumpSpeed(gravity, tapJumpHeight);
             grounded = false;
-            stamina.SpendJump(charge);
         }
 
         // ---------------- hitting ----------------
 
         HitType chargingType;
+        bool queued;     // this press has a hit waiting for the contact moment
 
-        // Spike, bump and set are all hold-to-charge: one shared charge meter for whichever button is held.
-        // Release (the "swing") resolves the hit against the contact-point timing windows.
+        // Spike, bump and set are wind-ups. PRESS queues the hit at once (it fires when the ball reaches the fixed
+        // contact point) and starts the charge. Holding builds charge until then; RELEASE only locks it.
         void UpdateHits(float dt)
         {
             ButtonState spike = brain.Spike, bump = brain.Bump, set = brain.Set;
             if (!spikeCharge.IsCharging)
             {
-                if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Spike; }
-                else if (bump.Down) { spikeCharge.Begin(); chargingType = HitType.Bump; }
-                else if (set.Down) { spikeCharge.Begin(); chargingType = HitType.Set; }
+                if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Spike; queued = false; }
+                else if (bump.Down) { spikeCharge.Begin(); chargingType = HitType.Bump; queued = false; }
+                else if (set.Down) { spikeCharge.Begin(); chargingType = HitType.Set; queued = false; }
             }
             if (spikeCharge.IsCharging)
             {
                 spikeCharge.Tick(dt, stamina.MaxChargeAllowed);
+                if (!queued) queued = AttemptHit(chargingType);   // no reachable ball yet? keep looking while held
                 ButtonState b = chargingType == HitType.Spike ? spike : chargingType == HitType.Bump ? bump : set;
-                if (b.Up || !b.Held)
-                    AttemptHit(chargingType, spikeCharge.Release());
+                if (spikeCharge.IsCharging && (b.Up || !b.Held))
+                {
+                    if (queued) spikeCharge.Lock();    // keep the charge built so far; the queued hit fires with it
+                    else spikeCharge.Cancel();         // nothing was reachable: the press does nothing
+                }
             }
         }
 
@@ -220,19 +231,18 @@ namespace Sandspike.Players
 
         public Vector3 HitPoint(HitType type) => ContactPointAt(type, 0f);
 
-        // A swing that is inside the timing window but early: held until the moment of contact.
-        struct PendingHit { public bool active; public float fireAt; public HitType type; public HitResult result; public float timingError; public float charge; public Vector3 contactPoint; public float idealTime; public float releaseTime; public Vector3 aim; public int launchCount; }
+        // A queued hit: waits for the moment of contact, then fires with the charge built by then.
+        struct PendingHit { public bool active; public float fireAt; public HitType type; public HitInput input; public float? chargeOverride; public float timingError; public Vector3 contactPoint; public float idealTime; public float pressTime; public int launchCount; }
         PendingHit pending;
 
         /// <summary>
-        /// A hit attempt (the button release for spike/serve, the press for bump/set).
+        /// A hit attempt (a button press). The contact point is fixed per hit type; charge never moves it.
         /// - ball never comes within reach (or already passed): MISS, nothing is touched;
-        /// - otherwise the hit connects (timing only nudges power >= 85% and scatter <= 0.5 m). If the ball is not there yet, the hit is queued and
-        ///   executes at the moment of contact (closest approach).
-        /// timingOverride (seconds, release minus ideal) replaces the real timing; for checks.
-        /// Returns true if an attempt was registered (hit, held hit or miss).
+        /// - otherwise the hit is queued and fires at the moment of contact (closest approach) with the charge built by then.
+        /// Timing: a press earlier than the contact is Perfect; only a late one (timingOverride > 0, for checks) is nudged.
+        /// charge (0..1) replaces the live charge meter; for checks. Returns true if an attempt was registered (hit, queued or miss).
         /// </summary>
-        public bool AttemptHit(HitType type, float charge, float? timingOverride = null)
+        public bool AttemptHit(HitType type, float? charge = null, float? timingOverride = null)
         {
             if (ball == null || !ball.IsInFlight || cooldownLeft > 0f) return false;
             pending.active = false;   // a new press replaces a queued hit
@@ -241,13 +251,13 @@ namespace Sandspike.Players
             if (!ball.TryFindContact(d => ContactPointAt(type, d), timingLookBack, timingLookAhead, out float offset, out float distance)) return false;
 
             Vector3 contactPoint = ContactPointAt(type, offset);
-            float timingError = timingOverride ?? -offset;   // negative = early, positive = late
+            float timingError = timingOverride ?? Mathf.Max(0f, -offset);   // early press = Perfect (0)
             Vector3 aim = brain != null ? brain.AimPoint : new Vector3(0f, 0f, -courtSide * 4f);
 
-            HitResult result = resolver.Resolve(new HitInput
+            var input = new HitInput
             {
                 type = type,
-                charge = charge,
+                charge = charge ?? spikeCharge.Value,
                 timingError = timingError,
                 closestDistance = distance,
                 reachRadius = reachRadius,
@@ -255,27 +265,30 @@ namespace Sandspike.Players
                 aimPoint = aim,
                 hitterPosition = transform.position,
                 ballPosition = ball.Position,
-            });
+            };
+            HitResult result = resolver.Resolve(input);
 
-            if (type == HitType.Spike || type == HitType.Serve) stamina.SpendSpike(charge); else stamina.SpendHit(charge);
-
-            // Early release inside the window: hold it until the ball reaches the contact point.
+            // Ball not at the contact point yet: hold the hit until it gets there.
             if (result.contact && offset > 0.02f && !timingOverride.HasValue)
             {
-                pending = new PendingHit { active = true, fireAt = Time.time + offset, type = type, result = result, timingError = timingError, charge = charge, contactPoint = contactPoint, idealTime = Time.time + offset, releaseTime = Time.time, aim = aim, launchCount = ball.LaunchCount };
+                pending = new PendingHit { active = true, fireAt = Time.time + offset, type = type, input = input, chargeOverride = charge, timingError = timingError, contactPoint = contactPoint, idealTime = Time.time + offset, pressTime = Time.time, launchCount = ball.LaunchCount };
                 return true;
             }
 
-            Finish(type, charge, result, timingError, contactPoint, Time.time + offset, Time.time, aim);
+            Finish(type, input.charge, result, timingError, contactPoint, Time.time + offset, Time.time, aim);
             return true;
         }
 
-        // Applies the result: launches the ball on a connect, leaves it alone on a Miss, and reports it.
-        void Finish(HitType type, float charge, HitResult result, float timingError, Vector3 contactPoint, float idealTime, float releaseTime, Vector3 aim)
+        // Applies the result: spends stamina, launches the ball on a connect (a Miss leaves it alone), and reports it.
+        void Finish(HitType type, float charge, HitResult result, float timingError, Vector3 contactPoint, float idealTime, float pressTime, Vector3 aim)
         {
+            if (type == HitType.Spike || type == HitType.Serve) stamina.SpendSpike(charge); else stamina.SpendHit(charge);
+            spikeCharge.Cancel();     // the wind-up is spent; a new press starts a new one
+            queued = false;
             if (result.contact)
             {
                 cooldownLeft = hitCooldown;
+                LastHitTime = Time.time;
                 ball.Launch(ball.Position, result.target, result.flightTime, true);
             }
 
@@ -283,7 +296,7 @@ namespace Sandspike.Players
             {
                 type = type, grade = result.grade, contact = result.contact, timingError = timingError,
                 charge = charge, quality = result.quality, aimPoint = aim, target = result.target, flightTime = result.flightTime,
-                contactPoint = contactPoint, idealTime = idealTime, releaseTime = releaseTime,
+                contactPoint = contactPoint, idealTime = idealTime, pressTime = pressTime,
             };
             LastReport = report;
             Debug.Log($"[Hit] {type} contact={result.contact} grade={result.grade} err={timingError:F2} charge={charge:F2} quality={result.quality:F2} flight={result.flightTime:F2} target={result.target}");
@@ -293,10 +306,23 @@ namespace Sandspike.Players
         void UpdatePending()
         {
             if (!pending.active) return;
-            if (ball == null || !ball.IsInFlight || ball.LaunchCount != pending.launchCount) { pending.active = false; return; }
+            if (ball == null || !ball.IsInFlight || ball.LaunchCount != pending.launchCount)
+            {
+                pending.active = false;   // the ball was hit by someone else / reset: this wind-up is void
+                queued = false;
+                if (!spikeCharge.IsCharging) spikeCharge.Cancel();
+                return;
+            }
             if (Time.time < pending.fireAt) return;
             pending.active = false;
-            Finish(pending.type, pending.charge, pending.result, pending.timingError, pending.contactPoint, pending.idealTime, pending.releaseTime, pending.aim);
+
+            // Swing now with the charge built so far, aimed where the player looks at this moment.
+            HitInput input = pending.input;
+            input.charge = pending.chargeOverride ?? spikeCharge.Value;
+            if (brain != null) input.aimPoint = brain.AimPoint;
+            input.hitterPosition = transform.position;
+            input.ballPosition = ball.Position;
+            Finish(pending.type, input.charge, resolver.Resolve(input), pending.timingError, pending.contactPoint, pending.idealTime, pending.pressTime, input.aimPoint);
         }
 
         // ---------------- facing ----------------

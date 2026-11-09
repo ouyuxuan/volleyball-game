@@ -33,6 +33,9 @@ namespace Sandspike.Players
             return v;
         }
 
+        /// <summary>Stop charging but keep the value (a released wind-up keeps what it built).</summary>
+        public void Lock() { IsCharging = false; }
+
         public void Cancel() { IsCharging = false; Value = 0f; }
     }
 }
