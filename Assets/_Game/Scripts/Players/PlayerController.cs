@@ -59,7 +59,7 @@ namespace Sandspike.Players
         [SerializeField] Vector3 spikeContactOffset = new Vector3(0f, 2.3f, 0.3f);    // hitting hand at full overhead reach (spike and serve)
         [SerializeField] float hitCooldown = 0.25f;
         [SerializeField] float timingLookBack = 0f;      // a ball that has already passed the player is a miss
-        [SerializeField] float timingLookAhead = 6f;      // look all the way to the landing: a press queues the hit
+        [SerializeField] float timingLookAhead = 6f;      // look all the way to the landing: a release queues the hit
 
         [Header("Charge, stamina, hit numbers")]
         [SerializeField] Stamina stamina = new Stamina();
@@ -182,28 +182,27 @@ namespace Sandspike.Players
         // ---------------- hitting ----------------
 
         HitType chargingType;
-        bool queued;     // this press has a hit waiting for the contact moment
 
-        // Spike, bump and set are wind-ups. PRESS queues the hit at once (it fires when the ball reaches the fixed
-        // contact point) and starts the charge. Holding builds charge until then; RELEASE only locks it.
+        // Spike, bump and set are wind-ups. PRESS starts the charge and pulls the arm back; nothing is hit while the
+        // button is held. RELEASE swings: a ball in reach is hit at once, one arriving later is queued for the contact
+        // moment (a quick tap), and one that already passed (or never comes close) is left alone.
         void UpdateHits(float dt)
         {
             ButtonState spike = brain.Spike, bump = brain.Bump, set = brain.Set;
             if (!spikeCharge.IsCharging)
             {
-                if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Spike; queued = false; }
-                else if (bump.Down) { spikeCharge.Begin(); chargingType = HitType.Bump; queued = false; }
-                else if (set.Down) { spikeCharge.Begin(); chargingType = HitType.Set; queued = false; }
+                if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Spike; }
+                else if (bump.Down) { spikeCharge.Begin(); chargingType = HitType.Bump; }
+                else if (set.Down) { spikeCharge.Begin(); chargingType = HitType.Set; }
             }
             if (spikeCharge.IsCharging)
             {
                 spikeCharge.Tick(dt, stamina.MaxChargeAllowed);
-                if (!queued) queued = AttemptHit(chargingType);   // no reachable ball yet? keep looking while held
                 ButtonState b = chargingType == HitType.Spike ? spike : chargingType == HitType.Bump ? bump : set;
-                if (spikeCharge.IsCharging && (b.Up || !b.Held))
+                if (b.Up || !b.Held)
                 {
-                    if (queued) spikeCharge.Lock();    // keep the charge built so far; the queued hit fires with it
-                    else spikeCharge.Cancel();         // nothing was reachable: the press does nothing
+                    spikeCharge.Lock();                                              // keep the charge built so far
+                    if (!AttemptHit(chargingType, spikeCharge.Value)) spikeCharge.Cancel();   // nothing reachable: the swing does nothing
                 }
             }
         }
@@ -248,6 +247,7 @@ namespace Sandspike.Players
 
             // Ideal contact = when the ball's arc passes closest to the (moving) contact point.
             if (!ball.TryFindContact(d => ContactPointAt(type, d), timingLookBack, timingLookAhead, out float offset, out float distance)) return false;
+            if (distance > reachRadius) return false;   // passed already, or never comes within reach: the swing touches nothing
 
             Vector3 contactPoint = ContactPointAt(type, offset);
             float timingError = timingOverride ?? Mathf.Max(0f, -offset);   // early press = Perfect (0)
@@ -282,8 +282,7 @@ namespace Sandspike.Players
         void Finish(HitType type, float charge, HitResult result, float timingError, Vector3 contactPoint, float idealTime, float pressTime, Vector3 aim)
         {
             if (type == HitType.Spike || type == HitType.Serve) stamina.SpendSpike(charge); else stamina.SpendHit(charge);
-            spikeCharge.Cancel();     // the wind-up is spent; a new press starts a new one
-            queued = false;
+            if (!spikeCharge.IsCharging) spikeCharge.Cancel();   // the swing is spent (a wind-up already started for the next hit is left alone)
             if (result.contact)
             {
                 cooldownLeft = hitCooldown;
@@ -308,7 +307,6 @@ namespace Sandspike.Players
             if (ball == null || !ball.IsInFlight || ball.LaunchCount != pending.launchCount)
             {
                 pending.active = false;   // the ball was hit by someone else / reset: this wind-up is void
-                queued = false;
                 if (!spikeCharge.IsCharging) spikeCharge.Cancel();
                 return;
             }

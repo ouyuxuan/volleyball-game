@@ -1,0 +1,18 @@
+using Sandspike.Players;
+using UnityEngine;
+
+namespace Sandspike.Tests
+{
+    /// <summary>A plain-C# brain a test can set by hand: only the bump button matters for the hit tests.</summary>
+    public class FakeBrain : IPlayerBrain
+    {
+        public ButtonState bump;
+
+        public Vector2 Move => Vector2.zero;
+        public Vector3 AimPoint => new Vector3(0f, 0f, 4f);
+        public ButtonState Jump => default;
+        public ButtonState Spike => default;
+        public ButtonState Bump => bump;
+        public ButtonState Set => default;
+    }
+}

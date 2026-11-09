@@ -56,10 +56,15 @@ Working title: **"Sandspike"** (easy to change).
 - **Stamina:** a bar per player. Charged jumps and charged spikes spend it in proportion to the
   charge; it refills over time, faster while standing still. With low stamina the charge cap drops,
   so you can't max-jump and max-spike every rally.
-- **Playtest 2 (overrides the charge details above):** charging is a **wind-up**. While you hold a
-  hit button the arm pulls back, but the contact point never moves. The hit fires as a swing through
-  that fixed point when the ball arrives, with whatever charge you've built by then. Releasing early
-  just locks the charge. **Jump fires the instant you press.** Holding it while rising carries you
+- **Playtest 3 (overrides playtest 2 for hits):** **the hit happens when you let go of the button,
+  never while you're still holding it.** Holding winds up and builds charge, and the arm pulls back
+  while the contact point stays fixed. Releasing swings:
+  - If the ball is within reach at that moment, it's hit right away.
+  - If you release a little early, the swing waits and fires when the ball arrives. That's the
+    quick-tap case.
+  - If you're still holding when the ball passes you, you don't touch it, and it drops.
+- **Playtest 2 (jump part still applies):** charging is a **wind-up**. While you hold a
+  hit button the arm pulls back, but the contact point never moves. **Jump fires the instant you press.** Holding it while rising carries you
   higher, up to the cap, and that extra height costs stamina. A plain press and a plain hit with no
   holding just work.
 - **Update after playtest (overrides the timing details below):** a press always does the action
