@@ -4,7 +4,7 @@ An arcade 2v2 beach volleyball game made in Unity, in a bright low-poly style. I
 prototype: right now you can move, jump and hit balls fed to you on a beach court. Rally scoring
 and AI teammates and opponents come next.
 
-![Third-person view of the beach court](docs/captures/camera-3rd-wide.png)
+![Third-person view of the beach court](docs/captures/camera-3rd-low.png)
 
 ## How it plays
 
