@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "discord": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["Tools/discord-mcp/server.mjs"],
+      "env": {
+        "DISCORD_BOT_TOKEN": "${DISCORD_BOT_TOKEN:-}",
+        "DISCORD_GUILD_ID": "${DISCORD_GUILD_ID:-}",
+        "DISCORD_CHANNEL_IDS": "${DISCORD_CHANNEL_IDS:-}",
+        "NODE_USE_ENV_PROXY": "1"
+      }
+    }
+  }
+}
