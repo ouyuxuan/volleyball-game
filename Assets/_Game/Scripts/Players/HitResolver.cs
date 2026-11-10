@@ -136,6 +136,18 @@ namespace Sandspike.Players
             return result;
         }
 
+        /// <summary>
+        /// The aim point that makes a hit LAND on 'target': undoes the charge distance scale of a bump or set
+        /// (the bots use it). Spikes and serves already aim straight at the target.
+        /// </summary>
+        public Vector3 AimFor(HitType type, float charge, Vector3 from, Vector3 target)
+        {
+            charge = Mathf.Clamp01(charge);
+            float scale = type == HitType.Bump ? Mathf.Lerp(t.bumpDistanceScaleSoft, t.bumpDistanceScaleHard, charge)
+                        : type == HitType.Set ? Mathf.Lerp(t.setDistanceScaleSoft, t.setDistanceScaleHard, charge) : 1f;
+            return new Vector3(from.x + (target.x - from.x) / scale, 0f, from.z + (target.z - from.z) / scale);
+        }
+
         /// <summary>A set stays on the hitter's own half and near (but not on top of) the net.</summary>
         Vector3 ClampSetTarget(Vector3 target, Vector3 hitterPosition)
         {

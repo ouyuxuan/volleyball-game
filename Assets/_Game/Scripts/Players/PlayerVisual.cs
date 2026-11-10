@@ -35,6 +35,7 @@ namespace Sandspike.Players
         [SerializeField] float crouchAtFullCharge = 0.8f;   // body height factor while a jump is fully charged
         [SerializeField] float armsUpDegrees = 160f;
         [SerializeField] float swingSeconds = 0.12f;   // length of the hit swing
+        [SerializeField] float diveLeanDegrees = 78f;      // the whole body tips forward this far in a dive
 
         Vector3 bodyBase;
         Vector3 rootScaleBase;
@@ -99,7 +100,7 @@ namespace Sandspike.Players
             }
             else
             {
-                bool armsUp = !player.IsGrounded;     // -96 degrees: well below the spike contact point
+                bool armsUp = !player.IsGrounded || player.DiveAmount > 0.1f;     // -96 degrees: well below the spike contact point (arms reach out in a dive)
                 float armTarget = -armsUpDegrees * 0.6f;
                 SwingSmooth(armLeft, armsUp ? armTarget : -swing * armSwingDegrees, dt);
                 SwingSmooth(armRight, armsUp ? armTarget : swing * armSwingDegrees, dt);
@@ -115,6 +116,9 @@ namespace Sandspike.Players
             if (!grounded && player.VerticalVelocity > 0.5f) sy = stretchOnRise;
             if (squashTimer > 0f) sy = Mathf.Lerp(1f, squashOnLand, squashTimer / squashSeconds);
             if (grounded && player.JumpCharge.IsCharging) sy = Mathf.Lerp(1f, crouchAtFullCharge, player.JumpCharge.Value);   // crouch while charging a jump
+            float dive = player.DiveAmount;                      // lunging: tip the whole body forward, a little flatter
+            sy = Mathf.Lerp(sy, 0.92f, dive);
+            transform.localRotation = Quaternion.Slerp(transform.localRotation, Quaternion.Euler(diveLeanDegrees * dive, 0f, 0f), dt * 22f);
             float sxz = 1f / Mathf.Sqrt(sy);                   // keep the volume roughly constant
             Vector3 target = new Vector3(rootScaleBase.x * sxz, rootScaleBase.y * sy, rootScaleBase.z * sxz);
             transform.localScale = Vector3.Lerp(transform.localScale, target, dt * 18f);

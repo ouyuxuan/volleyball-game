@@ -28,5 +28,6 @@ namespace Sandspike.Players
         ButtonState Spike { get; }
         ButtonState Bump { get; }
         ButtonState Set { get; }
+        ButtonState Dive { get; }
     }
 }

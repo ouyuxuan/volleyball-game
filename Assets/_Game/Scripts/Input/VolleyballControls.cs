@@ -183,6 +183,26 @@ namespace Sandspike.Controls
                     ""interactions"": """",
                     ""initialStateCheck"": false,
                     ""priority"": 0
+                },
+                {
+                    ""name"": ""Dive"",
+                    ""type"": ""Button"",
+                    ""id"": ""a1b2c3d4-0001-4aaa-8bbb-000000000001"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""ToggleHints"",
+                    ""type"": ""Button"",
+                    ""id"": ""a1b2c3d4-0002-4aaa-8bbb-000000000002"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
                 }
             ],
             ""bindings"": [
@@ -424,7 +444,40 @@ namespace Sandspike.Controls
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
-                    ""action"": ""FeedBall"",
+                    ""action"": ""ToggleHints"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1b2c3d4-0003-4aaa-8bbb-000000000003"",
+                    ""path"": ""<Keyboard>/h"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""ToggleHints"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1b2c3d4-0004-4aaa-8bbb-000000000004"",
+                    ""path"": ""<Keyboard>/leftShift"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Dive"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1b2c3d4-0005-4aaa-8bbb-000000000005"",
+                    ""path"": ""<Gamepad>/buttonEast"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""Dive"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -472,6 +525,8 @@ namespace Sandspike.Controls
             m_Gameplay_ToggleView = m_Gameplay.FindAction("ToggleView", throwIfNotFound: true);
             m_Gameplay_Pause = m_Gameplay.FindAction("Pause", throwIfNotFound: true);
             m_Gameplay_FeedBall = m_Gameplay.FindAction("FeedBall", throwIfNotFound: true);
+            m_Gameplay_Dive = m_Gameplay.FindAction("Dive", throwIfNotFound: true);
+            m_Gameplay_ToggleHints = m_Gameplay.FindAction("ToggleHints", throwIfNotFound: true);
         }
 
         ~@VolleyballControls()
@@ -561,6 +616,8 @@ namespace Sandspike.Controls
         private readonly InputAction m_Gameplay_ToggleView;
         private readonly InputAction m_Gameplay_Pause;
         private readonly InputAction m_Gameplay_FeedBall;
+        private readonly InputAction m_Gameplay_Dive;
+        private readonly InputAction m_Gameplay_ToggleHints;
         /// <summary>
         /// Provides access to input actions defined in input action map "Gameplay".
         /// </summary>
@@ -608,6 +665,14 @@ namespace Sandspike.Controls
             /// Provides access to the underlying input action "Gameplay/FeedBall".
             /// </summary>
             public InputAction @FeedBall => m_Wrapper.m_Gameplay_FeedBall;
+            /// <summary>
+            /// Provides access to the underlying input action "Gameplay/Dive".
+            /// </summary>
+            public InputAction @Dive => m_Wrapper.m_Gameplay_Dive;
+            /// <summary>
+            /// Provides access to the underlying input action "Gameplay/ToggleHints".
+            /// </summary>
+            public InputAction @ToggleHints => m_Wrapper.m_Gameplay_ToggleHints;
             /// <summary>
             /// Provides access to the underlying input action map instance.
             /// </summary>
@@ -661,6 +726,12 @@ namespace Sandspike.Controls
                 @FeedBall.started += instance.OnFeedBall;
                 @FeedBall.performed += instance.OnFeedBall;
                 @FeedBall.canceled += instance.OnFeedBall;
+                @Dive.started += instance.OnDive;
+                @Dive.performed += instance.OnDive;
+                @Dive.canceled += instance.OnDive;
+                @ToggleHints.started += instance.OnToggleHints;
+                @ToggleHints.performed += instance.OnToggleHints;
+                @ToggleHints.canceled += instance.OnToggleHints;
             }
 
             /// <summary>
@@ -699,6 +770,12 @@ namespace Sandspike.Controls
                 @FeedBall.started -= instance.OnFeedBall;
                 @FeedBall.performed -= instance.OnFeedBall;
                 @FeedBall.canceled -= instance.OnFeedBall;
+                @Dive.started -= instance.OnDive;
+                @Dive.performed -= instance.OnDive;
+                @Dive.canceled -= instance.OnDive;
+                @ToggleHints.started -= instance.OnToggleHints;
+                @ToggleHints.performed -= instance.OnToggleHints;
+                @ToggleHints.canceled -= instance.OnToggleHints;
             }
 
             /// <summary>
@@ -828,6 +905,20 @@ namespace Sandspike.Controls
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnFeedBall(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Dive" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnDive(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "ToggleHints" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnToggleHints(InputAction.CallbackContext context);
         }
     }
 }
