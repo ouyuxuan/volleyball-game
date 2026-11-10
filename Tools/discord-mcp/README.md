@@ -20,10 +20,18 @@ It lives outside `Assets/`, so Unity ignores it. `.mcp.json` at the repo root re
 2. Open **Bot**, click **Reset Token** and copy the token. Treat it like a password and never commit it.
 3. On the same page, under **Privileged Gateway Intents**, turn on **Message Content Intent**.
    Without it, every message comes back empty.
-4. Open **OAuth2 → URL Generator**. Tick the scope **bot**, then tick the permissions
-   **View Channels** and **Read Message History** only. Open the generated URL and add the bot
-   to your server. You need the Manage Server permission for this step.
-5. If the feedback channels are private, give the bot's role access to them.
+4. Still on **Bot**, turn **Public Bot** off so only you can add it to servers. If that saves
+   with an error, first set **Installation → Install Link** to **None**.
+5. Copy the **Application ID** from **General Information**, put it in this URL and open it:
+
+   ```
+   https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot&permissions=66560
+   ```
+
+   `66560` grants only **View Channels** + **Read Message History**. Pick your server and click
+   **Authorize**. You need the Manage Server permission there. (Or build the same URL in
+   **OAuth2 → URL Generator** by ticking scope **bot** and those two permissions.)
+6. If the feedback channels are private, give the bot's role access to them.
 
 ## 2. Get the IDs
 
