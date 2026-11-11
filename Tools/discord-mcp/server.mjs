@@ -70,11 +70,15 @@ async function checkAllowed(channelId) {
 
 // Shrink a Discord message to the fields useful for reading feedback.
 function slimMessage(m) {
+  // Forwarded messages keep their text, files and embeds in message_snapshots, not on the message itself.
+  const fwd = m.message_snapshots?.[0]?.message;
+  if (fwd) m = { ...m, content: fwd.content, attachments: fwd.attachments, embeds: fwd.embeds };
   return {
     id: m.id,
     time: m.timestamp,
     author: m.author?.global_name || m.author?.username,
     bot: m.author?.bot || undefined,
+    forwarded: fwd ? true : undefined,
     content: m.content,
     reply_to: m.referenced_message?.id,
     attachments: m.attachments?.length ? m.attachments.map((a) => a.url) : undefined,
@@ -170,11 +174,11 @@ const TOOLS = [
       const q = new URLSearchParams({ limit: String(Math.min(Math.max(limit, 1), 100)) });
       if (before) q.set("before", before);
       if (after) q.set("after", after);
-      const msgs = await discordGet(`/channels/${channel_id}/messages?${q}`);
+      const msgs = (await discordGet(`/channels/${channel_id}/messages?${q}`)).map(slimMessage);
       return {
         note: UNTRUSTED_NOTE,
         channel: ch.name,
-        messages: msgs.map(slimMessage),
+        messages: msgs,
         // Empty content everywhere usually means the Message Content intent is off.
         hint: msgs.length && msgs.every((m) => !m.content && !m.embeds?.length && !m.attachments?.length)
           ? "All messages are empty: enable 'Message Content Intent' for the bot in the Discord Developer Portal."
