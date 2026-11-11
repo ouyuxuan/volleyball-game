@@ -23,7 +23,12 @@ namespace Sandspike.Players
 
         [Header("Poses")]
         [SerializeField] float poseBlendSeconds = 0.1f;     // how fast the arms move into and out of a hit pose
-        [SerializeField] float swingSeconds = 0.12f;        // keep in step with PlayerVisual
+        [SerializeField] float followThroughSeconds = 0.22f; // length of the swing after contact, long enough to read
+        [SerializeField] float bumpLiftDegrees = -95f;      // bump: the platform finishes just above level
+        [SerializeField] float bumpCrouchDepth = 0.13f;     // bump: how far the hips drop, metres
+        [SerializeField] float setPushDegrees = -150f;      // set: arms finish up and forward, clear of the head
+        [SerializeField] float spikeContactDegrees = -170f; // spike: arm is at the top when the ball is struck
+        [SerializeField] float spikeFollowDegrees = -45f;   // spike: arm finishes forward and down
         [SerializeField] float bumpArmsInward = 0.35f;      // how much the arms close together for a bump
         [SerializeField] float setHandsInward = 0.45f;      // hands meet above the forehead for a set
         [SerializeField] float diveArmDegrees = -150f;      // arms reach ahead in a dive
@@ -32,6 +37,7 @@ namespace Sandspike.Players
 
         Animator animator;
         Transform upperL, lowerL, fistL, upperR, lowerR, fistR;
+        Transform bodyBone, upperLegL, lowerLegL, upperLegR, lowerLegR;
         float poseWeight;
         bool spawned;
 
@@ -91,6 +97,9 @@ namespace Sandspike.Players
 
             upperL = Find(model.transform, "UpperArm.L"); lowerL = Find(model.transform, "LowerArm.L"); fistL = Find(model.transform, "Fist.L");
             upperR = Find(model.transform, "UpperArm.R"); lowerR = Find(model.transform, "LowerArm.R"); fistR = Find(model.transform, "Fist.R");
+            bodyBone = Find(model.transform, "Body");
+            upperLegL = Find(model.transform, "UpperLeg.L"); lowerLegL = Find(model.transform, "LowerLeg.L");
+            upperLegR = Find(model.transform, "UpperLeg.R"); lowerLegR = Find(model.transform, "LowerLeg.R");
         }
 
         // Runs after the Animator has posed the skeleton, so our arm aim wins.
@@ -98,15 +107,17 @@ namespace Sandspike.Players
         {
             if (animator == null || upperL == null || upperR == null) return;
 
-            bool swinging = Time.time - player.LastHitTime < swingSeconds;
-            bool hitPose = swinging || player.WindingUp;
+            float swing = (Time.time - player.LastHitTime) / Mathf.Max(0.01f, followThroughSeconds);   // 0..1 through the swing
+            bool swinging = swing < 1f;
+            bool queued = player.HasQueuedHit;               // released early: hold the wind-up until the ball arrives
+            bool hitPose = swinging || queued || player.WindingUp;
             bool diving = player.DiveAmount > 0.1f;
             poseWeight = Mathf.MoveTowards(poseWeight, hitPose || diving ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, poseBlendSeconds));
             if (poseWeight <= 0f) return;
 
-            HitType type = swinging ? player.LastReport.type : player.WindUpType;
+            HitType type = swinging ? player.LastReport.type : queued ? player.QueuedHitType : player.WindUpType;
             float left, right;
-            if (hitPose) PlayerVisual.ArmPose(type, swinging ? 0f : player.SpikeCharge.Value, swinging, out left, out right);
+            if (hitPose) PlayerVisual.ArmPose(type, player.SpikeCharge.Value, false, out left, out right);   // the wind-up pose
             else { left = right = diveArmDegrees; type = HitType.Bump; }
 
             // The shared pose table was tuned for the primitive body. On this model a bump needs the arms held
@@ -114,10 +125,40 @@ namespace Sandspike.Players
             if (hitPose && type == HitType.Bump) left = right = Mathf.Min(left - bumpForwardDegrees, -bumpForwardDegrees);
             if (hitPose && type == HitType.Set) { left -= setRaiseDegrees; right -= setRaiseDegrees; }
 
+            // The swing: each touch moves its own way from the wind-up through the ball.
+            float crouch = hitPose && type == HitType.Bump ? 1f : 0f;
+            if (swinging)
+            {
+                float ease = 1f - (1f - swing) * (1f - swing);   // fast start, soft finish
+                if (type == HitType.Bump) { left = right = Mathf.Lerp(left, bumpLiftDegrees, ease); crouch = 1f - ease; }   // platform lifts, legs push up
+                else if (type == HitType.Set) left = right = Mathf.Lerp(left, setPushDegrees, ease);                        // hands push up and through
+                else { right = Mathf.Lerp(spikeContactDegrees, spikeFollowDegrees, ease); left = Mathf.Lerp(left, -30f, ease); }   // whip over the top and down
+            }
+            Crouch(crouch * poseWeight);
+
             float inward = !hitPose ? 0.15f : type == HitType.Bump ? bumpArmsInward : type == HitType.Set ? setHandsInward : 0f;
-            bool bendElbows = hitPose && (type == HitType.Set || (!swinging && type != HitType.Bump));   // set, and the cocked spike arm
-            AimArm(upperL, lowerL, fistL, left, +inward, bendElbows && type == HitType.Set);
-            AimArm(upperR, lowerR, fistR, right, -inward, bendElbows);
+            bool cocked = hitPose && !swinging && type != HitType.Bump && type != HitType.Set;      // the spike arm before the swing
+            bool setElbows = hitPose && type == HitType.Set && (!swinging || swing < 0.5f);         // elbows straighten in the push
+            AimArm(upperL, lowerL, fistL, left, +inward, setElbows);
+            AimArm(upperR, lowerR, fistR, right, -inward, setElbows || cocked);
+        }
+
+        // Bump stance: drop the hips and bend the knees. The feet are separate bones that stay planted on the sand,
+        // so lowering the body by 'depth' and folding each leg by the matching angle keeps the legs attached to them.
+        void Crouch(float amount)
+        {
+            if (amount <= 0f || bodyBone == null || upperLegL == null || lowerLegL == null) return;
+            float thigh = Vector3.Distance(upperLegL.position, lowerLegL.position);
+            float depth = Mathf.Min(bumpCrouchDepth * amount, thigh * 1.2f);
+            bodyBone.position += Vector3.down * depth;
+            float angle = Mathf.Acos(Mathf.Clamp01(1f - depth / (2f * thigh))) * Mathf.Rad2Deg;
+            Vector3 axis = transform.right;
+            foreach (var (upper, lower) in new[] { (upperLegL, lowerLegL), (upperLegR, lowerLegR) })
+            {
+                if (upper == null || lower == null) continue;
+                upper.rotation = Quaternion.AngleAxis(-angle, axis) * upper.rotation;        // thigh swings forward
+                lower.rotation = Quaternion.AngleAxis(2f * angle, axis) * lower.rotation;    // shin folds back under it
+            }
         }
 
         // Points an arm along 'degrees' (0 = hanging down, -90 = forward, -180 = straight up), measured on the body.

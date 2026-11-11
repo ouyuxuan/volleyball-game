@@ -126,6 +126,8 @@ namespace Sandspike.Players
         /// <summary>True while this player is the server and the ball is held: a spike-button hold/release serves.</summary>
         public bool ServeMode { get; set; }
         public bool IsDiving => diving;
+        public bool HasQueuedHit => pending.active;          // a released hit is waiting for the ball (the visual holds its pose)
+        public HitType QueuedHitType => pending.type;
         public bool IsRecovering => recoverLeft > 0f;
         /// <summary>0 = upright, 1 = fully down (diving); eases back to 0 during the get-up. PlayerVisual uses it.</summary>
         public float DiveAmount => diving ? 1f : (diveRecoverySeconds > 0f ? Mathf.Clamp01(recoverLeft / diveRecoverySeconds) : 0f);

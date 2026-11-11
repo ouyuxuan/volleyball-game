@@ -225,6 +225,12 @@ counterpart. Arcs are defined by **apex height and speed**, not one shared fligh
 | Contact feel | Dull thud, ball pops up off the arms | Quick soft release, almost no spin | Hit-stop (about 60 ms), camera shake, loud crack, speed trail, heavy spin |
 | Typical use | Receiving serves and spikes | Second touch, to put the ball up for the spiker | Third touch, over the net |
 
+**Touch identity status: done.** Bump and spike arcs, momentum, combo and contact feel are in, and
+each touch has its own pose and swing on the character (bump crouch and lift, set push, spike whip and
+follow-through, and the pose holds while a released hit waits for the ball). Not done: a separate
+backset pose (the player turns to face the aim, so a backset looks like a normal set), and sounds and
+the ball trail (M5).
+
 **Settled by playtest (these override the table and the list below, and this pass must not change them):**
 - **Set:** lands at the aim point; apex 4.0–7.2 m by charge (about 1.5 s to 2.2 s of flight); the bot
   teammate sets full height and tracks the human.
