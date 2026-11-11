@@ -35,7 +35,13 @@ namespace Sandspike.Players
         [SerializeField] float bumpForwardDegrees = 35f;    // bump platform: arms at least this far forward of hanging
         [SerializeField] float setRaiseDegrees = 20f;       // set: hands this much higher than the shared pose
 
+        [SerializeField] float burnoutTint = 0.55f;         // how far the colours shift toward Shadow while burned out
+
         Animator animator;
+        SkinnedMeshRenderer skinRenderer;
+        Color[] baseColors = new Color[0];
+        MaterialPropertyBlock block;
+        bool tinted;
         Transform upperL, lowerL, fistL, upperR, lowerR, fistR;
         Transform bodyBone, upperLegL, lowerLegL, upperLegR, lowerLegR;
         float poseWeight;
@@ -52,6 +58,18 @@ namespace Sandspike.Players
             if (animator == null) return;
             animator.SetFloat(SpeedId, player.Speed01, 0.1f, Time.deltaTime);
             animator.SetBool(GroundedId, player.IsGrounded && !player.IsDiving);
+
+            // Burnout: the whole character pulses toward the cool shadow colour until it wears off.
+            float burn = player.IsBurnedOut ? burnoutTint * (0.75f + 0.25f * Mathf.Sin(Time.time * 12f)) : 0f;
+            if (skinRenderer != null && (burn > 0f || tinted))
+            {
+                for (int i = 0; i < baseColors.Length; i++)
+                {
+                    block.SetColor("_BaseColor", Color.Lerp(baseColors[i], Palette.Shadow, burn));
+                    skinRenderer.SetPropertyBlock(block, i);
+                }
+                tinted = burn > 0f;
+            }
         }
 
         void Spawn()
@@ -77,6 +95,7 @@ namespace Sandspike.Players
             bool teamA = player.Team == 0;
             bool altLook = (player.PlayerId / 2 + player.PlayerId) % 2 == 1;   // vary skin and hair between players
             var slots = skin.sharedMaterials;
+            baseColors = new Color[slots.Length];
             for (int i = 0; i < slots.Length; i++)
             {
                 string n = slots[i] != null ? slots[i].name : "";
@@ -87,8 +106,11 @@ namespace Sandspike.Players
                         : n.StartsWith("Face") ? Palette.Eyes
                         : (altLook ? Palette.HairDark : Palette.HairLight);
                 slots[i] = Flat(c);
+                baseColors[i] = c;
             }
             skin.sharedMaterials = slots;
+            skinRenderer = skin;
+            block = new MaterialPropertyBlock();
 
             animator = model.GetComponent<Animator>();
             if (animator == null) animator = model.AddComponent<Animator>();
