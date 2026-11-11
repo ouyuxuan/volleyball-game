@@ -38,7 +38,7 @@ namespace Sandspike.Players
         public float bumpTimeSoft = 1.6f;
         public float bumpTimeHard = 1.2f;
         public float setApexMin = 4.0f;       // a set's peak above the sand at charge 0 (quick, low set, about 1.5 s)
-        public float setApexMax = 7.0f;       // ...and at full charge (about 2.2 s): charge picks the height, not the distance
+        public float setApexMax = 7.2f;       // ...and at full charge (about 2.25 s; a set for a human takes 1.9 s+ to fall to spike height): charge picks the height, not the distance
         public float spikeSlowTime = 0.9f;     // quality 0
         public float spikeFastTime = 0.35f;    // quality 1
         public float serveSlowTime = 1.6f;

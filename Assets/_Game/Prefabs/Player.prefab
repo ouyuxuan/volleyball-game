@@ -1394,7 +1394,7 @@ MonoBehaviour:
     bumpTimeSoft: 1.6
     bumpTimeHard: 1.2
     setApexMin: 4
-    setApexMax: 7
+    setApexMax: 7.2
     spikeSlowTime: 0.9
     spikeFastTime: 0.35
     serveSlowTime: 1.6

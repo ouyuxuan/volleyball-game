@@ -33,6 +33,24 @@ namespace Sandspike.Tests
         }
 
         [Test]
+        public void SetForHuman_IsFullChargeAtTheHumansX()
+        {
+            BotPlanner.PlanSet(true, 2.5f, 4f, 1f, -1f, 0.54f, 1.5f, 1f, 2f, out float c, out Vector3 t);
+            Assert.AreEqual(1f, c);
+            Assert.AreEqual(new Vector3(2.5f, 0f, -2f), t);
+            BotPlanner.PlanSet(true, 9f, 4f, 1f, 1f, 0.54f, 1.5f, 1f, 2f, out c, out t);
+            Assert.AreEqual(3f, t.x, "clamped 1 m inside the court");
+        }
+
+        [Test]
+        public void SetForBot_KeepsTheOldChargeAndTarget()
+        {
+            BotPlanner.PlanSet(false, 2.5f, 4f, 1f, -1f, 0.54f, 1.5f, 1f, 2f, out float c, out Vector3 t);
+            Assert.AreEqual(0.54f, c);
+            Assert.AreEqual(new Vector3(2.5f, 0f, -1.5f), t);
+        }
+
+        [Test]
         public void AimFor_UndoesTheBumpDistanceScale()
         {
             var resolver = new HitResolver(new HitTuning());

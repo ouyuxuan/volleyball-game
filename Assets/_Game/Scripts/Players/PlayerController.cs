@@ -168,6 +168,9 @@ namespace Sandspike.Players
         /// <summary>Swaps the brain (the MatchManager's auto-play switch uses it).</summary>
         public void SetBrain(IPlayerBrain newBrain) { brain = newBrain; }
 
+        /// <summary>The brain driving this player right now (a HumanBrain for the person, a SimpleBotBrain for a bot).</summary>
+        public IPlayerBrain Brain => brain;
+
         Vector3 FlatForward()
         {
             Vector3 f = Vector3.ProjectOnPlane(transform.forward, Vector3.up);

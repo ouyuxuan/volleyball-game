@@ -135,10 +135,10 @@ namespace Sandspike.Tests
         }
 
         [Test]
-        public void Set_ApexComesFromCharge_4mTo7m_AndFlightTimeFollowsTheApex()
+        public void Set_ApexComesFromCharge_4mTo72m_AndFlightTimeFollowsTheApex()
         {
             var aim = new Vector3(0f, 0f, -2.5f);
-            foreach (var (charge, apex) in new[] { (0f, 4f), (0.5f, 5.5f), (1f, 7f) })
+            foreach (var (charge, apex) in new[] { (0f, 4f), (0.5f, 5.6f), (1f, 7.2f) })
             {
                 var input = Input(HitType.Set, 0f, charge, aim);
                 var r = Make().Resolve(input);

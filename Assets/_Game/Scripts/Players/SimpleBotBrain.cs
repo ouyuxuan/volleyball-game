@@ -25,6 +25,18 @@ namespace Sandspike.Players
         {
             return Mathf.Abs(ballZ) <= maxNetDistance && ballHeight >= minHeight;
         }
+
+        /// <summary>
+        /// Where a set goes and how hard to charge it. For a human teammate: full charge, straight to the human's x
+        /// (kept 'inset' inside the court), 'humanDistance' from the net. For a bot teammate: the old charge and target.
+        /// </summary>
+        public static void PlanSet(bool mateIsHuman, float mateX, float halfWidth, float inset, float side,
+            float botCharge, float botDistance, float humanCharge, float humanDistance, out float charge, out Vector3 target)
+        {
+            float x = Mathf.Clamp(mateX, -(halfWidth - inset), halfWidth - inset);
+            charge = mateIsHuman ? humanCharge : botCharge;
+            target = new Vector3(x, 0f, side * (mateIsHuman ? humanDistance : botDistance));
+        }
     }
 
     /// <summary>
@@ -50,6 +62,8 @@ namespace Sandspike.Players
         [SerializeField] float targetInset = 1f;        // over-the-net targets stay this far inside the lines
         [SerializeField] float bumpDistanceFromNet = 2f;
         [SerializeField] float setDistanceFromNet = 1.5f;
+        [SerializeField] float setDistanceFromNetForHuman = 2f;   // a set for a human lands this far from the net, at the human's x
+        [SerializeField, Range(0f, 1f)] float setChargeForHuman = 1f;   // sets for a human are full charge (highest, longest)
         [SerializeField] float ignoreOutBy = 0.3f;      // a ball landing farther out than this is left alone
 
         [Header("Spike")]
@@ -88,7 +102,7 @@ namespace Sandspike.Players
         HitType planType;
         bool planJump, jumped, pressed, released, lateRelease;
         Vector3 planStand, planAim;
-        float planContactAt;
+        float planContactAt, setPressLead;
 
         public Vector2 Move => move;
         public Vector3 AimPoint => aim;
@@ -231,9 +245,18 @@ namespace Sandspike.Players
             Vector3 contact = BallAt(contactTime);
             Vector3 flatBall = new Vector3(contact.x, 0f, contact.z);
             float estCharge = Mathf.Clamp01((pressLead - releaseLead) / Mathf.Max(0.01f, me.SpikeCharge.secondsToFull));
+            setPressLead = pressLead;
 
             if (choice == BotHit.Bump) target = new Vector3(mateX, 0f, side * bumpDistanceFromNet);
-            else if (choice == BotHit.Set) target = new Vector3(mateX, 0f, side * setDistanceFromNet);
+            else if (choice == BotHit.Set)
+            {
+                // A set for a human teammate is full charge and lands near the human; the bot holds the button long enough.
+                bool mateIsHuman = mate != null && mate.Brain is HumanBrain;
+                float mx = mate != null ? mate.transform.position.x : 0f;
+                BotPlanner.PlanSet(mateIsHuman, mx, match.HalfWidth, targetInset, side, estCharge, setDistanceFromNet,
+                    setChargeForHuman, setDistanceFromNetForHuman, out estCharge, out target);
+                setPressLead = mateIsHuman ? estCharge * me.SpikeCharge.secondsToFull + releaseLead : pressLead;
+            }
             else
             {
                 // Over the net: try random spots in the opponent's half until the shot clears the net (spike first, then a bump over).
@@ -300,7 +323,8 @@ namespace Sandspike.Players
             if (planJump && !jumped && remaining <= jumpRiseSeconds + jumpMarginSeconds) { jump.want = true; jumped = true; }
 
             Btn button = planType == HitType.Spike ? spike : planType == HitType.Set ? set : bump;
-            if (!pressed && remaining <= pressLead) { button.want = true; pressed = true; }
+            float lead = planType == HitType.Set ? setPressLead : pressLead;
+            if (!pressed && remaining <= lead) { button.want = true; pressed = true; }
             float releaseAt = lateRelease ? releaseLead - lateReleaseSeconds : releaseLead;
             if (pressed && !released && remaining <= releaseAt) { button.want = false; released = true; }
         }
