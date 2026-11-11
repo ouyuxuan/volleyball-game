@@ -102,7 +102,8 @@ namespace Sandspike.Players
         HitType planType;
         bool planJump, jumped, pressed, released, lateRelease;
         Vector3 planStand, planAim;
-        float planContactAt, setPressLead;
+        float planContactAt, setPressLead, setCharge;
+        bool setTracksHuman;     // a set for a human: the aim follows the human until the button is released
 
         public Vector2 Move => move;
         public Vector3 AimPoint => aim;
@@ -246,6 +247,7 @@ namespace Sandspike.Players
             Vector3 flatBall = new Vector3(contact.x, 0f, contact.z);
             float estCharge = Mathf.Clamp01((pressLead - releaseLead) / Mathf.Max(0.01f, me.SpikeCharge.secondsToFull));
             setPressLead = pressLead;
+            setTracksHuman = false;
 
             if (choice == BotHit.Bump) target = new Vector3(mateX, 0f, side * bumpDistanceFromNet);
             else if (choice == BotHit.Set)
@@ -255,7 +257,9 @@ namespace Sandspike.Players
                 float mx = mate != null ? mate.transform.position.x : 0f;
                 BotPlanner.PlanSet(mateIsHuman, mx, match.HalfWidth, targetInset, side, estCharge, setDistanceFromNet,
                     setChargeForHuman, setDistanceFromNetForHuman, out estCharge, out target);
-                setPressLead = mateIsHuman ? estCharge * me.SpikeCharge.secondsToFull + releaseLead : pressLead;
+                setTracksHuman = mateIsHuman;
+                setCharge = estCharge;
+                setPressLead = mateIsHuman ?estCharge * me.SpikeCharge.secondsToFull + releaseLead : pressLead;
             }
             else
             {
@@ -318,6 +322,14 @@ namespace Sandspike.Players
         {
             float remaining = planContactAt - Time.time;
             move = Toward(planStand);
+            if (setTracksHuman && !released)
+            {
+                // follow the human: re-aim at their current x every frame until the set is released
+                PlayerController mate = match.Teammate(me);
+                BotPlanner.PlanSet(true, mate.transform.position.x, match.HalfWidth, targetInset, me.CourtSide, setCharge,
+                    setDistanceFromNet, setChargeForHuman, setDistanceFromNetForHuman, out _, out Vector3 t);
+                planAim = preview.AimFor(HitType.Set, setCharge, planStand, t);
+            }
             aim = planAim;
 
             if (planJump && !jumped && remaining <= jumpRiseSeconds + jumpMarginSeconds) { jump.want = true; jumped = true; }
