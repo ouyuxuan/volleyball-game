@@ -36,7 +36,7 @@ namespace Sandspike.Players
             {
                 ballMaterial = ballRenderer.material;   // this ball's own copy, so only it glows
                 ballMaterial.EnableKeyword("_EMISSION");
-                baseEmission = ballMaterial.HasProperty("_EmissionColor") ? ballMaterial.GetColor("_EmissionColor") : Color.black;
+                baseEmission = ballMaterial.HasProperty("_EmissionColor") ? ballMaterial.GetColor("_EmissionColor") : default;
                 baseScale = ballRenderer.transform.localScale;
             }
 
