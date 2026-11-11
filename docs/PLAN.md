@@ -38,6 +38,9 @@ Working title: **"Sandspike"** (easy to change).
 | Bump (receive) | Right mouse button | X / Square |
 | Set (to teammate) | E | Y / Triangle |
 | Switch 3rd / 1st person | V | Right stick click |
+| Dive (M2) | Left Shift | B / Circle |
+| Sprint (hold, movement pass) | Left Ctrl | Left stick click |
+| Block (M3) | Jump near the net, no hit button held | same |
 | Pause | Esc | Start |
 
 **Aiming, two camera modes (toggle any time)**
@@ -224,8 +227,37 @@ counterpart. Arcs are defined by **apex height and speed**, not one shared fligh
 
 The visual and audio parts (sounds, trail) land in M5. Arcs, poses, hit-stop and shake land in this pass.
 
+Also in this pass (from community devlog research, general mechanics only):
+- **Explicit action queue.** A released hit waits until the ball comes into reach, for up to
+  0.6 s (tunable). While it waits, the player shows a "queued" pose and the hit-now cue tints to
+  match. After 0.6 s it expires silently. This formalises the early-release behaviour and is the main
+  candidate fix for the open hit-feel issue.
+- **Honest contact zones.** Bumps stay forgiving (reach about 1.0 m), sets are medium (about 0.8 m), and
+  spikes are tight (about 0.6 m), so attacking takes positioning and isn't just a long reach.
+- **Spike momentum.** Spike speed adds the attacker's horizontal speed at takeoff, so a run-up beats
+  a standing spike.
+- **Combo multiplier.** Spike speed ×1.0 on a first touch, ×1.1 on a second and ×1.2 on a third
+  touch. That rewards bump → set → spike over spiking straight back.
+- **Backset.** Aiming behind the setter sets the ball backwards, with its own pose.
+
+**Movement pass (after touch identity, before M3):**
+- **Sprint:** hold (keyboard Left Ctrl, gamepad left-stick click). About 25% faster, drains stamina
+  quickly, and is meant for run-ups and slide attacks.
+- **Less drift on standing jumps.** A jump from near standstill keeps little sideways momentum. Run-ups
+  (and sprint) carry it.
+- **Dive is always allowed, with burnout.** The "refuse dive below 15 stamina" rule goes. Diving with
+  too little stamina still happens, but the player goes into **burnout** for about 2 s: slower,
+  can't charge, with a visible effect (tinted player and a flickering ring).
+- **Jump cancel.** While charging a jump, pressing dive or a hit button cancels the charge cleanly
+  instead of jumping.
+- **Serve preview.** While charging a serve, a dotted line on the court shows the predicted serve path
+  and landing spot.
+- **Serve fault test.** A test proves a legal serve never counts as a fault, including the net-clear
+  assist.
+
 **Open issue (tabled by the user):** hitting still feels off after playtests 1–4. Revisit it after M3,
-once real rallies against AI make the problem easier to pin down.
+once real rallies against AI make the problem easier to pin down. The explicit action queue and
+honest contact zones above are the first things to try.
 
 **M2 — Full rally and rules.** *Scope note:* rules can't be played without the other three players,
 so M2 ships **simple bots** for your teammate and both opponents. They run to the predicted landing
@@ -237,25 +269,45 @@ feedback). EditMode tests for rules (touch limits, in/out, win by 2 at each matc
 **M3 — AI.** `AIBrain` for teammate and both opponents, using the same stamina/charge/timing rules;
 three difficulties. Result: a complete, winnable 2v2 match vs AI. This is the first fully playable
 build.
+- **Blocking (new, missing from the plan so far).** Jumping within about 1 m of the net with no
+  hit button held raises the hands into a block. A ball that hits the block rebounds off it. As in
+  beach volleyball, a block counts as one of the team's three touches. AI blocks on harder
+  difficulties.
+- **AI uses everything players have:** sprint, dives (with burnout), the combo multiplier and backsets.
+  Difficulty changes reaction time, positioning and hit quality.
 
 **M4 — Local multiplayer.** `PlayerJoinManager` (Input System `PlayerInputManager`) with split-screen,
 join-and-pick-side setup screen, AI fills empty slots; keyboard + mouse for one player, gamepads for
 the rest, right-stick aiming in both camera modes.
+- **Aim assist (gamepad option, on by default for gamepads).** The aim point eases toward sensible
+  targets: deep corners, the seam between opponents, and a setter spot for sets. That's less precise
+  but easier for casual players, who can focus on positioning. Mouse aim is never assisted.
 
 **M5 — Characters, feel, effects, audio** (craft floors: character-motion, game-feel, vfx,
 game-audio). Primitive-built players with team colours and idle/run/jump motion, hit-stop and camera
 shake on spikes, sand puffs, ball trail, synthesized placeholder sounds and a music loop, mixer with
 volume parameters.
+- **Context dive poses:** forward, sideways and backward dives each get their own pose.
+- **Outline check:** the ball's outline must stay clean at every camera distance. Optional rim
+  shading on characters is decided by capture in M8, not by default.
 
 **M6 — Shell.** Title screen, match setup (mode, difficulty, match length), pause, results screen,
 volume settings, scene transitions (craft floor: game-shell).
+- **Camera settings:** 3rd-person height, distance and FOV; shoulder position (left, centre or
+  right); and camera bounds that keep the view inside the play area.
+- **Rebindable controls** for every action, on keyboard and gamepad, with a reset to defaults.
+- **Match rules option: point cap.** Win by 2 stays the default, with an optional cap (for example
+  11 → 15, 21 → 25, 25 → 30) so a deuce can't go on forever.
+- **How to Play** screen covering each touch, charging, the queue, dive and burnout, block, and
+  the combo multiplier.
 
 **M7 — Saves and builds.** Cloud Save for settings and win/loss stats with a local fallback, one
 Remote Config kill switch. No leaderboard for now (a vs-AI match has no score worth ranking). Then
 Windows, Web and macOS builds with `unity build`. Web-specific check via the `optimize-web` skill.
 
 **M8 — Done gate.** `craft-game-floors` visual scorecard: score six axes from captures, fix anything
-below 3, confirm zero console errors.
+below 3, confirm zero console errors. Includes a **court clarity** check: lines, ball and players
+read clearly against the sand and props from both camera views.
 
 M0 through M3 is the core; I'd build those first and let you play before continuing.
 
@@ -268,7 +320,9 @@ M0 through M3 is the core; I'd build those first and let you play before continu
 - Deleting the template's `Assets/TutorialInfo/` and `Assets/Readme.asset`.
 
 Not included: online multiplayer, a GitHub remote (you'd need one to pull the project onto your Mac;
-easy to add later), store publishing, purchased art or music.
+easy to add later), store publishing, purchased art or music. **Later, not planned yet:**
+achievements, character customization and cosmetics, player titles, and anything online-only (chat
+moderation, server browser).
 
 ## How each step gets verified
 
