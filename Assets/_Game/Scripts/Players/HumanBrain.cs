@@ -59,6 +59,7 @@ namespace Sandspike.Players
         public ButtonState Spike => Read(Controls.Gameplay.Spike);
         public ButtonState Bump => Read(Controls.Gameplay.Bump);
         public ButtonState Set => Read(Controls.Gameplay.Set);
+        public ButtonState Dive => Read(Controls.Gameplay.Dive);
 
         static ButtonState Read(InputAction a) =>
             new ButtonState(a.WasPressedThisFrame(), a.IsPressed(), a.WasReleasedThisFrame());

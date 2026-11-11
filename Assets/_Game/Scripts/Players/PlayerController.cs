@@ -60,11 +60,26 @@ namespace Sandspike.Players
         [SerializeField] float timingLookBack = 0f;      // a ball that has already passed the player is a miss
         [SerializeField] float timingLookAhead = 6f;      // look all the way to the landing: a release queues the hit
 
+        [Header("Dive (Shift / B / Circle)")]
+        [SerializeField] float diveDistance = 3.5f;       // metres thrown toward the move direction
+        [SerializeField] float diveSeconds = 0.4f;
+        [SerializeField] float diveRecoverySeconds = 0.5f; // get-up: no moving, jumping or hitting
+        [SerializeField] Vector3 digContactOffset = new Vector3(0f, 0.35f, 0.7f);   // low and forward
+        [SerializeField] float digReachBonus = 0.3f;      // the dig reaches this much farther than a normal hit
+        [SerializeField] float digCharge = 0.3f;          // the dig is a soft auto-bump toward the aim point
+
+        [Header("Serve")]
+        [SerializeField] float serveNetMargin = 0.2f;     // a serve is slowed (lobbed) until it clears the net by this much
+        [SerializeField] float serveMaxExtraSeconds = 1.0f;
+
         [Header("Charge, stamina, hit numbers")]
         [SerializeField] Stamina stamina = new Stamina();
         [SerializeField] ChargeMeter jumpCharge = new ChargeMeter();
         [SerializeField] ChargeMeter spikeCharge = new ChargeMeter();
         [SerializeField] HitTuning hitTuning = new HitTuning();
+
+        /// <summary>Raised whenever this player connects with the ball (serve, hit or dig). The MatchManager counts touches with it.</summary>
+        public event Action<PlayerController> OnBallTouched;
 
         /// <summary>Raised after every hit attempt that was inside reach (including whiffs).</summary>
         public event Action<HitReport> OnHitAttempt;
@@ -76,6 +91,12 @@ namespace Sandspike.Players
         float verticalVelocity;
         bool grounded;
         float cooldownLeft;
+
+        // dive state
+        bool diving;
+        float diveLeft;
+        float recoverLeft;
+        Vector3 diveDir;
 
         public Stamina Stamina => stamina;
         public ChargeMeter JumpCharge => jumpCharge;
@@ -91,6 +112,17 @@ namespace Sandspike.Players
         public float LastHitTime { get; private set; } = -99f;   // Time.time of the last connected hit (the visual swings on it)
         public bool WindingUp => spikeCharge.IsCharging || spikeCharge.Value > 0f;
         public HitType WindUpType => chargingType;
+        public int PlayerId { get; set; }                 // 0..3, set by the MatchManager
+        public float CourtSide => courtSide;
+        public int Team => courtSide < 0f ? 0 : 1;
+        public HitTuning Tuning => hitTuning;
+        /// <summary>True while this player is the server and the ball is held: a spike-button hold/release serves.</summary>
+        public bool ServeMode { get; set; }
+        public bool IsDiving => diving;
+        public bool IsRecovering => recoverLeft > 0f;
+        /// <summary>0 = upright, 1 = fully down (diving); eases back to 0 during the get-up. PlayerVisual uses it.</summary>
+        public float DiveAmount => diving ? 1f : (diveRecoverySeconds > 0f ? Mathf.Clamp01(recoverLeft / diveRecoverySeconds) : 0f);
+        public Vector3 DigPoint => transform.position + FlatForward() * digContactOffset.z + Vector3.up * digContactOffset.y;
 
         void Awake()
         {
@@ -107,22 +139,55 @@ namespace Sandspike.Players
             cooldownLeft -= dt;
 
             Vector2 move = brain.Move;
-            stamina.Tick(dt, move.sqrMagnitude > 0.01f);
+            bool busy = diving || recoverLeft > 0f;
+            stamina.Tick(dt, move.sqrMagnitude > 0.01f && !busy);
 
-            Move(move, dt);
-            UpdateJump(dt);
-            UpdateHits(dt);
-            UpdatePending();
-            FaceAim(dt);
+            UpdateDive(dt, move);
+            busy = diving || recoverLeft > 0f;
+            Move(busy ? Vector2.zero : move, dt);
+            if (!busy)
+            {
+                UpdateJump(dt);
+                if (ServeMode) UpdateServe(dt); else UpdateHits(dt);
+                UpdatePending();
+                FaceAim(dt);
+            }
+        }
+
+        /// <summary>Clears any wind-up, charge, dive or queued hit (the MatchManager calls it at every new serve).</summary>
+        public void ResetState()
+        {
+            pending.active = false;
+            diving = false;
+            recoverLeft = 0f;
+            jumpCharge.Cancel();
+            spikeCharge.Cancel();
+            cooldownLeft = 0f;
+        }
+
+        /// <summary>Swaps the brain (the MatchManager's auto-play switch uses it).</summary>
+        public void SetBrain(IPlayerBrain newBrain) { brain = newBrain; }
+
+        Vector3 FlatForward()
+        {
+            Vector3 f = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+            return f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward;
         }
 
         // ---------------- movement ----------------
 
         void Move(Vector2 input, float dt)
         {
-            Vector3 wish = new Vector3(input.x, 0f, input.y) * moveSpeed;
-            float rate = wish.sqrMagnitude > 0.01f ? acceleration : deceleration;
-            planarVelocity = Vector3.MoveTowards(planarVelocity, wish, rate * dt);
+            if (diving)
+            {
+                planarVelocity = diveDir * (diveDistance / diveSeconds);   // a fixed lunge: 3.5 m in 0.4 s
+            }
+            else
+            {
+                Vector3 wish = new Vector3(input.x, 0f, input.y) * moveSpeed;
+                float rate = wish.sqrMagnitude > 0.01f ? acceleration : deceleration;
+                planarVelocity = Vector3.MoveTowards(planarVelocity, wish, rate * dt);
+            }
 
             if (grounded && verticalVelocity < 0f) verticalVelocity = -2f;   // stay pressed onto the sand
             else verticalVelocity -= gravity * dt;
@@ -152,6 +217,100 @@ namespace Sandspike.Players
             controller.enabled = true;
             planarVelocity = Vector3.zero;
             verticalVelocity = 0f;
+        }
+
+        // ---------------- dive ----------------
+
+        // Press Dive on the ground: lunge toward the move direction (or where you face), then a get-up pause.
+        // While diving, a ball near the low forward contact point is dug (auto-bumped) toward the aim point.
+        void UpdateDive(float dt, Vector2 move)
+        {
+            if (recoverLeft > 0f) recoverLeft = Mathf.Max(0f, recoverLeft - dt);
+
+            if (!diving && recoverLeft <= 0f && grounded && !ServeMode && brain.Dive.Down && stamina.CanDive)
+            {
+                stamina.SpendDive();
+                diveDir = move.sqrMagnitude > 0.01f ? new Vector3(move.x, 0f, move.y).normalized : FlatForward();
+                transform.rotation = Quaternion.LookRotation(diveDir, Vector3.up);
+                diving = true;
+                diveLeft = diveSeconds;
+                pending.active = false;
+                jumpCharge.Cancel();
+                spikeCharge.Cancel();
+            }
+            if (!diving) return;
+
+            TryDig();
+            diveLeft -= dt;
+            if (diveLeft <= 0f)
+            {
+                diving = false;
+                recoverLeft = diveRecoverySeconds;
+                planarVelocity = Vector3.zero;     // the lunge ends where it ends (3.5 m)
+            }
+        }
+
+        void TryDig()
+        {
+            if (ball == null || !ball.IsInFlight || cooldownLeft > 0f) return;
+            Vector3 p = DigPoint;
+            if (!ContactTiming.DigInReach(ball.Position, p, reachRadius, digReachBonus)) return;
+            Vector3 aim = brain.AimPoint;
+            var input = new HitInput
+            {
+                type = HitType.Bump, charge = digCharge, timingError = 0f, closestDistance = 0f, reachRadius = reachRadius,
+                contactHeight = p.y, aimPoint = aim, hitterPosition = transform.position, ballPosition = ball.Position,
+            };
+            Finish(HitType.Bump, digCharge, resolver.Resolve(input), 0f, p, Time.time, Time.time, aim);
+        }
+
+        // ---------------- serve ----------------
+
+        // The server holds the spike button to charge and lets go to serve toward the aim point (perfect timing, no ball needed in flight).
+        void UpdateServe(float dt)
+        {
+            ButtonState spike = brain.Spike;
+            if (!spikeCharge.IsCharging)
+            {
+                if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Serve; }
+                return;
+            }
+            spikeCharge.Tick(dt, stamina.MaxChargeAllowed);
+            if (spike.Up || !spike.Held)
+            {
+                spikeCharge.Lock();
+                DoServe(spikeCharge.Value);
+            }
+        }
+
+        void DoServe(float charge)
+        {
+            if (ball == null || ball.IsInFlight) { spikeCharge.Cancel(); return; }
+            Vector3 start = ball.Position;
+            Vector3 aim = brain.AimPoint;
+            var input = new HitInput
+            {
+                type = HitType.Serve, charge = charge, timingError = 0f, closestDistance = 0f, reachRadius = reachRadius,
+                contactHeight = start.y, aimPoint = aim, hitterPosition = transform.position, ballPosition = start,
+            };
+            HitResult result = resolver.Resolve(input);
+            result.flightTime = ServeFlightTime(start, result.target, result.flightTime);
+            ServeMode = false;
+            Finish(HitType.Serve, charge, result, 0f, start, Time.time, Time.time, aim);
+        }
+
+        // A serve that would hit the net is slowed down (a higher, softer arc) until it clears it.
+        float ServeFlightTime(Vector3 start, Vector3 groundTarget, float time)
+        {
+            float g = ball.Gravity;
+            Vector3 centre = new Vector3(groundTarget.x, ball.Radius, groundTarget.z);
+            float max = time + serveMaxExtraSeconds;
+            for (; time < max; time += 0.05f)
+            {
+                Vector3 v0 = BallTrajectory.SolveLaunchVelocity(start, centre, time, g);
+                if (BallTrajectory.ClearsNet(start, v0, time, BallTrajectory.NetTopHeight + serveNetMargin, ball.Radius, 0f, g)) break;
+            }
+            return time;
         }
 
         // ---------------- jump ----------------
@@ -220,7 +379,7 @@ namespace Sandspike.Players
         }
 
         /// <summary>The contact offset (player-relative) for this kind of hit.</summary>
-        Vector3 ContactOffset(HitType type)
+        public Vector3 ContactOffset(HitType type)
         {
             return type == HitType.Bump ? bumpContactOffset : type == HitType.Set ? setContactOffset : spikeContactOffset;
         }
@@ -300,6 +459,7 @@ namespace Sandspike.Players
                 cooldownLeft = hitCooldown;
                 LastHitTime = Time.time;
                 ball.Launch(ball.Position, result.target, result.flightTime, true);
+                OnBallTouched?.Invoke(this);
             }
 
             var report = new HitReport

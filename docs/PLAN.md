@@ -208,7 +208,29 @@ resolution (charge × timing) and stamina.
 - **Clean HUD:** score at the top and a small marker over your player. Stamina and charge move to a
   compact ring at the player's feet, instead of screen-corner bars. → M2 (HUD rebuild)
 
-**M2 — Full rally and rules.** `RulesEngine`, `MatchManager`, charged serve, scoring to 11 / 21 / 25
+**M2 status: done.** Rules, serve, dive, simple bots, outlined ball and the new HUD are in.
+109 tests pass, and an all-bot match ran cleanly to 11–6.
+
+**Touch identity (next pass after M2):** each touch should feel like its real-volleyball
+counterpart. Arcs are defined by **apex height and speed**, not one shared flight-time formula:
+
+| | Bump (pass/dig) | Set | Spike |
+|---|---|---|---|
+| Body | Crouched, arms locked straight together, platform at the waist | Hands up at the forehead, fingertips | Jump, arm cocked back, full overhead swing |
+| Ball path | Rises high and soft (apex about 3.5–6 m), floats to the target | Very high, gentle and **accurate** (apex about 5–6.5 m), nearly hangs at the top near the net | Fast, flat-to-downward line (about 16–28 m/s), short and sharp |
+| Charge changes | Distance and height (soft dig to a long pass) | Distance along the net only (accuracy stays high, scatter about a third of a bump's) | Speed and how steeply it goes down |
+| Contact feel | Dull thud, ball pops up off the arms | Quick soft release, almost no spin | Hit-stop (about 60 ms), camera shake, loud crack, speed trail, heavy spin |
+| Typical use | Receiving serves and spikes | Second touch, to put the ball up for the spiker | Third touch, over the net |
+
+The visual and audio parts (sounds, trail) land in M5. Arcs, poses, hit-stop and shake land in this pass.
+
+**Open issue (tabled by the user):** hitting still feels off after playtests 1–4. Revisit it after M3,
+once real rallies against AI make the problem easier to pin down.
+
+**M2 — Full rally and rules.** *Scope note:* rules can't be played without the other three players,
+so M2 ships **simple bots** for your teammate and both opponents. They run to the predicted landing
+spot and bump, set or send the ball back over the net through the same `IPlayerBrain` interface.
+M3 turns them into the real `AIBrain`, with stamina, charge, difficulty levels and dives. `RulesEngine`, `MatchManager`, charged serve, scoring to 11 / 21 / 25
 with win by 2, HUD (score, serve indicator, touch count, stamina bar, charge meters, timing
 feedback). EditMode tests for rules (touch limits, in/out, win by 2 at each match length).
 

@@ -38,6 +38,7 @@ namespace Sandspike.Art
 
         public static readonly Color HitCue      = Color.Lerp(Accent, CourtLines, 0.35f); // "hit now" glow and ring: brighter than the ball's yellow
         public static readonly Color HitRing     = Color.Lerp(TeamB, Shadow, 0.3f);       // the "hit now" ring: dark enough to read on sand
+        public static readonly Color BallOutline = Hex("#2A3558");                        // dark navy outline around the ball (inverted hull), reads on sand and sky
 
         /// <summary>Same colour with a different alpha (so other files never need a Color literal).</summary>
         public static Color WithAlpha(Color c, float a) { c.a = a; return c; }

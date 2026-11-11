@@ -26,6 +26,9 @@ namespace Sandspike.Ball
         /// <summary>True when the ball is within 'reach' metres of the contact point (drives the "hit now" cue).</summary>
         public static bool InReach(Vector3 ball, Vector3 contact, float reach) => (ball - contact).sqrMagnitude <= reach * reach;
 
+        /// <summary>The dive's dig: the low forward contact point reaches a little farther than a normal hit (reach + bonus).</summary>
+        public static bool DigInReach(Vector3 ball, Vector3 digPoint, float reach, float bonus) => InReach(ball, digPoint, reach + bonus);
+
         /// <summary>
         /// Finds the time in [tMin, tMax] when ballAt(t) is closest to contactAt(t).
         /// Returns that time and the distance (metres) at that moment.
