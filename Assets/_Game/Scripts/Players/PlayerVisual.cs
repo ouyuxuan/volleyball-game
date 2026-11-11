@@ -55,7 +55,7 @@ namespace Sandspike.Players
         /// <summary>In 1st person the camera is inside the head, so we only keep the shadow of the body.</summary>
         public void SetFirstPerson(bool firstPerson)
         {
-            if (renderers == null) return;
+            renderers = GetComponentsInChildren<Renderer>(true);   // re-read: CharacterRig adds the character model after Awake
             var mode = firstPerson ? UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly : UnityEngine.Rendering.ShadowCastingMode.On;
             foreach (var r in renderers) r.shadowCastingMode = mode;
         }
@@ -126,7 +126,7 @@ namespace Sandspike.Players
 
         // Arm angles in degrees about the shoulder (0 = hanging down, negative = raised forward / up, -180 = straight up).
         // The hitter's arm cocks back as the charge grows; the swing pose is the contact pose (the highest the hand goes).
-        static void ArmPose(HitType type, float charge, bool swing, out float left, out float right)
+        internal static void ArmPose(HitType type, float charge, bool swing, out float left, out float right)   // shared with CharacterRig
         {
             switch (type)
             {

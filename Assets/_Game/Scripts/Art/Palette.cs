@@ -40,6 +40,14 @@ namespace Sandspike.Art
         public static readonly Color HitRing     = Color.Lerp(TeamB, Shadow, 0.3f);       // the "hit now" ring: dark enough to read on sand
         public static readonly Color BallOutline = Hex("#2A3558");                        // dark navy outline around the ball (inverted hull), reads on sand and sky
 
+        // ---- Character models (CC0 low-poly people): every body part reads one of these ----
+        public static readonly Color SkinDeep    = Color.Lerp(Skin, PalmTrunk, 0.55f);       // a second, deeper skin tone
+        public static readonly Color HairDark    = Color.Lerp(PalmTrunk, BallOutline, 0.55f); // dark brown hair
+        public static readonly Color HairLight   = Color.Lerp(Accent, PalmTrunk, 0.40f);      // sandy blond hair
+        public static readonly Color Shorts      = Color.Lerp(BallOutline, Shadow, 0.20f);    // navy shorts, same for both teams
+        public static readonly Color Belt        = Color.Lerp(CourtLines, Shadow, 0.15f);     // pale waistband
+        public static readonly Color Eyes        = BallOutline;                               // dark eyes that read on any skin tone
+
         /// <summary>Same colour with a different alpha (so other files never need a Color literal).</summary>
         public static Color WithAlpha(Color c, float a) { c.a = a; return c; }
 

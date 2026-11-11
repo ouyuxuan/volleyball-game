@@ -14,4 +14,11 @@
    | Shaded sides, ambient ground, vignette | Shadow (cool dusk blue) | `#5B6C9E` |
    | Ball, score pops, highlights | Accent (sun yellow) | `#FFC53D` |
 
-3. **Mood:** Late-morning sun high and to the side, warm and a little golden; shadows fall cool blue (never black) and the sand bounces warm light back up. The ball (Accent) is the brightest, glowing thing in frame.
+   Character parts (skin tones, hair, shorts, waistband, eyes) are blends of these, defined in `Palette.cs`.
+
+3. **Characters:** friendly stylized cartoon people with big heads, simple faces and normal limbs, in
+   a coral or indigo shirt with navy shorts. The style target is `docs/concepts/concept-a-soft-toon.png`
+   and `docs/concepts/player-ref-coral.png` (soft, rounded, toy-like). The models in the game are
+   faceted low-poly (see `docs/CREDITS.md`), recoloured from the palette. They share the target's
+   proportions and colours, but not its smooth surfaces.
+4. **Mood:** Late-morning sun high and to the side, warm and a little golden; shadows fall cool blue (never black) and the sand bounces warm light back up. The ball (Accent) is the brightest, glowing thing in frame.

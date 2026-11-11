@@ -273,6 +273,13 @@ build.
   hit button held raises the hands into a block. A ball that hits the block rebounds off it. As in
   beach volleyball, a block counts as one of the team's three touches. AI blocks on harder
   difficulties.
+  - **The block zone is a shield, not a ball.** It's a flat, hand-wide zone in front of the raised
+    hands, facing the way the blocker faces. Facing and where the ball meets the hands decide where
+    the rebound goes: square to the net sends it straight back, angled hands deflect it sideways.
+  - **Strafe while blocking.** In the air, left/right input shifts the hands sideways a little.
+    On the ground near the net, the player sidesteps without turning, so facing can be set precisely.
+- **Crosshair stays one size.** The 1st-person crosshair is a fixed screen size and never scales with
+  aim distance. The ground aim ring may scale, the crosshair may not. A quick check covers it.
 - **AI uses everything players have:** sprint, dives (with burnout), the combo multiplier and backsets.
   Difficulty changes reaction time, positioning and hit quality.
 
@@ -282,6 +289,12 @@ the rest, right-stick aiming in both camera modes.
 - **Aim assist (gamepad option, on by default for gamepads).** The aim point eases toward sensible
   targets: deep corners, the seam between opponents, and a setter spot for sets. That's less precise
   but easier for casual players, who can focus on positioning. Mouse aim is never assisted.
+
+**Characters status: done early.** The primitive players are replaced by CC0 rigged low-poly
+characters in team colours (`CharacterRig.cs`), with clip animation for idle, run and jump and
+code-driven arm poses for bump, set, spike and dive. The primitive body stays in the prefab behind
+the `useCharacterModel` toggle. Still open for M5: a toon or smoother look to match the concept art,
+and hit and dive animations beyond arm poses.
 
 **M5 — Characters, feel, effects, audio** (craft floors: character-motion, game-feel, vfx,
 game-audio). Primitive-built players with team colours and idle/run/jump motion, hit-stop and camera

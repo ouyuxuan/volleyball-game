@@ -13,7 +13,8 @@ Use two tiers of model and keep each on the work it's suited to:
 
 - **Planning tier:** your strongest reasoning model (for example Claude Fable). Use it for planning,
   design and architecture decisions, reviewing finished work, and genuinely hard problems, such as a
-  bug that resists two attempts or tricky math and physics.
+  bug that resists two attempts or tricky math and physics. It also does graphics and art work
+  itself: character models, materials, poses, lighting and the overall look.
 - **Coding tier:** a fast, capable coding model (for example Claude Sonnet 5.5). Use it to write and
   edit code, set up scenes and assets, write tests, run builds, make commits, and do other routine
   work.

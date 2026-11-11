@@ -530,6 +530,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2704734489789782271}
   - component: {fileID: 7020638963834604317}
+  - component: {fileID: 7491189507805128326}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -583,7 +584,36 @@ MonoBehaviour:
   stretchOnRise: 1.08
   squashOnLand: 0.86
   squashSeconds: 0.12
+  crouchAtFullCharge: 0.8
   armsUpDegrees: 160
+  swingSeconds: 0.12
+  diveLeanDegrees: 78
+--- !u!114 &7491189507805128326
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2638478777970148918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39cac636f6118a14da4c10aab63393f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Sandspike::Sandspike.Players.CharacterRig
+  player: {fileID: 4510931411001988097}
+  useCharacterModel: 1
+  models:
+  - {fileID: 919132149155446097, guid: 1515396bb9c1d0149a731078a87b6728, type: 3}
+  - {fileID: 919132149155446097, guid: 9a26ac35a783bb84a811f17cd5e74b24, type: 3}
+  - {fileID: 919132149155446097, guid: 6d30d99f5ba4f01458f3b9c6b3e23b40, type: 3}
+  - {fileID: 919132149155446097, guid: 0f490fcf3531bd148bef59f34c7dd0c5, type: 3}
+  controller: {fileID: 9100000, guid: 3e4e37e4d03253248969ed3f6c17be38, type: 2}
+  height: 1.85
+  poseBlendSeconds: 0.1
+  swingSeconds: 0.12
+  bumpArmsInward: 0.35
+  setHandsInward: 0.45
+  diveArmDegrees: -150
 --- !u!1 &2744610716080470048
 GameObject:
   m_ObjectHideFlags: 0
@@ -1308,25 +1338,37 @@ MonoBehaviour:
   tapJumpHeight: 0.9
   fullJumpHeight: 1.6
   gravity: 25
+  chargeSeconds: 0.4
   courtSide: -1
   netMargin: 0.55
   sideLimit: 9
   backLimit: 11
   reachRadius: 1.2
-  bumpHitHeight: 0.9
-  overheadHitHeight: 2.05
+  bumpContactOffset: {x: 0, y: 0.9, z: 0.35}
+  setContactOffset: {x: 0, y: 2, z: 0.15}
+  spikeContactOffset: {x: 0, y: 2.3, z: 0.3}
   hitCooldown: 0.25
   timingLookBack: 0.4
   timingLookAhead: 1
+  diveDistance: 3.5
+  diveSeconds: 0.4
+  diveRecoverySeconds: 0.5
+  digContactOffset: {x: 0, y: 0.35, z: 0.7}
+  digReachBonus: 0.3
+  digCharge: 0.3
+  serveNetMargin: 0.2
+  serveMaxExtraSeconds: 1
   stamina:
     max: 100
     jumpCostMax: 25
     spikeCostMax: 20
+    hitCostMax: 8
     regenMoving: 15
     regenStill: 30
     regenDelay: 0.5
     lowThreshold: 40
     capAtZero: 0.5
+    diveCost: 15
   jumpCharge:
     secondsToFull: 0.8
   spikeCharge:
@@ -1334,15 +1376,25 @@ MonoBehaviour:
   hitTuning:
     perfectWindow: 0.06
     goodWindow: 0.15
-    poorWindow: 0.25
+    okWindow: 0.35
     perfectMultiplier: 1
     goodMultiplier: 0.8
-    poorMultiplier: 0.5
-    shankMultiplier: 0.3
+    okMultiplier: 0.85
+    perfectScatter: 0
+    goodScatter: 0.25
+    okScatter: 0.5
     minChargeFactor: 0.4
-    scatterRadiusMax: 3
-    bumpTime: 1.5
-    setTime: 1.3
+    lowHandHeight: 2.3
+    bestHandHeight: 3.6
+    lowHandQualityFactor: 0.85
+    bumpDistanceScaleSoft: 0.85
+    bumpDistanceScaleHard: 1.2
+    bumpTimeSoft: 1.6
+    bumpTimeHard: 1.2
+    setDistanceScaleSoft: 0.9
+    setDistanceScaleHard: 1.1
+    setTimeSoft: 1.4
+    setTimeHard: 1.1
     spikeSlowTime: 0.9
     spikeFastTime: 0.35
     serveSlowTime: 1.6
