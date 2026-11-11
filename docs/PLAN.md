@@ -225,7 +225,13 @@ counterpart. Arcs are defined by **apex height and speed**, not one shared fligh
 | Contact feel | Dull thud, ball pops up off the arms | Quick soft release, almost no spin | Hit-stop (about 60 ms), camera shake, loud crack, speed trail, heavy spin |
 | Typical use | Receiving serves and spikes | Second touch, to put the ball up for the spiker | Third touch, over the net |
 
-Update: the set lands at the aim point; apex 4-7 m by charge (about 1.5 s to 2.2 s of flight); the spike zone is a tall cylinder (hand -0.6 m to +0.8 m, 1 m radius).
+**Settled by playtest (these override the table and the list below, and this pass must not change them):**
+- **Set:** lands at the aim point; apex 4.0–7.2 m by charge (about 1.5 s to 2.2 s of flight); the bot
+  teammate sets full height and tracks the human.
+- **Spike zone:** a tall cylinder (hand −0.6 m to +0.8 m, 1 m radius). It stays this size: the
+  "tight spike zone" idea below is dropped.
+- **Queue:** an early release waits for the ball with no time limit. The 0.6 s cap below is dropped.
+  The "queued" pose is still wanted.
 
 The visual and audio parts (sounds, trail) land in M5. Arcs, poses, hit-stop and shake land in this pass.
 

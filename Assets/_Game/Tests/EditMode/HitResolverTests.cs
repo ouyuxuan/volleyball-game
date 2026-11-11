@@ -9,6 +9,23 @@ namespace Sandspike.Tests
     {
         static HitResolver Make(int seed = 1) => new HitResolver(new HitTuning(), new System.Random(seed));
 
+
+        static HitInput SpikeInput(float timingError, float charge, float contactHeight = 3.6f, Vector3? aim = null, int touchIndex = 0, Vector3? velocity = null)
+        {
+            var i = Input(HitType.Spike, timingError, charge, aim, contactHeight);
+            i.ballPosition = new Vector3(0f, contactHeight, -1.5f);
+            i.hitterPosition = new Vector3(0f, 0f, -1.5f);
+            i.teamTouchIndex = touchIndex;
+            i.hitterVelocity = velocity ?? Vector3.zero;
+            return i;
+        }
+
+        static float ApexOf(HitInput input, HitResult r)
+        {
+            var v0 = BallTrajectory.SolveLaunchVelocity(input.ballPosition, new Vector3(r.target.x, BallTrajectory.BallRadius, r.target.z), r.flightTime);
+            return BallTrajectory.ApexHeight(input.ballPosition, v0);
+        }
+
         static HitInput Input(HitType type, float timingError, float charge = 1f, Vector3? aim = null, float contactHeight = 3.6f, float closest = 0f)
         {
             return new HitInput
@@ -78,12 +95,88 @@ namespace Sandspike.Tests
         [Test]
         public void Spike_QualityScalesWithCharge()
         {
-            var none = Make().Resolve(Input(HitType.Spike, 0f, 0f));
-            var full = Make().Resolve(Input(HitType.Spike, 0f, 1f));
+            var none = Make().Resolve(SpikeInput(0f, 0f));
+            var full = Make().Resolve(SpikeInput(0f, 1f));
             Assert.AreEqual(0.65f, none.quality, 1e-4f);
             Assert.AreEqual(1.0f, full.quality, 1e-4f);
-            Assert.AreEqual(Mathf.Lerp(0.9f, 0.35f, 0.65f), none.flightTime, 1e-3f);
-            Assert.AreEqual(0.35f, full.flightTime, 1e-3f);
+            Assert.AreEqual(16f, none.speed, 1e-3f);    // lerp(16, 28, charge x quality)
+            Assert.AreEqual(28f, full.speed, 1e-3f);
+            Assert.Less(full.flightTime, none.flightTime);
+        }
+
+        [Test]
+        public void Spike_SpeedGrowsWithChargeAndWithQuality()
+        {
+            float last = 0f;
+            foreach (float charge in new[] { 0f, 0.25f, 0.5f, 0.75f, 1f })
+            {
+                float s = Make().Resolve(SpikeInput(0f, charge)).speed;
+                Assert.GreaterOrEqual(s, last);
+                last = s;
+            }
+            var perfect = Make().Resolve(SpikeInput(0f, 1f));
+            var ok = Make().Resolve(SpikeInput(0.3f, 1f));        // Ok timing: quality 0.85
+            Assert.Less(ok.speed, perfect.speed);
+            var lowHand = Make().Resolve(SpikeInput(0f, 1f, 2.3f));
+            Assert.Less(lowHand.speed, perfect.speed);
+        }
+
+        [Test]
+        public void Spike_Momentum_AddsAtMost4_AndNothingWhenMovingAway()
+        {
+            // The target (0, 0, 4) is straight ahead (+z) of the contact at z = -1.5.
+            float baseSpeed = Make().Resolve(SpikeInput(0f, 0.5f)).speed;
+            float forward2 = Make().Resolve(SpikeInput(0f, 0.5f, 3.6f, null, 0, new Vector3(0f, 0f, 2f))).speed;
+            float forward6 = Make().Resolve(SpikeInput(0f, 0.5f, 3.6f, null, 0, new Vector3(0f, 0f, 6f))).speed;
+            float away = Make().Resolve(SpikeInput(0f, 0.5f, 3.6f, null, 0, new Vector3(0f, 0f, -5f))).speed;
+            float sideways = Make().Resolve(SpikeInput(0f, 0.5f, 3.6f, null, 0, new Vector3(5f, 0f, 0f))).speed;
+            Assert.AreEqual(baseSpeed + 2f, forward2, 1e-3f);
+            Assert.AreEqual(baseSpeed + 4f, forward6, 1e-3f);     // clamped to +4
+            Assert.AreEqual(baseSpeed, away, 1e-3f);
+            Assert.AreEqual(baseSpeed, sideways, 1e-3f);
+        }
+
+        [Test]
+        public void Spike_Combo_Is1_1p1_1p2_ByTouchIndex_AndCapsAt34()
+        {
+            float s0 = Make().Resolve(SpikeInput(0f, 0.5f, 3.6f, null, 0)).speed;
+            float s1 = Make().Resolve(SpikeInput(0f, 0.5f, 3.6f, null, 1)).speed;
+            float s2 = Make().Resolve(SpikeInput(0f, 0.5f, 3.6f, null, 2)).speed;
+            Assert.AreEqual(s0 * 1.1f, s1, 1e-3f);
+            Assert.AreEqual(s0 * 1.2f, s2, 1e-3f);
+            Assert.AreEqual(1.2f, Make().Resolve(SpikeInput(0f, 0.5f, 3.6f, null, 2)).comboMultiplier, 1e-4f);
+
+            // 28 + 4 = 32 x 1.2 = 38.4: capped
+            var top = Make().Resolve(SpikeInput(0f, 1f, 3.6f, null, 2, new Vector3(0f, 0f, 6f)));
+            Assert.AreEqual(34f, top.speed, 1e-3f);
+        }
+
+        [Test]
+        public void Spike_AimedJustBehindTheNetFromALowContact_IsPushedDeeperOrSlowed_AndClears()
+        {
+            // Contact at 3.0 m, 1 m from the net, aimed 0.5 m past it: the flat line would hit the tape.
+            var input = SpikeInput(0f, 1f, 3.0f, new Vector3(0f, 0f, 0.5f));
+            input.ballPosition = new Vector3(0f, 3.0f, -1f);
+            var r = Make().Resolve(input);
+            Assert.Greater(r.target.z, 0.5f, "pushed deeper");
+            Assert.LessOrEqual(r.target.z, 7.5f + 1e-3f, "but not past baseline - 0.5 m");
+            var v0 = BallTrajectory.SolveForSpeed(input.ballPosition, new Vector3(r.target.x, BallTrajectory.BallRadius, r.target.z), r.speed);
+            Assert.IsTrue(BallTrajectory.ClearsNet(input.ballPosition, v0, r.flightTime, BallTrajectory.NetTopHeight + 0.1f - 1e-3f),
+                $"target {r.target} speed {r.speed}");
+
+            // Needs both: from a very low contact right at the net the target goes to the limit and the speed drops (not below 12).
+            input.ballPosition = new Vector3(0f, 2.2f, -0.6f);
+            r = Make().Resolve(input);
+            Assert.Less(r.speed, 28f);
+            Assert.GreaterOrEqual(r.speed, 12f);
+        }
+
+        [Test]
+        public void Spike_ThatAlreadyClearsTheNet_IsNotChanged()
+        {
+            var r = Make().Resolve(SpikeInput(0f, 1f, 3.6f, new Vector3(1f, 0f, 5f)));
+            Assert.AreEqual(0f, Vector3.Distance(r.target, new Vector3(1f, 0f, 5f)), 1e-4f);
+            Assert.AreEqual(28f, r.speed, 1e-3f);
         }
 
         [Test]
@@ -104,19 +197,22 @@ namespace Sandspike.Tests
         [Test]
         public void Spike_LowHand_IsWeakerButStillConnects()
         {
-            var high = Make().Resolve(Input(HitType.Spike, 0f, 1f, null, 3.6f));
-            var low = Make().Resolve(Input(HitType.Spike, 0f, 1f, null, 2.3f));
+            var high = Make().Resolve(SpikeInput(0f, 1f, 3.6f));
+            var low = Make().Resolve(SpikeInput(0f, 1f, 2.3f));
             Assert.IsTrue(low.contact);
             Assert.Less(low.quality, high.quality);
-            Assert.Greater(low.flightTime, high.flightTime);   // slower
+            Assert.Less(low.speed, high.speed);   // slower
             Assert.AreEqual(0.85f, low.quality, 1e-4f);
         }
 
         [Test]
-        public void Serve_FlightTimeScalesWithQuality()
+        public void Serve_ApexComesFromCharge_3p5mTo5m()
         {
-            Assert.AreEqual(0.8f, Make().Resolve(Input(HitType.Serve, 0f, 1f)).flightTime, 1e-3f);
-            Assert.AreEqual(Mathf.Lerp(1.6f, 0.8f, 0.65f), Make().Resolve(Input(HitType.Serve, 0f, 0f)).flightTime, 1e-3f);
+            foreach (var (charge, apex) in new[] { (0f, 3.5f), (1f, 5.0f) })
+            {
+                var input = Input(HitType.Serve, 0f, charge);
+                Assert.AreEqual(apex, ApexOf(input, Make().Resolve(input)), 0.05f);
+            }
         }
 
         [Test]
@@ -130,8 +226,28 @@ namespace Sandspike.Tests
             Assert.AreEqual(8f * 0.85f, softDist, 1e-3f);
             Assert.AreEqual(8f * 1.2f, hardDist, 1e-3f);
             Assert.Less(softDist, hardDist);
-            Assert.AreEqual(1.6f, soft.flightTime, 1e-4f);
-            Assert.AreEqual(1.2f, hard.flightTime, 1e-4f);
+            Assert.Less(soft.flightTime, hard.flightTime);   // a higher pass hangs longer
+        }
+
+        [Test]
+        public void Bump_ApexComesFromCharge_3p5mTo6m_AndFlightTimeFollowsTheApex()
+        {
+            var aim = new Vector3(0f, 0f, 4f);
+            foreach (var (charge, apex) in new[] { (0f, 3.5f), (0.5f, 4.75f), (1f, 6.0f) })
+            {
+                var input = Input(HitType.Bump, 0f, charge, aim);
+                var r = Make().Resolve(input);
+                Assert.AreEqual(BallTrajectory.FlightTimeForApex(input.ballPosition.y, apex, BallTrajectory.BallRadius), r.flightTime, 1e-3f);
+                Assert.AreEqual(apex, ApexOf(input, r), 0.05f);
+            }
+        }
+
+        [Test]
+        public void Bump_StartingNearTheApex_GetsAHalfMetreArc()
+        {
+            var input = Input(HitType.Bump, 0f, 0f, new Vector3(0f, 0f, 4f));
+            input.ballPosition = new Vector3(0f, 3.4f, -4f);
+            Assert.AreEqual(3.9f, ApexOf(input, Make().Resolve(input)), 0.05f);
         }
 
         [Test]
@@ -187,7 +303,7 @@ namespace Sandspike.Tests
         public void PerfectHit_LandsExactlyOnAim()
         {
             var aim = new Vector3(1.5f, 0f, 5f);
-            var r = Make().Resolve(Input(HitType.Spike, 0f, 1f, aim));
+            var r = Make().Resolve(SpikeInput(0f, 1f, 3.6f, aim));
             Assert.AreEqual(0f, Vector3.Distance(r.target, aim), 1e-4f);
         }
 

@@ -16,6 +16,10 @@ namespace Sandspike.Players
         public Vector3 aimPoint;
         public Vector3 target;
         public float flightTime;
+        public float apex;             // bump / set / serve peak height (m)
+        public float speed;            // spike speed (m/s) incl. momentum and combo
+        public float momentum;         // spike: m/s added by the run-up
+        public float combo;            // spike: 1.0 / 1.1 / 1.2
         public Vector3 contactPoint;   // where the hands/forearms were at the ideal moment
         public float idealTime;        // Time.time of the ideal contact moment
         public float pressTime;        // Time.time when the button was pressed
@@ -83,6 +87,9 @@ namespace Sandspike.Players
 
         /// <summary>Raised after every hit attempt that was inside reach (including whiffs).</summary>
         public event Action<HitReport> OnHitAttempt;
+
+        /// <summary>Touches this player's team already used on the ball (0, 1 or 2). The MatchManager fills it from the RulesEngine; it picks the spike combo multiplier.</summary>
+        public Func<int> TeamTouchCount;
 
         CharacterController controller;
         IPlayerBrain brain;
@@ -263,6 +270,7 @@ namespace Sandspike.Players
             {
                 type = HitType.Bump, charge = digCharge, timingError = 0f, closestDistance = 0f, reachRadius = reachRadius,
                 contactHeight = p.y, aimPoint = aim, hitterPosition = transform.position, ballPosition = ball.Position,
+                ballGravity = ball.Gravity, hitterVelocity = planarVelocity, teamTouchIndex = TeamTouchCount != null ? TeamTouchCount() : 0,
             };
             Finish(HitType.Bump, digCharge, resolver.Resolve(input), 0f, p, Time.time, Time.time, aim);
         }
@@ -295,6 +303,7 @@ namespace Sandspike.Players
             {
                 type = HitType.Serve, charge = charge, timingError = 0f, closestDistance = 0f, reachRadius = reachRadius,
                 contactHeight = start.y, aimPoint = aim, hitterPosition = transform.position, ballPosition = start,
+                ballGravity = ball.Gravity,
             };
             HitResult result = resolver.Resolve(input);
             result.flightTime = ServeFlightTime(start, result.target, result.flightTime);
@@ -451,6 +460,8 @@ namespace Sandspike.Players
                 hitterPosition = transform.position,
                 ballPosition = ball.Position,
                 ballGravity = ball.Gravity,
+                hitterVelocity = planarVelocity,
+                teamTouchIndex = TeamTouchCount != null ? TeamTouchCount() : 0,
             };
             HitResult result = resolver.Resolve(input);
 
@@ -474,7 +485,7 @@ namespace Sandspike.Players
             {
                 cooldownLeft = hitCooldown;
                 LastHitTime = Time.time;
-                ball.Launch(ball.Position, result.target, result.flightTime, true);
+                ball.Launch(ball.Position, result.target, result.flightTime, true, type);
                 OnBallTouched?.Invoke(this);
             }
 
@@ -482,10 +493,11 @@ namespace Sandspike.Players
             {
                 type = type, grade = result.grade, contact = result.contact, timingError = timingError,
                 charge = charge, quality = result.quality, aimPoint = aim, target = result.target, flightTime = result.flightTime,
+                apex = result.apex, speed = result.speed, momentum = result.momentumBonus, combo = result.comboMultiplier,
                 contactPoint = contactPoint, idealTime = idealTime, pressTime = pressTime,
             };
             LastReport = report;
-            Debug.Log($"[Hit] {type} contact={result.contact} grade={result.grade} err={timingError:F2} charge={charge:F2} quality={result.quality:F2} flight={result.flightTime:F2} target={result.target}");
+            Debug.Log($"[Hit] {type} contact={result.contact} grade={result.grade} err={timingError:F2} charge={charge:F2} quality={result.quality:F2} flight={result.flightTime:F2} target={result.target} p{PlayerId} apex={result.apex:F2} speed={result.speed:F1} mom={result.momentumBonus:F1} combo={result.comboMultiplier:F1} from=({ball.Position.x:F1},{ball.Position.y:F2},{ball.Position.z:F1}) touch={(TeamTouchCount != null ? TeamTouchCount() : -1)}");
             OnHitAttempt?.Invoke(report);
         }
 
@@ -508,6 +520,8 @@ namespace Sandspike.Players
             input.hitterPosition = transform.position;
             input.ballPosition = ball.Position;
             input.ballGravity = ball.Gravity;
+            input.hitterVelocity = planarVelocity;     // the run-up speed at the moment of contact
+            input.teamTouchIndex = TeamTouchCount != null ? TeamTouchCount() : 0;
             Finish(pending.type, input.charge, resolver.Resolve(input), pending.timingError, pending.contactPoint, pending.idealTime, pending.pressTime, input.aimPoint);
         }
 

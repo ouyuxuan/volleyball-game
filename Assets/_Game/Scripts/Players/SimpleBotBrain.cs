@@ -14,8 +14,11 @@ namespace Sandspike.Players
         /// Which kind of hit by how many touches this team has used: 0 = bump to the teammate, 1 = set,
         /// 2 = send it over. A high ball near the net is sent over at once, whatever the count.
         /// </summary>
-        public static BotHit ChooseHit(int teamTouches, bool ballHighNearNet)
+        public static BotHit ChooseHit(int teamTouches, bool ballHighNearNet, bool setOnSecondTouch = false)
         {
+            // High, soft bumps now hang near the net at spike height, so the second touch must still be a set when asked to
+            // (setOnSecondTouch), or the bot would spike its own teammate's pass and never set for the human.
+            if (teamTouches == 1 && setOnSecondTouch) return BotHit.Set;
             if (teamTouches >= 2 || ballHighNearNet) return BotHit.Over;
             return teamTouches == 0 ? BotHit.Bump : BotHit.Set;
         }
@@ -71,8 +74,11 @@ namespace Sandspike.Players
         [SerializeField] float spikeMaxNetDistance = 3.5f;   // only spike a ball this close to the net
         [SerializeField] float jumpRiseSeconds = 0.27f;      // a tap jump takes this long to reach the top
         [SerializeField] float jumpMarginSeconds = 0.05f;
-        [SerializeField] float netClearMargin = 0.15f;       // the bot checks its own shot clears the net by this much
         [SerializeField] int targetTries = 8;
+        [SerializeField] float spikeContactSlack = 0.35f;      // the bot checks a spike as if the ball were this much lower than planned...
+        [SerializeField] float spikeNetSlack = 0.5f;         // ...and this much closer to the net (real contacts come a little low and near)
+        [SerializeField] float spikeMinDepth = 3.5f;         // a spike lands at least this far past the net (a short one cannot clear it)
+        [SerializeField] float spikeMinGoodSpeed = 14f;      // a spike the net rule had to slow to the floor is not worth taking: bump it over
 
         // A button the brain "holds": Step() turns the held flag into this frame's Down / Held / Up.
         class Btn
@@ -230,7 +236,7 @@ namespace Sandspike.Players
                 spikeChance = BotPlanner.IsHighNearNet(pos.z, pos.y, spikeMaxNetDistance, spikeHandHeight - 0.2f) && (pos.z < 0f ? -1f : 1f) == side;
             }
 
-            BotHit choice = BotPlanner.ChooseHit(touches, spikeChance);
+            BotHit choice = BotPlanner.ChooseHit(touches, spikeChance, true);
             HitType type = choice == BotHit.Set ? HitType.Set : HitType.Bump;
             Vector3 target = Vector3.zero;
             float contactTime;
@@ -281,7 +287,9 @@ namespace Sandspike.Players
             lateRelease = false;
             if (Random.value < errorChance)
             {
-                if (Random.value < 0.5f) lateRelease = true;
+                // A late release drops a spike to the bottom of the reach zone, where it cannot clear the net,
+                // so a spike's mistake is always an aim error; bumps and sets can be late or off target.
+                if (type != HitType.Spike && Random.value < 0.5f) lateRelease = true;
                 else target += new Vector3(Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f)).normalized * aimErrorMetres;
             }
 
@@ -299,19 +307,30 @@ namespace Sandspike.Players
         {
             float oppSide = -me.CourtSide;
             target = Vector3.zero;
+            if (type == HitType.Spike)
+            {
+                // plan for a slightly low, slightly near contact so the shot clears even then
+                contact.y -= spikeContactSlack;
+                contact.z -= Mathf.Sign(contact.z) * Mathf.Min(spikeNetSlack, Mathf.Max(0f, Mathf.Abs(contact.z) - 0.6f));
+            }
             for (int i = 0; i < targetTries; i++)
             {
                 target = new Vector3(Random.Range(-(match.HalfWidth - targetInset), match.HalfWidth - targetInset), 0f,
-                                     oppSide * Random.Range(targetInset, match.HalfLength - targetInset));
+                                     oppSide * Random.Range(type == HitType.Spike ? spikeMinDepth : targetInset, match.HalfLength - targetInset));
                 var input = new HitInput
                 {
                     type = type, charge = charge, timingError = 0f, closestDistance = 0f, reachRadius = me.ReachRadius,
                     contactHeight = contact.y, aimPoint = preview.AimFor(type, charge, from, target), hitterPosition = from, ballPosition = contact,
+                    ballGravity = ball.Gravity, teamTouchIndex = match.Rules.TouchesFor(me.Team),
                 };
+                // The resolver already pushes / slows a spike until it clears the net; the bot checks the final shot
+                // (half the resolver's margin) and that it still lands inside the court.
                 HitResult r = preview.Resolve(input);
+                if (Mathf.Abs(r.target.x) > match.HalfWidth || Mathf.Abs(r.target.z) > match.HalfLength) continue;
+                if (type == HitType.Spike && r.speed < spikeMinGoodSpeed) continue;
                 Vector3 centre = new Vector3(r.target.x, ball.Radius, r.target.z);
                 Vector3 v0 = BallTrajectory.SolveLaunchVelocity(contact, centre, r.flightTime, ball.Gravity);
-                if (BallTrajectory.ClearsNet(contact, v0, r.flightTime, BallTrajectory.NetTopHeight + netClearMargin, ball.Radius, 0f, ball.Gravity))
+                if (BallTrajectory.ClearsNet(contact, v0, r.flightTime, BallTrajectory.NetTopHeight + me.Tuning.spikeNetClearance * 0.5f, ball.Radius, 0f, ball.Gravity))
                     return true;
             }
             return false;

@@ -43,10 +43,20 @@ namespace Sandspike.Ball
         float flightClock;      // seconds since Launch
         Vector3 landingPoint;
         Vector3 spinAxis = Vector3.right;
+        float spinDegrees;       // current spin rate in degrees per second (signed)
+
+        /// <summary>Sets the spin rate for the current flight (degrees per second, about the axis perpendicular to travel). Visual only.</summary>
+        public void SetSpin(float degreesPerSecond) { spinDegrees = degreesPerSecond; }
 
         public bool IsInFlight => inFlight;
         /// <summary>Counts launches, so a queued hit can tell someone else touched the ball.</summary>
         public int LaunchCount { get; private set; }
+        /// <summary>What kind of hit made the current flight (read it inside OnHit). The ContactFeel uses it.</summary>
+        public Sandspike.Players.HitType LastHitType { get; private set; }
+        /// <summary>The ball's speed (m/s) at the moment of the last launch.</summary>
+        public float LaunchSpeed => arc.v0.magnitude;
+        /// <summary>The flat direction the ball travels in (for squash and shake).</summary>
+        public Vector3 LaunchDirection => arc.v0.sqrMagnitude > 1e-4f ? arc.v0.normalized : Vector3.forward;
         public Vector3 Position => transform.position;
         public Vector3 Velocity => inFlight ? BallTrajectory.VelocityAt(arc.v0, elapsed, gravity) : Vector3.zero;
         /// <summary>Where the ball will touch the sand (y = 0), counting a net drop.</summary>
@@ -68,9 +78,11 @@ namespace Sandspike.Ball
         /// Starts a flight from 'start' so that the ball's centre ends 'ballRadius' above 'groundTarget'
         /// after exactly 'flightTime' seconds. 'isHit' = a player hit it (raises OnHit).
         /// </summary>
-        public void Launch(Vector3 start, Vector3 groundTarget, float flightTime, bool isHit = true)
+        public void Launch(Vector3 start, Vector3 groundTarget, float flightTime, bool isHit = true, Sandspike.Players.HitType type = Sandspike.Players.HitType.Set)
         {
             LaunchCount++;
+            LastHitType = type;
+            spinDegrees = spinDegreesPerSecond;
             flightTime = Mathf.Max(0.05f, flightTime);
             Vector3 centreTarget = new Vector3(groundTarget.x, ballRadius, groundTarget.z);
 
@@ -168,7 +180,7 @@ namespace Sandspike.Ball
             }
 
             transform.position = BallTrajectory.PositionAt(arc.start, arc.v0, elapsed, gravity);
-            transform.Rotate(spinAxis, spinDegreesPerSecond * dt, Space.World);
+            transform.Rotate(spinAxis, spinDegrees * dt, Space.World);
         }
 
         static Vector3 Ground(Vector3 p) => new Vector3(p.x, 0f, p.z);

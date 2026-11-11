@@ -18,6 +18,14 @@ namespace Sandspike.Tests
         [Test]
         public void ThirdTouch_SendsItOver() => Assert.AreEqual(BotHit.Over, BotPlanner.ChooseHit(2, false));
 
+        [Test]
+        public void SecondTouch_IsStillASet_WhenAskedTo_EvenOnAHighBallNearTheNet()
+        {
+            Assert.AreEqual(BotHit.Set, BotPlanner.ChooseHit(1, true, true));
+            Assert.AreEqual(BotHit.Over, BotPlanner.ChooseHit(2, true, true));
+            Assert.AreEqual(BotHit.Over, BotPlanner.ChooseHit(0, true, true));
+        }
+
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]

@@ -20,6 +20,22 @@ namespace Sandspike.Tests
         }
 
         [Test]
+        public void SolveForSpeed_ReachesTheTargetInDistanceOverSpeed()
+        {
+            var start = new Vector3(1f, 3.4f, -2f);
+            var target = new Vector3(-2f, 0.11f, 6f);
+            foreach (float speed in new[] { 12f, 16f, 28f, 34f })
+            {
+                float expected = Vector3.Distance(start, target) / speed;
+                var v0 = BallTrajectory.SolveForSpeed(start, target, speed, G);
+                Assert.AreEqual(expected, BallTrajectory.FlightTimeForSpeed(start, target, speed), 1e-5f);
+                var p = BallTrajectory.PositionAt(start, v0, expected, G);
+                Assert.AreEqual(0f, Vector3.Distance(p, target), expected * 0.05f * speed);   // within 5% of the flight
+                Assert.AreEqual(0f, Vector3.Distance(p, target), 1e-3f);                      // and in fact exact
+            }
+        }
+
+        [Test]
         public void LaunchVelocity_PositionAtZeroIsStart()
         {
             var start = new Vector3(0f, 1f, -3f);

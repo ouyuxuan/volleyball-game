@@ -20,7 +20,9 @@ namespace Sandspike.Players
         public Vector3 aimPoint;    // where the player aimed on the sand
         public Vector3 hitterPosition;
         public Vector3 ballPosition;
-        public float ballGravity;     // the ball's gravity (0 = the default 9.81); a set's flight time is derived from it
+        public float ballGravity;     // the ball's gravity (0 = the default 9.81); apex- and speed-driven flight times are derived from it
+        public Vector3 hitterVelocity; // the attacker's planar (x, z) velocity at contact; a spike adds the part heading toward the target
+        public int teamTouchIndex;    // touches this team already used on this possession (0, 1 or 2): picks the spike combo multiplier
     }
 
     /// <summary>What the resolver decided.</summary>
@@ -32,5 +34,9 @@ namespace Sandspike.Players
         public float quality;           // timing multiplier x charge factor
         public Vector3 target;          // where the ball should land (on the sand, y = 0)
         public float flightTime;        // seconds in the air
+        public float apex;              // bump / set / serve: the peak height above the sand (0 for a spike)
+        public float speed;             // spike: final speed in m/s (base + momentum, x combo, capped)
+        public float momentumBonus;     // spike: m/s added from the attacker's run-up
+        public float comboMultiplier;   // spike: 1.0 / 1.1 / 1.2
     }
 }

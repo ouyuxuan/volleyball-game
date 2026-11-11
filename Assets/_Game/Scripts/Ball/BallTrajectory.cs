@@ -22,6 +22,22 @@ namespace Sandspike.Ball
         }
 
         /// <summary>
+        /// Launch velocity for a SPEED-driven shot: the ball covers the straight line start-to-target at 'speed' m/s on average
+        /// (flight time = distance / speed) and gravity bends the arc so it still lands exactly on 'target'.
+        /// A faster shot is flatter; a slower one drops more, so it needs a higher arc.
+        /// </summary>
+        public static Vector3 SolveForSpeed(Vector3 start, Vector3 target, float speed, float gravity = DefaultGravity)
+        {
+            return SolveLaunchVelocity(start, target, FlightTimeForSpeed(start, target, speed), gravity);
+        }
+
+        /// <summary>The flight time of a speed-driven shot: straight-line distance divided by speed.</summary>
+        public static float FlightTimeForSpeed(Vector3 start, Vector3 target, float speed)
+        {
+            return Vector3.Distance(start, target) / Mathf.Max(0.1f, speed);
+        }
+
+        /// <summary>
         /// Flight time of an arc that starts at height startY, peaks at 'apex' and ends at height landY:
         /// t = sqrt(2(apex-startY)/g) + sqrt(2(apex-landY)/g). The apex should be above both heights.
         /// </summary>

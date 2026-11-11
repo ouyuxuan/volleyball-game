@@ -66,6 +66,8 @@ namespace Sandspike.Core
             {
                 players[i].PlayerId = i;
                 players[i].OnBallTouched += OnTouched;
+                PlayerController owner = players[i];
+                owner.TeamTouchCount = () => Rules != null ? Rules.TouchesFor(owner.Team) : 0;   // touches before this one
                 var bot = players[i].GetComponent<SimpleBotBrain>();
                 if (bot != null) bot.Setup(this, players[i], ball);
             }

@@ -32,17 +32,31 @@ namespace Sandspike.Players
         public float bestHandHeight = 3.6f;    // hand height near the top of a good jump
         public float lowHandQualityFactor = 0.85f;
 
-        [Header("Flight times (seconds)")]
-        public float bumpDistanceScaleSoft = 0.85f;  // charge 0: lands at 60% of the distance to the aim point
+        [Header("Bump: a high soft pass (apex-driven like the set)")]
+        public float bumpDistanceScaleSoft = 0.85f;  // charge 0: lands at 85% of the distance to the aim point
         public float bumpDistanceScaleHard = 1.2f;   // charge 1: lands 120% of the way (past the aim)
-        public float bumpTimeSoft = 1.6f;
-        public float bumpTimeHard = 1.2f;
+        public float bumpApexMin = 3.5f;      // peak above the sand at charge 0 (a soft dig)
+        public float bumpApexMax = 6.0f;      // ...and at full charge (a high pass)
+        public float apexHeadroom = 0.5f;     // a bump / serve struck near its apex still gets this much arc
+
+        [Header("Spike: a fast downward line (speed-driven)")]
+        public float spikeSpeedMin = 16f;     // m/s at charge x quality = 0
+        public float spikeSpeedMax = 28f;     // m/s at charge x quality = 1
+        public float spikeMomentumMax = 4f;   // most m/s the run-up toward the target can add
+        public float[] comboMultipliers = { 1.0f, 1.1f, 1.2f };   // by the team's 1st, 2nd, 3rd touch of the possession
+        public float spikeSpeedCap = 34f;     // total speed never exceeds this
+        public float spikeNetClearance = 0.1f; // the ball must pass this far above the net tape
+        public float spikePushStep = 0.25f;   // net rule 1: move the target deeper in steps of this many metres...
+        public float courtHalfLength = 8f;    // ...but not past (baseline - baselineMargin)
+        public float baselineMargin = 0.5f;
+        public float spikeSpeedStep = 2f;     // net rule 2: if pushing is not enough, lower the speed in steps of this...
+        public float spikeSpeedFloor = 12f;   // ...down to this
+
+        [Header("Set / serve arcs")]
+        public float serveApexMin = 3.5f;     // a serve's peak at charge 0
+        public float serveApexMax = 5.0f;     // ...and at full charge
         public float setApexMin = 4.0f;       // a set's peak above the sand at charge 0 (quick, low set, about 1.5 s)
         public float setApexMax = 7.2f;       // ...and at full charge (about 2.25 s; a set for a human takes 1.9 s+ to fall to spike height): charge picks the height, not the distance
-        public float spikeSlowTime = 0.9f;     // quality 0
-        public float spikeFastTime = 0.35f;    // quality 1
-        public float serveSlowTime = 1.6f;
-        public float serveFastTime = 0.8f;
 
         [Header("Set clamp (never at or over the net)")]
         public float setMinDistanceFromNet = 1.5f;   // an aim closer to the net than this (or across it) moves back to this distance, on the setter's side
@@ -116,29 +130,80 @@ namespace Sandspike.Players
             Vector3 target = aimPoint + RandomInDisc(scatter);
             target.y = 0f;
 
+            float g = input.ballGravity > 0f ? input.ballGravity : BallTrajectory.DefaultGravity;
+            float startY = input.ballPosition.y;
             switch (input.type)
             {
                 case HitType.Bump:
-                    result.flightTime = Mathf.Lerp(t.bumpTimeSoft, t.bumpTimeHard, charge);
+                    // High and soft: charge picks the peak; the flight time follows from it.
+                    ApexArc(ref result, startY, Mathf.Lerp(t.bumpApexMin, t.bumpApexMax, charge), t.apexHeadroom, g);
                     break;
                 case HitType.Set:
                     target = ClampSetTarget(target, input.hitterPosition);
                     // Apex-driven: charge picks the peak (setApexMin..Max); the flight time follows from the apex.
-                    float g = input.ballGravity > 0f ? input.ballGravity : BallTrajectory.DefaultGravity;
-                    float startY = input.ballPosition.y;
-                    float apex = Mathf.Lerp(t.setApexMin, t.setApexMax, charge);
-                    if (startY > apex - 1f) apex = startY + 1f;
-                    result.flightTime = BallTrajectory.FlightTimeForApex(startY, apex, BallTrajectory.BallRadius, g);
+                    ApexArc(ref result, startY, Mathf.Lerp(t.setApexMin, t.setApexMax, charge), 1f, g);
                     break;
                 case HitType.Spike:
-                    result.flightTime = Mathf.Lerp(t.spikeSlowTime, t.spikeFastTime, result.quality);
+                    target = ResolveSpike(input, charge, ref result, target, g);
                     break;
                 default: // Serve
-                    result.flightTime = Mathf.Lerp(t.serveSlowTime, t.serveFastTime, result.quality);
+                    ApexArc(ref result, startY, Mathf.Lerp(t.serveApexMin, t.serveApexMax, charge), t.apexHeadroom, g);
                     break;
             }
             result.target = target;
             return result;
+        }
+
+        // Flight time of an arc that peaks at 'apex' (or 'headroom' above the start if the ball is already that high).
+        void ApexArc(ref HitResult result, float startY, float apex, float headroom, float g)
+        {
+            if (startY > apex - headroom) apex = startY + headroom;
+            result.apex = apex;
+            result.flightTime = BallTrajectory.FlightTimeForApex(startY, apex, BallTrajectory.BallRadius, g);
+        }
+
+        // Spike: speed along the line to the target = lerp(min, max, charge x quality) + run-up momentum, x combo, capped.
+        // Then the net rule: a shot that would hit the net goes deeper (same direction), then slower, until it clears.
+        // Returns the (possibly pushed) target.
+        Vector3 ResolveSpike(HitInput input, float charge, ref HitResult result, Vector3 target, float g)
+        {
+            Vector3 start = input.ballPosition;
+            Vector3 flat = target - start; flat.y = 0f;
+            Vector3 dir = flat.sqrMagnitude > 1e-4f ? flat.normalized : Vector3.forward;
+
+            float baseSpeed = Mathf.Lerp(t.spikeSpeedMin, t.spikeSpeedMax, charge * result.quality);
+            result.momentumBonus = Mathf.Clamp(Vector3.Dot(new Vector3(input.hitterVelocity.x, 0f, input.hitterVelocity.z), dir), 0f, t.spikeMomentumMax);
+            int combo = Mathf.Clamp(input.teamTouchIndex, 0, t.comboMultipliers.Length - 1);
+            result.comboMultiplier = t.comboMultipliers[combo];
+            float speed = Mathf.Min((baseSpeed + result.momentumBonus) * result.comboMultiplier, t.spikeSpeedCap);
+
+            // 1. push the target deeper along the aim direction (up to the baseline margin, and not wider than the court)
+            float maxDepth = t.courtHalfLength - t.baselineMargin;
+            float maxX = Mathf.Max(Mathf.Abs(target.x), 3.7f);
+            while (!SpikeClears(start, target, speed, g))
+            {
+                Vector3 next = target + dir * t.spikePushStep;
+                if (Mathf.Abs(next.z) > maxDepth || Mathf.Abs(next.x) > maxX || Mathf.Abs(next.z) < Mathf.Abs(target.z)) break;
+                target = next;
+            }
+            // 2. still hits the net: slow down (a slower shot has a higher arc), not below the floor
+            while (speed > t.spikeSpeedFloor && !SpikeClears(start, target, speed, g))
+                speed = Mathf.Max(t.spikeSpeedFloor, speed - t.spikeSpeedStep);
+
+            result.speed = speed;
+            result.flightTime = BallTrajectory.FlightTimeForSpeed(start, Centre(target), speed);
+            return target;
+        }
+
+        static Vector3 Centre(Vector3 groundTarget) => new Vector3(groundTarget.x, BallTrajectory.BallRadius, groundTarget.z);
+
+        // Does a spike at 'speed' to 'target' pass above the net tape (plus the clearance)? A shot that never crosses the net clears.
+        bool SpikeClears(Vector3 start, Vector3 target, float speed, float g)
+        {
+            Vector3 c = Centre(target);
+            float time = BallTrajectory.FlightTimeForSpeed(start, c, speed);
+            Vector3 v0 = BallTrajectory.SolveForSpeed(start, c, speed, g);
+            return BallTrajectory.ClearsNet(start, v0, time, BallTrajectory.NetTopHeight + t.spikeNetClearance, BallTrajectory.BallRadius, 0f, g);
         }
 
         /// <summary>
