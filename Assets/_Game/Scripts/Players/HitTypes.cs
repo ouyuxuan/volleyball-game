@@ -20,6 +20,7 @@ namespace Sandspike.Players
         public Vector3 aimPoint;    // where the player aimed on the sand
         public Vector3 hitterPosition;
         public Vector3 ballPosition;
+        public float ballGravity;     // the ball's gravity (0 = the default 9.81); a set's flight time is derived from it
     }
 
     /// <summary>What the resolver decided.</summary>

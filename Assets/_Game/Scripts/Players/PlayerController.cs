@@ -75,7 +75,7 @@ namespace Sandspike.Players
         [Header("Charge, stamina, hit numbers")]
         [SerializeField] Stamina stamina = new Stamina();
         [SerializeField] ChargeMeter jumpCharge = new ChargeMeter();
-        [SerializeField] ChargeMeter spikeCharge = new ChargeMeter();
+        [SerializeField] ChargeMeter spikeCharge = new ChargeMeter { secondsToFull = 0.5f };   // a spike/bump/set wind-up is full after 0.5 s
         [SerializeField] HitTuning hitTuning = new HitTuning();
 
         /// <summary>Raised whenever this player connects with the ball (serve, hit or dig). The MatchManager counts touches with it.</summary>
@@ -375,7 +375,18 @@ namespace Sandspike.Players
         {
             type = chargingType;
             if (!spikeCharge.IsCharging || ball == null || !ball.IsInFlight || cooldownLeft > 0f) return false;
-            return ContactTiming.InReach(ball.Position, ContactPointAt(type), reachRadius);
+            return InReach(type, ball.Position, ContactPointAt(type));
+        }
+
+        /// <summary>
+        /// Is a ball at 'ballPos' inside the reach of this hit's contact point 'contact'? A spike uses a tall cylinder
+        /// (see HitTuning.spikeReachBelow / Above); bump and set use a sphere. The bots and the cue use this too.
+        /// </summary>
+        public bool InReach(HitType type, Vector3 ballPos, Vector3 contact)
+        {
+            return type == HitType.Spike
+                ? ContactTiming.SpikeInReach(ballPos, contact, reachRadius, hitTuning.spikeReachBelow, hitTuning.spikeReachAbove)
+                : ContactTiming.InReach(ballPos, contact, reachRadius);
         }
 
         /// <summary>The contact offset (player-relative) for this kind of hit.</summary>
@@ -418,9 +429,10 @@ namespace Sandspike.Players
 
             // Ideal contact = when the ball's arc passes closest to the (moving) contact point.
             if (!ball.TryFindContact(d => ContactPointAt(type, d), timingLookBack, timingLookAhead, out float offset, out float distance)) return false;
-            if (distance > reachRadius) return false;   // passed already, or never comes within reach: the swing touches nothing
-
             Vector3 contactPoint = ContactPointAt(type, offset);
+            // passed already, or never comes within reach (a sphere; a tall cylinder for a spike): the swing touches nothing
+            if (!InReach(type, ball.PositionAtOffset(offset), contactPoint)) return false;
+            distance = Mathf.Min(distance, reachRadius);   // inside the zone: never a Miss in the resolver
             float timingError = timingOverride ?? Mathf.Max(0f, -offset);   // early press = Perfect (0)
             Vector3 aim = brain != null ? brain.AimPoint : new Vector3(0f, 0f, -courtSide * 4f);
 
@@ -435,6 +447,7 @@ namespace Sandspike.Players
                 aimPoint = aim,
                 hitterPosition = transform.position,
                 ballPosition = ball.Position,
+                ballGravity = ball.Gravity,
             };
             HitResult result = resolver.Resolve(input);
 
@@ -491,6 +504,7 @@ namespace Sandspike.Players
             if (brain != null) input.aimPoint = brain.AimPoint;
             input.hitterPosition = transform.position;
             input.ballPosition = ball.Position;
+            input.ballGravity = ball.Gravity;
             Finish(pending.type, input.charge, resolver.Resolve(input), pending.timingError, pending.contactPoint, pending.idealTime, pending.pressTime, input.aimPoint);
         }
 

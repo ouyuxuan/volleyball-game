@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Sandspike.Ball;
 using Sandspike.Players;
 using UnityEngine;
 
@@ -134,13 +135,50 @@ namespace Sandspike.Tests
         }
 
         [Test]
-        public void Set_LowCharge_IsSofterThanFullCharge()
+        public void Set_ApexComesFromCharge_4mTo7m_AndFlightTimeFollowsTheApex()
         {
-            var aim = new Vector3(0f, 0f, -0.2f);
-            var soft = Make().Resolve(Input(HitType.Set, 0f, 0f, aim));
-            var hard = Make().Resolve(Input(HitType.Set, 0f, 1f, aim));
-            Assert.AreEqual(1.4f, soft.flightTime, 1e-4f);
-            Assert.AreEqual(1.1f, hard.flightTime, 1e-4f);
+            var aim = new Vector3(0f, 0f, -2.5f);
+            foreach (var (charge, apex) in new[] { (0f, 4f), (0.5f, 5.5f), (1f, 7f) })
+            {
+                var input = Input(HitType.Set, 0f, charge, aim);
+                var r = Make().Resolve(input);
+                float expected = BallTrajectory.FlightTimeForApex(input.ballPosition.y, apex, BallTrajectory.BallRadius);
+                Assert.AreEqual(expected, r.flightTime, 1e-4f);
+
+                var start = input.ballPosition;
+                var v0 = BallTrajectory.SolveLaunchVelocity(start, new Vector3(r.target.x, BallTrajectory.BallRadius, r.target.z), r.flightTime);
+                Assert.AreEqual(apex, BallTrajectory.ApexHeight(start, v0), 0.05f);
+            }
+            Assert.AreEqual(1.5f, Make().Resolve(Input(HitType.Set, 0f, 0f, aim)).flightTime, 0.15f);
+            Assert.AreEqual(2.2f, Make().Resolve(Input(HitType.Set, 0f, 1f, aim)).flightTime, 0.1f);
+        }
+
+        [Test]
+        public void Set_LandsAtTheAimPoint_WhateverTheCharge()
+        {
+            var aim = new Vector3(2.5f, 0f, -6f);   // deep and wide: left alone
+            foreach (float charge in new[] { 0f, 0.5f, 1f })
+                Assert.AreEqual(0f, Vector3.Distance(Make().Resolve(Input(HitType.Set, 0f, charge, aim)).target, aim), 1e-4f);
+        }
+
+        [Test]
+        public void Set_AimNearOrAcrossTheNet_MovesBackTo15mOnTheSettersSide_KeepingX()
+        {
+            foreach (float z in new[] { -0.5f, 0f, -1.4f, 3f })
+            {
+                var r = Make().Resolve(Input(HitType.Set, 0f, 0.5f, new Vector3(2f, 0f, z)));   // hitter at z = -4
+                Assert.AreEqual(-1.5f, r.target.z, 1e-4f);
+                Assert.AreEqual(2f, r.target.x, 1e-4f);
+            }
+        }
+
+        [Test]
+        public void Set_StartingNearTheApex_GetsAOneMetreArc()
+        {
+            var input = Input(HitType.Set, 0f, 1f, new Vector3(0f, 0f, -2f));
+            input.ballPosition = new Vector3(0f, 6.5f, -4f);
+            var v0 = BallTrajectory.SolveLaunchVelocity(input.ballPosition, new Vector3(0f, BallTrajectory.BallRadius, -2f), Make().Resolve(input).flightTime);
+            Assert.AreEqual(7.5f, BallTrajectory.ApexHeight(input.ballPosition, v0), 0.05f);
         }
 
 
@@ -186,16 +224,7 @@ namespace Sandspike.Tests
         {
             var r = Make().Resolve(Input(HitType.Set, 0f, 1f, new Vector3(0f, 0f, 6f))); // hitter at z = -4
             Assert.Less(r.target.z, 0f);
-            Assert.AreEqual(-3.5f, r.target.z, 1e-4f);
-        }
-
-        [Test]
-        public void Set_IsKeptOffTheNet_AndInsideCourtWidth()
-        {
-            var r = Make().Resolve(Input(HitType.Set, 0f, 1f, new Vector3(9f, 0f, -0.2f)));
-            Assert.AreEqual(-1.0f, r.target.z, 1e-4f);
-            Assert.AreEqual(4.0f, r.target.x, 1e-4f);
-            Assert.AreEqual(1.1f, r.flightTime, 1e-4f);
+            Assert.AreEqual(-1.5f, r.target.z, 1e-4f);
         }
 
         [Test]

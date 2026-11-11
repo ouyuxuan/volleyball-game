@@ -21,6 +21,15 @@ namespace Sandspike.Ball
             return (target - start - 0.5f * g * flightTime * flightTime) / flightTime;
         }
 
+        /// <summary>
+        /// Flight time of an arc that starts at height startY, peaks at 'apex' and ends at height landY:
+        /// t = sqrt(2(apex-startY)/g) + sqrt(2(apex-landY)/g). The apex should be above both heights.
+        /// </summary>
+        public static float FlightTimeForApex(float startY, float apex, float landY, float gravity = DefaultGravity)
+        {
+            return Mathf.Sqrt(2f * Mathf.Max(0f, apex - startY) / gravity) + Mathf.Sqrt(2f * Mathf.Max(0f, apex - landY) / gravity);
+        }
+
         /// <summary>Where the ball is 't' seconds after launch.</summary>
         public static Vector3 PositionAt(Vector3 start, Vector3 v0, float t, float gravity = DefaultGravity)
         {

@@ -111,6 +111,15 @@ namespace Sandspike.Tests
         }
 
         [Test]
+        public void FlightTimeForApex_MatchesTheSolvedArc()
+        {
+            float t = BallTrajectory.FlightTimeForApex(2f, 7f, 0f);   // up 5 m, down 7 m
+            Assert.AreEqual(Mathf.Sqrt(2f * 5f / 9.81f) + Mathf.Sqrt(2f * 7f / 9.81f), t, 1e-4f);
+            var v0 = BallTrajectory.SolveLaunchVelocity(new Vector3(0f, 2f, 0f), Vector3.zero, t);
+            Assert.AreEqual(7f, BallTrajectory.ApexHeight(new Vector3(0f, 2f, 0f), v0), 1e-3f);
+        }
+
+        [Test]
         public void WithinReach_UsesSphere()
         {
             Assert.IsTrue(BallTrajectory.WithinReach(new Vector3(0f, 1f, 1.1f), new Vector3(0f, 1f, 0f), 1.2f));

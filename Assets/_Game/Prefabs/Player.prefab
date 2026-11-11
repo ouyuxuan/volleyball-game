@@ -614,6 +614,8 @@ MonoBehaviour:
   bumpArmsInward: 0.35
   setHandsInward: 0.45
   diveArmDegrees: -150
+  bumpForwardDegrees: 35
+  setRaiseDegrees: 20
 --- !u!1 &2744610716080470048
 GameObject:
   m_ObjectHideFlags: 0
@@ -1372,7 +1374,7 @@ MonoBehaviour:
   jumpCharge:
     secondsToFull: 0.8
   spikeCharge:
-    secondsToFull: 0.8
+    secondsToFull: 0.5
   hitTuning:
     perfectWindow: 0.06
     goodWindow: 0.15
@@ -1391,17 +1393,15 @@ MonoBehaviour:
     bumpDistanceScaleHard: 1.2
     bumpTimeSoft: 1.6
     bumpTimeHard: 1.2
-    setDistanceScaleSoft: 0.9
-    setDistanceScaleHard: 1.1
-    setTimeSoft: 1.4
-    setTimeHard: 1.1
+    setApexMin: 4
+    setApexMax: 7
     spikeSlowTime: 0.9
     spikeFastTime: 0.35
     serveSlowTime: 1.6
     serveFastTime: 0.8
-    setMinDistanceFromNet: 1
-    setMaxDistanceFromNet: 3.5
-    setMaxHalfWidth: 4
+    setMinDistanceFromNet: 1.5
+    spikeReachBelow: 0.6
+    spikeReachAbove: 0.8
 --- !u!114 &4911366926808683706
 MonoBehaviour:
   m_ObjectHideFlags: 0

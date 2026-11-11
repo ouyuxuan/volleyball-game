@@ -225,6 +225,8 @@ counterpart. Arcs are defined by **apex height and speed**, not one shared fligh
 | Contact feel | Dull thud, ball pops up off the arms | Quick soft release, almost no spin | Hit-stop (about 60 ms), camera shake, loud crack, speed trail, heavy spin |
 | Typical use | Receiving serves and spikes | Second touch, to put the ball up for the spiker | Third touch, over the net |
 
+Update: the set lands at the aim point; apex 4-7 m by charge (about 1.5 s to 2.2 s of flight); the spike zone is a tall cylinder (hand -0.6 m to +0.8 m, 1 m radius).
+
 The visual and audio parts (sounds, trail) land in M5. Arcs, poses, hit-stop and shake land in this pass.
 
 Also in this pass (from community devlog research, general mechanics only):

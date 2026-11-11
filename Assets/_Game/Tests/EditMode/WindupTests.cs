@@ -76,6 +76,68 @@ namespace Sandspike.Tests
         }
 
         [Test]
+        public void JumpAndSpike_ChargeTogether_JumpReleaseKeepsTheSpikeCharge()
+        {
+            var go = new GameObject("p", typeof(CharacterController));
+            var p = go.AddComponent<PlayerController>();
+            var brain = new FakeBrain();
+            var t = typeof(PlayerController);
+            const BindingFlags Any = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+            t.GetMethod("Awake", Any).Invoke(p, null);
+            t.GetField("brain", Any).SetValue(p, brain);
+            t.GetField("grounded", Any).SetValue(p, true);
+            var jumpUpdate = t.GetMethod("UpdateJump", Any);
+            var hitsUpdate = t.GetMethod("UpdateHits", Any);
+            void Frame() { jumpUpdate.Invoke(p, new object[] { Dt }); hitsUpdate.Invoke(p, new object[] { Dt }); }
+
+            brain.jump = new ButtonState(true, true, false);
+            brain.spike = new ButtonState(true, true, false);
+            Frame();
+            for (int i = 0; i < 19; i++) { brain.jump = new ButtonState(false, true, false); brain.spike = new ButtonState(false, true, false); Frame(); }
+            Assert.IsTrue(p.JumpCharge.IsCharging);
+            Assert.IsTrue(p.SpikeCharge.IsCharging);
+
+            brain.jump = new ButtonState(false, false, true);   // release the jump: the spike keeps charging, in the air
+            brain.spike = new ButtonState(false, true, false);
+            Frame();
+            Assert.Greater(p.VerticalVelocity, 1f);             // took off
+            float before = p.SpikeCharge.Value;
+            p.GetType().GetField("grounded", Any).SetValue(p, false);
+            for (int i = 0; i < 10; i++) { brain.jump = default; brain.spike = new ButtonState(false, true, false); Frame(); }
+            Assert.IsTrue(p.SpikeCharge.IsCharging);
+            Assert.Greater(p.SpikeCharge.Value, before);
+            Assert.AreEqual(0.5f, p.SpikeCharge.secondsToFull, 1e-4f);
+            Object.DestroyImmediate(go);
+        }
+
+        [Test]
+        public void SpikeReach_IsATallCylinder()
+        {
+            var hand = new Vector3(1f, 3f, 2f);
+            Assert.IsTrue(ContactTiming.SpikeInReach(hand + new Vector3(0f, 0.7f, 0f), hand, 1f, 0.6f, 0.8f));
+            Assert.IsTrue(ContactTiming.SpikeInReach(hand + new Vector3(0f, -0.5f, 0f), hand, 1f, 0.6f, 0.8f));
+            Assert.IsFalse(ContactTiming.SpikeInReach(hand + new Vector3(0f, 0.9f, 0f), hand, 1f, 0.6f, 0.8f));
+            Assert.IsFalse(ContactTiming.SpikeInReach(hand + new Vector3(0f, -0.7f, 0f), hand, 1f, 0.6f, 0.8f));
+            Assert.IsFalse(ContactTiming.SpikeInReach(hand + new Vector3(1.1f, 0f, 0f), hand, 1f, 0.6f, 0.8f));   // too far sideways
+            Assert.IsTrue(ContactTiming.SpikeInReach(hand + new Vector3(0.9f, 0.7f, 0f), hand, 1f, 0.6f, 0.8f)); // sphere would reject this
+        }
+
+        [Test]
+        public void BumpAndSetReach_StayASphere()
+        {
+            var go = new GameObject("p", typeof(CharacterController));
+            var p = go.AddComponent<PlayerController>();
+            typeof(PlayerController).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(p, null);
+            var hand = new Vector3(0f, 2f, 0f);
+            foreach (var type in new[] { HitType.Bump, HitType.Set })
+            {
+                Assert.IsTrue(p.InReach(type, hand + new Vector3(0f, 0.9f, 0f), hand), type + " straight above, inside the sphere");
+                Assert.IsFalse(p.InReach(type, hand + new Vector3(0.7f, 0.8f, 0f), hand), type + " diagonal, outside the sphere");
+            }
+            Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void HitCue_InReach_IsADistanceCheck()
         {
             Assert.IsTrue(ContactTiming.InReach(new Vector3(0f, 1f, 0f), new Vector3(0f, 1.5f, 0f), 1f));

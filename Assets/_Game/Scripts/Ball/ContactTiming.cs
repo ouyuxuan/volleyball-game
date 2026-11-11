@@ -26,6 +26,18 @@ namespace Sandspike.Ball
         /// <summary>True when the ball is within 'reach' metres of the contact point (drives the "hit now" cue).</summary>
         public static bool InReach(Vector3 ball, Vector3 contact, float reach) => (ball - contact).sqrMagnitude <= reach * reach;
 
+        /// <summary>
+        /// The spike's reach zone: a tall cylinder. The ball counts when it is within 'reach' horizontally of the hand
+        /// AND between (hand - below) and (hand + above) in height. One function, used wherever a spike's reach is checked.
+        /// </summary>
+        public static bool SpikeInReach(Vector3 ball, Vector3 hand, float reach, float below, float above)
+        {
+            float dy = ball.y - hand.y;
+            if (dy < -below || dy > above) return false;
+            float dx = ball.x - hand.x, dz = ball.z - hand.z;
+            return dx * dx + dz * dz <= reach * reach;
+        }
+
         /// <summary>The dive's dig: the low forward contact point reaches a little farther than a normal hit (reach + bonus).</summary>
         public static bool DigInReach(Vector3 ball, Vector3 digPoint, float reach, float bonus) => InReach(ball, digPoint, reach + bonus);
 
