@@ -60,6 +60,7 @@ namespace Sandspike.Players
         public ButtonState Bump => Read(Controls.Gameplay.Bump);
         public ButtonState Set => Read(Controls.Gameplay.Set);
         public ButtonState Dive => Read(Controls.Gameplay.Dive);
+        public bool Sprint => Controls.Gameplay.Sprint.IsPressed();
 
         static ButtonState Read(InputAction a) =>
             new ButtonState(a.WasPressedThisFrame(), a.IsPressed(), a.WasReleasedThisFrame());

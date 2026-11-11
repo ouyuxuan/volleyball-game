@@ -16,6 +16,7 @@ namespace Sandspike.Players
         [SerializeField] float innerInner = 0.58f, innerOuter = 0.72f;   // charge arc radii
         [SerializeField] float height = 0.06f;                           // above the sand (the other markers use 0.04 and 0.05)
         [SerializeField] float lowStamina = 0.4f;
+        [SerializeField] float burnoutFlickerHz = 6f;
 
         Mesh staminaMesh, chargeMesh;
         Material staminaMat, chargeMat;
@@ -28,13 +29,27 @@ namespace Sandspike.Players
 
             staminaMesh = new Mesh { name = "Stamina Arc" };
             chargeMesh = new Mesh { name = "Charge Arc" };
-            staminaMat = MakeMaterial(Palette.Sea);
+            staminaMat = MakeMaterial(Palette.Sea, true);
             chargeMat = MakeMaterial(Palette.Accent);
             MakePart("Stamina Arc", staminaMesh, staminaMat, 0.004f);
             MakePart("Charge Arc", chargeMesh, chargeMat, 0.008f);
         }
 
-        static Material MakeMaterial(Color colour) => new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = colour };
+        /// <summary>An unlit URP material; 'transparent' lets the colour's alpha show (the burnout flicker, the serve preview).</summary>
+        public static Material MakeMaterial(Color colour, bool transparent = false)
+        {
+            var m = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = colour };
+            if (!transparent) return m;
+            m.SetFloat("_Surface", 1f);
+            m.SetFloat("_Blend", 0f);
+            m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.SetFloat("_ZWrite", 0f);
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.SetOverrideTag("RenderType", "Transparent");
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            return m;
+        }
 
         void MakePart(string partName, Mesh mesh, Material mat, float lift)
         {
@@ -56,7 +71,10 @@ namespace Sandspike.Players
 
             float s = player.Stamina.Normalized;
             RingMesh.FillArc(staminaMesh, outerInner, outerOuter, s);
-            staminaMat.color = s < lowStamina ? Palette.TeamA : Palette.Sea;
+            Color staminaColour = s < lowStamina ? Palette.TeamA : Palette.Sea;
+            // burned out: the arc flickers (alpha pulses about 6 times a second)
+            float alpha = player.IsBurnedOut ? Mathf.Lerp(0.25f, 1f, 0.5f + 0.5f * Mathf.Sin(Time.time * burnoutFlickerHz * 2f * Mathf.PI)) : 1f;
+            staminaMat.color = Palette.WithAlpha(staminaColour, alpha);
 
             float charge = player.JumpCharge.IsCharging ? player.JumpCharge.Value : player.SpikeCharge.Value;
             RingMesh.FillArc(chargeMesh, innerInner, innerOuter, charge);

@@ -118,6 +118,7 @@ namespace Sandspike.Players
         public ButtonState Bump => bump.state;
         public ButtonState Set => set.state;
         public ButtonState Dive => default;      // bots do not dive in M2
+        public bool Sprint => false;             // bots do not sprint
 
         void Awake() { me = GetComponent<PlayerController>(); }
 

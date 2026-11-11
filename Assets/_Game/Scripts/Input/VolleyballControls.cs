@@ -203,6 +203,16 @@ namespace Sandspike.Controls
                     ""interactions"": """",
                     ""initialStateCheck"": false,
                     ""priority"": 0
+                },
+                {
+                    ""name"": ""Sprint"",
+                    ""type"": ""Button"",
+                    ""id"": ""a1b2c3d4-0006-4aaa-8bbb-000000000006"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
                 }
             ],
             ""bindings"": [
@@ -480,6 +490,28 @@ namespace Sandspike.Controls
                     ""action"": ""Dive"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1b2c3d4-0007-4aaa-8bbb-000000000007"",
+                    ""path"": ""<Keyboard>/leftCtrl"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Sprint"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1b2c3d4-0008-4aaa-8bbb-000000000008"",
+                    ""path"": ""<Gamepad>/leftStickPress"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""Sprint"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -527,6 +559,7 @@ namespace Sandspike.Controls
             m_Gameplay_FeedBall = m_Gameplay.FindAction("FeedBall", throwIfNotFound: true);
             m_Gameplay_Dive = m_Gameplay.FindAction("Dive", throwIfNotFound: true);
             m_Gameplay_ToggleHints = m_Gameplay.FindAction("ToggleHints", throwIfNotFound: true);
+            m_Gameplay_Sprint = m_Gameplay.FindAction("Sprint", throwIfNotFound: true);
         }
 
         ~@VolleyballControls()
@@ -618,6 +651,7 @@ namespace Sandspike.Controls
         private readonly InputAction m_Gameplay_FeedBall;
         private readonly InputAction m_Gameplay_Dive;
         private readonly InputAction m_Gameplay_ToggleHints;
+        private readonly InputAction m_Gameplay_Sprint;
         /// <summary>
         /// Provides access to input actions defined in input action map "Gameplay".
         /// </summary>
@@ -673,6 +707,10 @@ namespace Sandspike.Controls
             /// Provides access to the underlying input action "Gameplay/ToggleHints".
             /// </summary>
             public InputAction @ToggleHints => m_Wrapper.m_Gameplay_ToggleHints;
+            /// <summary>
+            /// Provides access to the underlying input action "Gameplay/Sprint".
+            /// </summary>
+            public InputAction @Sprint => m_Wrapper.m_Gameplay_Sprint;
             /// <summary>
             /// Provides access to the underlying input action map instance.
             /// </summary>
@@ -732,6 +770,9 @@ namespace Sandspike.Controls
                 @ToggleHints.started += instance.OnToggleHints;
                 @ToggleHints.performed += instance.OnToggleHints;
                 @ToggleHints.canceled += instance.OnToggleHints;
+                @Sprint.started += instance.OnSprint;
+                @Sprint.performed += instance.OnSprint;
+                @Sprint.canceled += instance.OnSprint;
             }
 
             /// <summary>
@@ -776,6 +817,9 @@ namespace Sandspike.Controls
                 @ToggleHints.started -= instance.OnToggleHints;
                 @ToggleHints.performed -= instance.OnToggleHints;
                 @ToggleHints.canceled -= instance.OnToggleHints;
+                @Sprint.started -= instance.OnSprint;
+                @Sprint.performed -= instance.OnSprint;
+                @Sprint.canceled -= instance.OnSprint;
             }
 
             /// <summary>
@@ -919,6 +963,13 @@ namespace Sandspike.Controls
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnToggleHints(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Sprint" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnSprint(InputAction.CallbackContext context);
         }
     }
 }

@@ -29,5 +29,8 @@ namespace Sandspike.Players
         ButtonState Bump { get; }
         ButtonState Set { get; }
         ButtonState Dive { get; }
+
+        /// <summary>Held: run faster while moving on the ground (costs stamina).</summary>
+        bool Sprint { get; }
     }
 }

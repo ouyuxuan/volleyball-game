@@ -1,7 +1,7 @@
 namespace Sandspike.Controls
 {
     /// <summary>The game's actions, for looking up button names.</summary>
-    public enum PromptAction { Move, Aim, Jump, Spike, Bump, Set, ToggleView, Pause, FeedBall, Dive, ToggleHints }
+    public enum PromptAction { Move, Aim, Jump, Spike, Bump, Set, ToggleView, Pause, FeedBall, Dive, ToggleHints, Sprint }
 
     /// <summary>Button names for the on-screen hints, per device style (keys / Xbox / PlayStation).</summary>
     public static class ControlPrompts
@@ -22,6 +22,7 @@ namespace Sandspike.Controls
                         case PromptAction.ToggleView: return "R3";
                         case PromptAction.Pause: return "Options";
                         case PromptAction.Dive: return "Circle";
+                        case PromptAction.Sprint: return "L3";
                         case PromptAction.ToggleHints: return "Create";
                         default: return "Create";
                     }
@@ -37,6 +38,7 @@ namespace Sandspike.Controls
                         case PromptAction.ToggleView: return "R3";
                         case PromptAction.Pause: return "Menu";
                         case PromptAction.Dive: return "B";
+                        case PromptAction.Sprint: return "L3";
                         case PromptAction.ToggleHints: return "View";
                         default: return "View";
                     }
@@ -52,6 +54,7 @@ namespace Sandspike.Controls
                         case PromptAction.ToggleView: return "V";
                         case PromptAction.Pause: return "Esc";
                         case PromptAction.Dive: return "Shift";
+                        case PromptAction.Sprint: return "Left Ctrl";
                         case PromptAction.ToggleHints: return "H";
                         default: return "R";
                     }
@@ -71,6 +74,7 @@ namespace Sandspike.Controls
                 case PromptAction.ToggleView: return "1st / 3rd person";
                 case PromptAction.Pause: return "Pause";
                 case PromptAction.Dive: return "Dive (low dig)";
+                case PromptAction.Sprint: return "Sprint (hold)";
                 case PromptAction.ToggleHints: return "Show / hide controls";
                 default: return "Feed ball (training)";
             }

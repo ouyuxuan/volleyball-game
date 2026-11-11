@@ -48,6 +48,20 @@ namespace Sandspike.Players
         [SerializeField] float gravity = 25f;        // the player's gravity (snappier than the ball's)
         [SerializeField] float chargeSeconds = 0.4f; // holding jump this long on the ground gives a full charge
 
+        [Header("Sprint (Left Ctrl / left-stick click)")]
+        [SerializeField] float sprintMultiplier = 1.25f;
+        [SerializeField] float sprintDrainPerSecond = 22f;
+        [SerializeField] float sprintMinStamina = 5f;       // sprint can't start below this
+
+        [Header("Air control")]
+        [SerializeField] float airControl = 0.3f;            // in the air, acceleration is this fraction of the ground's
+        [SerializeField] float standingJumpSpeed = 2f;       // a jump that takes off slower than this is a "standing" jump...
+        [SerializeField] float standingJumpAirSpeed = 2.5f;  // ...and can't go faster than this sideways until it lands
+
+        [Header("Burnout (a dive with too little stamina)")]
+        [SerializeField] float burnoutSeconds = 2f;
+        [SerializeField] float burnoutSpeedMultiplier = 0.6f;
+
         [Header("Court limits (this player's half)")]
         [SerializeField] float courtSide = -1f;      // -1: z below the net, +1: z above
         [SerializeField] float netMargin = 0.55f;    // how close to the net the body may get
@@ -75,6 +89,7 @@ namespace Sandspike.Players
         [Header("Serve")]
         [SerializeField] float serveNetMargin = 0.2f;     // a serve is slowed (lobbed) until it clears the net by this much
         [SerializeField] float serveMaxExtraSeconds = 1.0f;
+        [SerializeField] float servePushStep = 0.25f;     // a serve aimed too close to the net to clear it lands this much deeper per step
 
         [Header("Charge, stamina, hit numbers")]
         [SerializeField] Stamina stamina = new Stamina();
@@ -104,6 +119,18 @@ namespace Sandspike.Players
         float diveLeft;
         float recoverLeft;
         Vector3 diveDir;
+
+        // sprint / burnout / air state
+        bool sprinting;
+        bool burnoutPending;     // the dive was started with too little stamina: burnout begins when its get-up ends
+        float burnoutLeft;
+        float airSpeedCap = float.PositiveInfinity;   // set by a standing jump, cleared on landing
+
+        public bool IsSprinting => sprinting;
+        public bool IsBurnedOut => burnoutLeft > 0f;
+        /// <summary>1 at the start of burnout, falling to 0 as it ends.</summary>
+        public float Burnout01 => burnoutSeconds > 0f ? Mathf.Clamp01(burnoutLeft / burnoutSeconds) : 0f;
+        float ChargeCap => IsBurnedOut ? 0f : stamina.MaxChargeAllowed;   // burnout: charge can't build
 
         public Stamina Stamina => stamina;
         public ChargeMeter JumpCharge => jumpCharge;
@@ -141,15 +168,18 @@ namespace Sandspike.Players
             jumpCharge.secondsToFull = chargeSeconds;
         }
 
-        void Update()
+        void Update() { if (brain != null) Tick(Time.deltaTime); }
+
+        /// <summary>One frame of player logic (Update calls it; tests call it with a fixed step).</summary>
+        public void Tick(float dt)
         {
             if (brain == null) return;
-            float dt = Time.deltaTime;
             cooldownLeft -= dt;
 
             Vector2 move = brain.Move;
             bool busy = diving || recoverLeft > 0f;
-            stamina.Tick(dt, move.sqrMagnitude > 0.01f && !busy);
+            UpdateSprint(dt, move, busy);
+            stamina.Tick(dt, move.sqrMagnitude > 0.01f && !busy, !sprinting && !IsBurnedOut && !burnoutPending);
 
             UpdateDive(dt, move);
             busy = diving || recoverLeft > 0f;
@@ -169,6 +199,9 @@ namespace Sandspike.Players
             pending.active = false;
             diving = false;
             recoverLeft = 0f;
+            burnoutPending = false;
+            burnoutLeft = 0f;
+            sprinting = false;
             jumpCharge.Cancel();
             spikeCharge.Cancel();
             cooldownLeft = 0f;
@@ -188,6 +221,16 @@ namespace Sandspike.Players
 
         // ---------------- movement ----------------
 
+        // Sprint: held, moving on the ground, not busy, not charging a jump, not burned out, and enough stamina
+        // (5 to start, anything above 0 to keep going). It drains stamina, which then does not regenerate.
+        void UpdateSprint(float dt, Vector2 move, bool busy)
+        {
+            bool want = brain.Sprint && move.sqrMagnitude > 0.01f && grounded && !busy && !jumpCharge.IsCharging && !IsBurnedOut;
+            float s = stamina.Current;
+            sprinting = want && (sprinting ? s > 0f : s >= sprintMinStamina);
+            if (sprinting) stamina.Drain(sprintDrainPerSecond * dt);
+        }
+
         void Move(Vector2 input, float dt)
         {
             if (diving)
@@ -196,9 +239,12 @@ namespace Sandspike.Players
             }
             else
             {
-                Vector3 wish = new Vector3(input.x, 0f, input.y) * moveSpeed;
+                float speed = moveSpeed * (sprinting ? sprintMultiplier : 1f) * (IsBurnedOut ? burnoutSpeedMultiplier : 1f);
+                Vector3 wish = new Vector3(input.x, 0f, input.y) * speed;
                 float rate = wish.sqrMagnitude > 0.01f ? acceleration : deceleration;
+                if (!grounded) rate *= airControl;                       // little steering in the air: run-ups carry, standing jumps don't drift
                 planarVelocity = Vector3.MoveTowards(planarVelocity, wish, rate * dt);
+                if (!grounded) planarVelocity = Vector3.ClampMagnitude(planarVelocity, Mathf.Max(airSpeedCap, 0f));
             }
 
             if (grounded && verticalVelocity < 0f) verticalVelocity = -2f;   // stay pressed onto the sand
@@ -209,6 +255,7 @@ namespace Sandspike.Players
             next = ClampToCourt(next);
             controller.Move(next - pos);
             grounded = controller.isGrounded || transform.position.y <= 0.001f;
+            if (grounded) airSpeedCap = float.PositiveInfinity;
         }
 
         // Keeps the player on their own half (can't cross the net) and inside the beach area.
@@ -237,10 +284,12 @@ namespace Sandspike.Players
         // While diving, a ball near the low forward contact point is dug (auto-bumped) toward the aim point.
         void UpdateDive(float dt, Vector2 move)
         {
-            if (recoverLeft > 0f) recoverLeft = Mathf.Max(0f, recoverLeft - dt);
+            TickRecoveryAndBurnout(dt);
 
-            if (!diving && recoverLeft <= 0f && grounded && !ServeMode && brain.Dive.Down && stamina.CanDive)
+            if (!diving && recoverLeft <= 0f && grounded && !ServeMode && brain.Dive.Down)
             {
+                // Always allowed. Too little stamina still dives, drains to 0 and burns the player out after the get-up.
+                burnoutPending = stamina.Current < stamina.diveCost;
                 stamina.SpendDive();
                 diveDir = move.sqrMagnitude > 0.01f ? new Vector3(move.x, 0f, move.y).normalized : FlatForward();
                 transform.rotation = Quaternion.LookRotation(diveDir, Vector3.up);
@@ -260,6 +309,17 @@ namespace Sandspike.Players
                 recoverLeft = diveRecoverySeconds;
                 planarVelocity = Vector3.zero;     // the lunge ends where it ends (3.5 m)
             }
+        }
+
+        // The get-up counts down; when it ends a pending burnout starts, and a running burnout counts down.
+        void TickRecoveryAndBurnout(float dt)
+        {
+            if (recoverLeft > 0f)
+            {
+                recoverLeft = Mathf.Max(0f, recoverLeft - dt);
+                if (recoverLeft <= 0f && burnoutPending) { burnoutPending = false; burnoutLeft = burnoutSeconds; }
+            }
+            else if (!diving && burnoutLeft > 0f) burnoutLeft = Mathf.Max(0f, burnoutLeft - dt);
         }
 
         void TryDig()
@@ -288,7 +348,7 @@ namespace Sandspike.Players
                 if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Serve; }
                 return;
             }
-            spikeCharge.Tick(dt, stamina.MaxChargeAllowed);
+            spikeCharge.Tick(dt, ChargeCap);
             if (spike.Up || !spike.Held)
             {
                 spikeCharge.Lock();
@@ -299,22 +359,42 @@ namespace Sandspike.Players
         void DoServe(float charge)
         {
             if (ball == null || ball.IsInFlight) { spikeCharge.Cancel(); return; }
+            HitResult result = PredictServe(charge);
+            ServeMode = false;
+            Finish(HitType.Serve, charge, result, 0f, ball.Position, Time.time, Time.time, brain.AimPoint);
+        }
+
+        /// <summary>True while the server holds the spike button to charge a serve (the serve preview shows then).</summary>
+        public bool ServeCharging => ServeMode && spikeCharge.IsCharging;
+
+        /// <summary>The serve a release would make right now at this charge: the real resolver call plus the net-clear assist. DoServe and the preview both use it.</summary>
+        public HitResult PredictServe(float charge)
+        {
             Vector3 start = ball.Position;
-            Vector3 aim = brain.AimPoint;
             var input = new HitInput
             {
                 type = HitType.Serve, charge = charge, timingError = 0f, closestDistance = 0f, reachRadius = reachRadius,
-                contactHeight = start.y, aimPoint = aim, hitterPosition = transform.position, ballPosition = start,
+                contactHeight = start.y, aimPoint = brain.AimPoint, hitterPosition = transform.position, ballPosition = start,
                 ballGravity = ball.Gravity,
             };
             HitResult result = resolver.Resolve(input);
-            result.flightTime = ServeFlightTime(start, result.target, result.flightTime);
-            ServeMode = false;
-            Finish(HitType.Serve, charge, result, 0f, start, Time.time, Time.time, aim);
+            // Net-clear assist: lob the serve (longer flight) until it clears the net. A target so close to the net that no lob
+            // can clear it is moved back, away from the net, a step at a time (same idea as the spike's push), never past the baseline.
+            float side = result.target.z >= 0f ? 1f : -1f;
+            float maxDepth = hitTuning.courtHalfLength - hitTuning.baselineMargin;
+            float time = result.flightTime;
+            while (!ServeClears(start, result.target, ref time) && Mathf.Abs(result.target.z) + servePushStep <= maxDepth)
+            {
+                result.target.z += side * servePushStep;
+                time = result.flightTime;
+            }
+            result.flightTime = time;
+            return result;
         }
 
-        // A serve that would hit the net is slowed down (a higher, softer arc) until it clears it.
-        float ServeFlightTime(Vector3 start, Vector3 groundTarget, float time)
+        // Tries longer flight times (up to serveMaxExtraSeconds more) until the serve clears the net by serveNetMargin.
+        // Returns false if none does (time is then the longest tried).
+        bool ServeClears(Vector3 start, Vector3 groundTarget, ref float time)
         {
             float g = ball.Gravity;
             Vector3 centre = new Vector3(groundTarget.x, ball.Radius, groundTarget.z);
@@ -322,9 +402,9 @@ namespace Sandspike.Players
             for (; time < max; time += 0.05f)
             {
                 Vector3 v0 = BallTrajectory.SolveLaunchVelocity(start, centre, time, g);
-                if (BallTrajectory.ClearsNet(start, v0, time, BallTrajectory.NetTopHeight + serveNetMargin, ball.Radius, 0f, g)) break;
+                if (BallTrajectory.ClearsNet(start, v0, time, BallTrajectory.NetTopHeight + serveNetMargin, ball.Radius, 0f, g)) return true;
             }
-            return time;
+            return false;
         }
 
         // ---------------- jump ----------------
@@ -341,7 +421,7 @@ namespace Sandspike.Players
                 float charge = jumpCharge.Release();
                 if (grounded) Jump(charge);
             }
-            else if (!jump.Down) jumpCharge.Tick(dt, stamina.MaxChargeAllowed);   // charge builds after the press frame, so a tap stays a pure tap
+            else if (!jump.Down) jumpCharge.Tick(dt, ChargeCap);   // charge builds after the press frame, so a tap stays a pure tap
         }
 
         /// <summary>Jumps with the given charge (0 = tap hop, 1 = full jump) and spends stamina in proportion.</summary>
@@ -350,6 +430,8 @@ namespace Sandspike.Players
             float apex = Mathf.Lerp(tapJumpHeight, fullJumpHeight, Mathf.Clamp01(charge));
             verticalVelocity = ContactTiming.JumpSpeed(gravity, apex);
             grounded = false;
+            // a jump from (almost) standing still keeps little sideways speed; a running jump keeps its run-up
+            airSpeedCap = planarVelocity.magnitude < standingJumpSpeed ? standingJumpAirSpeed : float.PositiveInfinity;
             stamina.SpendJump(charge);
         }
 
@@ -371,7 +453,7 @@ namespace Sandspike.Players
             }
             if (spikeCharge.IsCharging)
             {
-                spikeCharge.Tick(dt, stamina.MaxChargeAllowed);
+                spikeCharge.Tick(dt, ChargeCap);
                 ButtonState b = chargingType == HitType.Spike ? spike : chargingType == HitType.Bump ? bump : set;
                 if (b.Up || !b.Held)
                 {

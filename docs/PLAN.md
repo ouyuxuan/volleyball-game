@@ -262,12 +262,14 @@ Also in this pass (from community devlog research, general mechanics only):
 - **Dive is always allowed, with burnout.** The "refuse dive below 15 stamina" rule goes. Diving with
   too little stamina still happens, but the player goes into **burnout** for about 2 s: slower,
   can't charge, with a visible effect (tinted player and a flickering ring).
-- **Jump cancel.** While charging a jump, pressing dive or a hit button cancels the charge cleanly
-  instead of jumping.
+- **Jump cancel.** While charging a jump, pressing Dive cancels the charge and dives instead of
+  jumping. Hit buttons never cancel it, because holding jump and spike together is how a jump-spike
+  is charged.
 - **Serve preview.** While charging a serve, a dotted line on the court shows the predicted serve path
   and landing spot.
 - **Serve fault test.** A test proves a legal serve never counts as a fault, including the net-clear
   assist.
+- Movement pass status: done
 
 **Open issue (tabled by the user):** hitting still feels off after playtests 1–4. Revisit it after M3,
 once real rallies against AI make the problem easier to pin down. The explicit action queue and

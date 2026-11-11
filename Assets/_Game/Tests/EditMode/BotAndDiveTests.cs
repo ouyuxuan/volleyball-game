@@ -89,14 +89,13 @@ namespace Sandspike.Tests
         }
 
         [Test]
-        public void Dive_IsRefusedBelowFifteenStamina()
+        public void Dive_BelowTheCostDrainsToZero()
         {
             var s = new Stamina();
-            s.SpendJump(1f); s.SpendJump(1f); s.SpendJump(1f);        // 100 - 75 = 25
-            Assert.IsTrue(s.CanDive);
-            s.SpendDive();                                            // 25 - 15 = 10
-            Assert.AreEqual(10f, s.Current, 1e-4f);
-            Assert.IsFalse(s.CanDive, "10 stamina is below the dive cost of 15");
+            s.SpendJump(1f); s.SpendJump(1f); s.SpendJump(1f); s.SpendJump(1f);   // 100 - 100 = 0 
+            s.SpendJump(1f);
+            s.SpendDive();                                            // never negative
+            Assert.AreEqual(0f, s.Current, 1e-4f);
         }
 
         [Test]

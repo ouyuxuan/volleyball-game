@@ -7,13 +7,17 @@ namespace Sandspike.Tests
     public class FakeBrain : IPlayerBrain
     {
         public ButtonState bump, jump, dive, spike;
+        public Vector2 move;
+        public Vector3 aim = new Vector3(0f, 0f, 4f);
+        public bool sprint;
 
-        public Vector2 Move => Vector2.zero;
-        public Vector3 AimPoint => new Vector3(0f, 0f, 4f);
+        public Vector2 Move => move;
+        public Vector3 AimPoint => aim;
         public ButtonState Jump => jump;
         public ButtonState Spike => spike;
         public ButtonState Bump => bump;
         public ButtonState Set => default;
         public ButtonState Dive => dive;
+        public bool Sprint => sprint;
     }
 }

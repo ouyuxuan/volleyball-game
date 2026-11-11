@@ -20,7 +20,7 @@ namespace Sandspike.Players
         public float regenDelay = 0.5f;     // seconds after the last spend before regen starts
         public float lowThreshold = 40f;    // below this, the charge cap shrinks
         public float capAtZero = 0.5f;      // max charge allowed at 0 stamina
-        public float diveCost = 15f;        // a dive spends this much, and is refused below it
+        public float diveCost = 15f;        // a dive spends this much (with less, it still dives but burns the player out)
 
         [NonSerialized] float current = -1f;   // -1 = "not set yet, start full"
         [NonSerialized] float delayLeft;
@@ -47,8 +47,8 @@ namespace Sandspike.Players
         public void SpendJump(float charge) => Spend(jumpCostMax * Mathf.Clamp01(charge));
         public void SpendSpike(float charge) => Spend(spikeCostMax * Mathf.Clamp01(charge));
         public void SpendHit(float charge) => Spend(hitCostMax * Mathf.Clamp01(charge));   // bump or set
-        public bool CanDive => Current >= diveCost;
         public void SpendDive() => Spend(diveCost);
+        public void Drain(float amount) => Spend(amount);   // sprint: a small spend every frame (also restarts the regen delay)
 
         void Spend(float amount)
         {
@@ -58,7 +58,7 @@ namespace Sandspike.Players
         }
 
         /// <summary>Call every frame. Regen only starts once the delay after the last spend has passed.</summary>
-        public void Tick(float dt, bool isMoving)
+        public void Tick(float dt, bool isMoving, bool canRegen = true)
         {
             float s = Current;
             if (delayLeft > 0f)
@@ -67,7 +67,7 @@ namespace Sandspike.Players
                 delayLeft -= used;
                 dt -= used;
             }
-            if (dt <= 0f) return;
+            if (dt <= 0f || !canRegen) return;
             current = Mathf.Min(max, s + dt * (isMoving ? regenMoving : regenStill));
         }
     }
