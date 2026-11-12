@@ -21,7 +21,7 @@ namespace Sandspike.UI
         static readonly PromptAction[] Lines =
         {
             PromptAction.Move, PromptAction.Aim, PromptAction.Jump, PromptAction.Spike,
-            PromptAction.Bump, PromptAction.Set, PromptAction.Dive, PromptAction.Sprint, PromptAction.ToggleView, PromptAction.ToggleHints,
+            PromptAction.Bump, PromptAction.Set, PromptAction.Dive, PromptAction.Sprint, PromptAction.Block, PromptAction.ToggleView, PromptAction.ToggleHints,
         };
 
         CanvasGroup group;

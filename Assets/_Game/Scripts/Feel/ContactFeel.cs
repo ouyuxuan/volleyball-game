@@ -119,6 +119,9 @@ namespace Sandspike.Feel
                 case HitType.Set:
                     ball.SetSpin(setSpin);
                     break;
+                case HitType.Block:
+                    Shake(groundShake);      // medium shake: same strength as a spiked ball hitting the sand
+                    break;
             }
         }
 

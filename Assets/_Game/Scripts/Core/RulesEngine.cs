@@ -76,8 +76,11 @@ namespace Sandspike.Core
             LastReason = PointReason.None;
         }
 
-        /// <summary>A player touched the ball (not the serve). Returns the fault reason, or None if play goes on.</summary>
-        public PointReason Touch(int playerId, int team)
+        /// <summary>
+        /// A player touched the ball (not the serve). Returns the fault reason, or None if play goes on.
+        /// A block (isBlock) counts as one of the team's touches, but the blocker may make the next touch (no double-touch fault).
+        /// </summary>
+        public PointReason Touch(int playerId, int team, bool isBlock = false)
         {
             if (!RallyActive) return PointReason.None;
 
@@ -89,13 +92,13 @@ namespace Sandspike.Core
             }
 
             LastTouchTeam = team;
-            if (LastToucherId == playerId)    // the same player twice in a row
+            if (!isBlock && LastToucherId == playerId)    // the same player twice in a row
             {
                 Award(1 - team, PointReason.DoubleTouch);
                 return PointReason.DoubleTouch;
             }
             Touches++;
-            LastToucherId = playerId;
+            LastToucherId = isBlock ? -1 : playerId;     // after a block anyone (the blocker too) may touch
             if (Touches > maxTouches)
             {
                 Award(1 - team, PointReason.FourTouches);

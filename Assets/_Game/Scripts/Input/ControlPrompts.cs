@@ -1,13 +1,14 @@
 namespace Sandspike.Controls
 {
     /// <summary>The game's actions, for looking up button names.</summary>
-    public enum PromptAction { Move, Aim, Jump, Spike, Bump, Set, ToggleView, Pause, FeedBall, Dive, ToggleHints, Sprint }
+    public enum PromptAction { Move, Aim, Jump, Spike, Bump, Set, ToggleView, Pause, FeedBall, Dive, ToggleHints, Sprint, Block }
 
     /// <summary>Button names for the on-screen hints, per device style (keys / Xbox / PlayStation).</summary>
     public static class ControlPrompts
     {
         public static string Label(PromptAction action, PromptStyle style)
         {
+            if (action == PromptAction.Block) action = PromptAction.Jump;   // a block is a jump at the net
             switch (style)
             {
                 case PromptStyle.PlayStation:
@@ -75,6 +76,7 @@ namespace Sandspike.Controls
                 case PromptAction.Pause: return "Pause";
                 case PromptAction.Dive: return "Dive (low dig)";
                 case PromptAction.Sprint: return "Sprint (hold)";
+                case PromptAction.Block: return "at the net: Block";
                 case PromptAction.ToggleHints: return "Show / hide controls";
                 default: return "Feed ball (training)";
             }

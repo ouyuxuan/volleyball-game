@@ -2,8 +2,8 @@ using UnityEngine;
 
 namespace Sandspike.Players
 {
-    /// <summary>The four kinds of hit.</summary>
-    public enum HitType { Bump, Set, Spike, Serve }
+    /// <summary>The kinds of hit. Block is the ball rebounding off a blocker's hands (not a button hit).</summary>
+    public enum HitType { Bump, Set, Spike, Serve, Block }
 
     /// <summary>How good a hit was (shown in the HUD pop).</summary>
     public enum HitGrade { None, Perfect, Good, Ok, Miss }

@@ -91,6 +91,9 @@ namespace Sandspike.Players
         [SerializeField] float serveMaxExtraSeconds = 1.0f;
         [SerializeField] float servePushStep = 0.25f;     // a serve aimed too close to the net to clear it lands this much deeper per step
 
+        [Header("Block (jump at the net with no hit button held)")]
+        [SerializeField] BlockTuning block = new BlockTuning();
+
         [Header("Charge, stamina, hit numbers")]
         [SerializeField] Stamina stamina = new Stamina();
         [SerializeField] ChargeMeter jumpCharge = new ChargeMeter();
@@ -99,6 +102,9 @@ namespace Sandspike.Players
 
         /// <summary>Raised whenever this player connects with the ball (serve, hit or dig). The MatchManager counts touches with it.</summary>
         public event Action<PlayerController> OnBallTouched;
+
+        /// <summary>Raised when this player's block stops the ball (the MatchManager counts it as a touch, "isBlock").</summary>
+        public event Action<PlayerController> OnBlocked;
 
         /// <summary>Raised after every hit attempt that was inside reach (including whiffs).</summary>
         public event Action<HitReport> OnHitAttempt;
@@ -125,6 +131,20 @@ namespace Sandspike.Players
         bool burnoutPending;     // the dive was started with too little stamina: burnout begins when its get-up ends
         float burnoutLeft;
         float airSpeedCap = float.PositiveInfinity;   // set by a standing jump, cleared on landing
+
+        // block state: the shield's sideways slide, and the ball's last position (to see it cross the shield between frames)
+        float blockSlide;
+        Vector3 prevBall;
+        int prevLaunch = -1;
+
+        // numbers the AI needs to judge what it can reach
+        public float MoveSpeed => moveSpeed;
+        public float SprintMultiplier => sprintMultiplier;
+        public float JumpGravity => gravity;
+        public float TapJumpHeight => tapJumpHeight;
+        public float DiveDistance => diveDistance;
+        public float DigReach => reachRadius + digReachBonus;
+        public BlockTuning Block => block;
 
         public bool IsSprinting => sprinting;
         public bool IsBurnedOut => burnoutLeft > 0f;
@@ -160,6 +180,30 @@ namespace Sandspike.Players
         public float DiveAmount => diving ? 1f : (diveRecoverySeconds > 0f ? Mathf.Clamp01(recoverLeft / diveRecoverySeconds) : 0f);
         public Vector3 DigPoint => transform.position + FlatForward() * digContactOffset.z + Vector3.up * digContactOffset.y;
 
+        // ---------------- block state (read by the AI, the visual and the tests) ----------------
+
+        bool HoldingHit => spikeCharge.IsCharging || brain.Spike.Held || brain.Bump.Held || brain.Set.Held;
+
+        /// <summary>
+        /// Blocking = in the air within block.netDistance of the net, not diving, no hit button held and no hit queued.
+        /// (A server in serve mode is not blocking.)
+        /// </summary>
+        public bool IsBlocking => brain != null && !grounded && !diving && !ServeMode && !pending.active && !HoldingHit
+                                  && Mathf.Abs(transform.position.z) <= block.netDistance;
+
+        /// <summary>The shield faces the way the body faces (square to the net while blocking). Flat, points at the opponents.</summary>
+        public Vector3 BlockNormal => FlatForward();
+
+        /// <summary>The middle of the shield: hand height above the feet, a little toward the net, slid sideways by the strafe.</summary>
+        public Vector3 BlockCenter
+        {
+            get
+            {
+                Vector3 n = BlockNormal;
+                return transform.position + Vector3.up * block.handHeight + n * block.forward + Vector3.Cross(Vector3.up, n) * blockSlide;
+            }
+        }
+
         void Awake()
         {
             controller = GetComponent<CharacterController>();
@@ -189,8 +233,44 @@ namespace Sandspike.Players
                 UpdateJump(dt);
                 if (ServeMode) UpdateServe(dt); else UpdateHits(dt);
                 UpdatePending();
-                FaceAim(dt);
+                if (IsBlocking) FaceNet(dt); else FaceAim(dt);
             }
+            UpdateBlock(dt, move);
+        }
+
+        // The shield slides with left/right input while blocking; and if the ball crosses it, it rebounds.
+        void UpdateBlock(float dt, Vector2 move)
+        {
+            bool blocking = IsBlocking;
+            Vector3 right = Vector3.Cross(Vector3.up, BlockNormal);
+            float want = blocking ? Mathf.Clamp(Vector3.Dot(new Vector3(move.x, 0f, move.y), right), -1f, 1f) * block.strafe : 0f;
+            blockSlide = Mathf.MoveTowards(blockSlide, want, block.strafeSpeed * dt);
+
+            if (ball == null || !ball.IsInFlight) { prevLaunch = -1; return; }
+            Vector3 cur = ball.Position;
+            if (blocking && prevLaunch == ball.LaunchCount) TryBlock(prevBall, cur);
+            prevBall = cur;
+            prevLaunch = ball.LaunchCount;
+        }
+
+        /// <summary>
+        /// Did the ball cross the shield between 'prev' and 'cur'? If so it rebounds (BlockShield.Rebound), the ball is launched
+        /// again and OnBlocked fires. A serve can't be blocked. Returns true on a block.
+        /// </summary>
+        public bool TryBlock(Vector3 prev, Vector3 cur)
+        {
+            if (!IsBlocking || ball == null || !ball.IsInFlight || ball.LastHitType == HitType.Serve) return false;
+            Vector3 n = BlockNormal;
+            Vector3 vel = ball.Velocity;
+            if (Vector3.Dot(vel, n) >= 0f) return false;                // must be travelling toward this side
+            Vector3 centre = BlockCenter;
+            if (!BlockShield.TryCross(prev, cur, centre, n, block.width, block.height, ball.Radius, out Vector3 hit, out float u)) return false;
+
+            BlockShield.Rebound(hit, vel, n, u, courtSide, block, ball.Gravity, ball.Radius, out Vector3 landing, out float flight);
+            ball.Launch(hit, landing, flight, true, HitType.Block);
+            Debug.Log($"[Block] p{PlayerId} shield=({centre.x:F2},{centre.y:F2},{centre.z:F2}) hit=({hit.x:F2},{hit.y:F2},{hit.z:F2}) offset={u:F2} in={vel.magnitude:F1} m/s rebound lands=({landing.x:F1},{landing.z:F1}) flight={flight:F2}");
+            OnBlocked?.Invoke(this);
+            return true;
         }
 
         /// <summary>Clears any wind-up, charge, dive or queued hit (the MatchManager calls it at every new serve).</summary>
@@ -205,6 +285,8 @@ namespace Sandspike.Players
             jumpCharge.Cancel();
             spikeCharge.Cancel();
             cooldownLeft = 0f;
+            blockSlide = 0f;
+            prevLaunch = -1;
         }
 
         /// <summary>Swaps the brain (the MatchManager's auto-play switch uses it).</summary>
@@ -227,7 +309,9 @@ namespace Sandspike.Players
         {
             bool want = brain.Sprint && move.sqrMagnitude > 0.01f && grounded && !busy && !jumpCharge.IsCharging && !IsBurnedOut;
             float s = stamina.Current;
+            bool was = sprinting;
             sprinting = want && (sprinting ? s > 0f : s >= sprintMinStamina);
+            if (sprinting && !was) Debug.Log($"[Sprint] p{PlayerId}");
             if (sprinting) stamina.Drain(sprintDrainPerSecond * dt);
         }
 
@@ -290,6 +374,7 @@ namespace Sandspike.Players
             {
                 // Always allowed. Too little stamina still dives, drains to 0 and burns the player out after the get-up.
                 burnoutPending = stamina.Current < stamina.diveCost;
+                Debug.Log($"[Dive] p{PlayerId} burnout={burnoutPending}");
                 stamina.SpendDive();
                 diveDir = move.sqrMagnitude > 0.01f ? new Vector3(move.x, 0f, move.y).normalized : FlatForward();
                 transform.rotation = Quaternion.LookRotation(diveDir, Vector3.up);
@@ -610,6 +695,13 @@ namespace Sandspike.Players
         }
 
         // ---------------- facing ----------------
+
+        // While blocking in the air the body turns square to the net.
+        void FaceNet(float dt)
+        {
+            Quaternion want = Quaternion.LookRotation(new Vector3(0f, 0f, -courtSide), Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnSpeed * dt);
+        }
 
         void FaceAim(float dt)
         {

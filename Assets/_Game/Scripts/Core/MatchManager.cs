@@ -37,6 +37,10 @@ namespace Sandspike.Core
         [SerializeField] float pointPauseSeconds = 1.5f;
         [SerializeField] float serveBallLift = 0.15f; // the held ball floats this far above the server's hand
 
+        [Header("AI")]
+        [Tooltip("How good all three bots are. Changing it (even during play) updates every bot.")]
+        public AIDifficulty difficulty = AIDifficulty.Normal;
+
         [Header("Debug")]
         [Tooltip("Swaps player 1's brain for a SimpleBotBrain, so a whole match can be watched.")]
         public bool autoPlayHuman;
@@ -58,6 +62,7 @@ namespace Sandspike.Core
         float stateTimer;
         bool netTouched;
         bool autoPlayApplied;
+        AIDifficulty difficultyApplied = (AIDifficulty)(-1);
         SimpleBotBrain humanBot;
 
         void Start()
@@ -66,6 +71,7 @@ namespace Sandspike.Core
             {
                 players[i].PlayerId = i;
                 players[i].OnBallTouched += OnTouched;
+                players[i].OnBlocked += OnBlocked;
                 PlayerController owner = players[i];
                 owner.TeamTouchCount = () => Rules != null ? Rules.TouchesFor(owner.Team) : 0;   // touches before this one
                 var bot = players[i].GetComponent<SimpleBotBrain>();
@@ -76,12 +82,13 @@ namespace Sandspike.Core
 
             NewMatch();
             ApplyAutoPlay();
+            ApplyDifficulty();
         }
 
         void OnDestroy()
         {
             if (ball != null) ball.OnGroundContact -= OnLanded;
-            foreach (var p in players) if (p != null) p.OnBallTouched -= OnTouched;
+            foreach (var p in players) if (p != null) { p.OnBallTouched -= OnTouched; p.OnBlocked -= OnBlocked; }
         }
 
         /// <summary>Scores back to 0-0 and starts the first serve.</summary>
@@ -95,6 +102,7 @@ namespace Sandspike.Core
         void Update()
         {
             if (autoPlayHuman != autoPlayApplied) ApplyAutoPlay();
+            if (difficulty != difficultyApplied) ApplyDifficulty();
 
             switch (State)
             {
@@ -168,6 +176,13 @@ namespace Sandspike.Core
             if (fault != PointReason.None) EndPoint();
         }
 
+        // A block is one of the blocking team's three touches; the blocker may touch next (no double-touch fault).
+        void OnBlocked(PlayerController p)
+        {
+            if (State != MatchState.Rally) return;
+            if (Rules.Touch(p.PlayerId, p.Team, true) != PointReason.None) EndPoint();
+        }
+
         void OnLanded(Vector3 point)
         {
             if (State != MatchState.Rally) return;
@@ -198,6 +213,16 @@ namespace Sandspike.Core
             }
         }
 
+        // ---------------- AI difficulty ----------------
+
+        /// <summary>Gives every bot (including the auto-play one) the current difficulty.</summary>
+        void ApplyDifficulty()
+        {
+            difficultyApplied = difficulty;
+            foreach (var p in players)
+                foreach (var bot in p.GetComponents<SimpleBotBrain>()) bot.SetDifficulty(difficulty);
+        }
+
         // ---------------- debug auto-play ----------------
 
         void ApplyAutoPlay()
@@ -210,6 +235,7 @@ namespace Sandspike.Core
                 {
                     humanBot = p.gameObject.AddComponent<SimpleBotBrain>();
                     humanBot.Setup(this, p, ball);
+                    humanBot.SetDifficulty(difficulty);
                 }
                 humanBot.enabled = true;
                 if (humanBrain != null) humanBrain.enabled = false;
