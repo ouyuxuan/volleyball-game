@@ -160,7 +160,6 @@ namespace Sandspike.Players
         [SerializeField] float diveLead = 0.3f;              // start the dive this long before the ball arrives
         [SerializeField] float sprintMinStamina = 12f;       // no sprint below this
         [SerializeField] float blockStandDistance = 0.7f;    // a blocker waits this far from the net
-        [SerializeField] float blockAttackerRange = 3f;      // an opponent jumping / winding up a spike this close to the net triggers a block
 
         // A button the brain "holds": Step() turns the held flag into this frame's Down / Held / Up.
         class Btn
@@ -500,17 +499,22 @@ namespace Sandspike.Players
 
         // ---------------- blocking ----------------
 
-        // The opponent who is about to spike (winding up or in the air near the net), or null.
+        // The opponent about to attack: once their team's ball has been set (2+ touches, last hit a set or bump),
+        // the attacker is the opponent nearest where it will come down, other than the one who just touched it.
         PlayerController FindAttacker()
         {
-            if (ball.LastHitType == HitType.Spike || ball.LastHitType == HitType.Serve || ball.LastHitType == HitType.Block) return null;
+            if (ball.LastHitType != HitType.Set && ball.LastHitType != HitType.Bump) return null;
+            RulesEngine rules = match.Rules;
+            if (rules.PossessionTeam == me.Team || rules.PossessionTeam < 0 || rules.Touches < 2) return null;
+            PlayerController best = null;
+            float bestD = float.MaxValue;
             foreach (PlayerController o in match.Players)
             {
-                if (o.Team == me.Team || match.Rules.PossessionTeam != o.Team) continue;
-                bool jumping = !o.IsGrounded || (o.WindingUp && o.WindUpType == HitType.Spike);
-                if (jumping && Mathf.Abs(o.transform.position.z) <= blockAttackerRange) return o;
+                if (o.Team == me.Team || o.PlayerId == rules.LastToucherId) continue;
+                float d = Mathf.Abs(o.transform.position.x - ball.LandingPoint.x) + Mathf.Abs(o.transform.position.z - ball.LandingPoint.z);
+                if (d < bestD) { bestD = d; best = o; }
             }
-            return null;
+            return best;
         }
 
         // The net-side bot of the team blocks: the one nearer the net (ties: the lower id). A human teammate nearer the net blocks for themselves.
@@ -543,6 +547,7 @@ namespace Sandspike.Players
                 }
                 if (!blockRoll) return false;
                 blockMode = true; blockJumped = false;
+                Debug.Log($"[BlockPlan] p{me.PlayerId} starts blocking (attacker p{(attacker != null ? attacker.PlayerId : -1)})");
             }
 
             // Where will the ball cross my shield plane? Exact once the spike is flying (after the reaction delay), else a guess from the attacker's aim.
@@ -573,9 +578,11 @@ namespace Sandspike.Players
                 move = Toward(stand);
                 Vector3 d = stand - me.transform.position; d.y = 0f;
                 sprint = profile.usesSprint && me.Stamina.Current > sprintMinStamina && d.magnitude > 1.5f;
-                // A spike reaches the net in ~0.07 s, so the jump has to start while the attacker is still rising.
-                if (!blockJumped && attacker != null && !attacker.IsGrounded && attacker.VerticalVelocity < 4.5f && d.magnitude < 1.2f)
-                { jump.want = true; blockJumped = true; }
+                // A spike crosses the net ~0.07 s after contact, and the shield (2.45 m above the feet) only meets a ball at ~2.6 m while the
+                // feet are low, so the jump starts right when the set ball reaches the attacker's hand height (the moment of contact).
+                float tContact = TimeAtHeight(spikeHandHeight - 0.2f);   // a moment after the attacker meets the ball (the hands start low)
+                if (!blockJumped && attacker != null && !float.IsNaN(tContact) && tContact <= 0.03f && d.magnitude < 1.2f)
+                { jump.want = true; blockJumped = true; Debug.Log($"[BlockPlan] p{me.PlayerId} jumps at x={me.transform.position.x:F1} z={me.transform.position.z:F1}"); }
                 else if (tCross > 0f && !blockJumped)
                 {
                     float jumpIn = BotPlanner.BlockJumpIn(tCross, crossY, me.Block.handHeight, me.TapJumpHeight, me.JumpGravity);

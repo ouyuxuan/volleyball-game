@@ -264,7 +264,12 @@ namespace Sandspike.Players
             Vector3 vel = ball.Velocity;
             if (Vector3.Dot(vel, n) >= 0f) return false;                // must be travelling toward this side
             Vector3 centre = BlockCenter;
-            if (!BlockShield.TryCross(prev, cur, centre, n, block.width, block.height, ball.Radius, out Vector3 hit, out float u)) return false;
+            if (!BlockShield.TryCross(prev, cur, centre, n, block.width, block.height, ball.Radius, out Vector3 hit, out float u))
+            {
+                if (BlockShield.TryCross(prev, cur, centre, n, 99f, 99f, 0f, out Vector3 near, out float nu))
+                    Debug.Log($"[BlockMiss] p{PlayerId} ball passed the shield {nu:F2} m sideways, {near.y - centre.y:F2} m vertically off");
+                return false;
+            }
 
             BlockShield.Rebound(hit, vel, n, u, courtSide, block, ball.Gravity, ball.Radius, out Vector3 landing, out float flight);
             ball.Launch(hit, landing, flight, true, HitType.Block);

@@ -29,9 +29,9 @@ namespace Sandspike.Players
         {
             new AIProfile { reactionDelay = 0.45f, moveSpeedMultiplier = 0.85f, mistakeChance = 0.25f, aimSpread = 1.2f, spikeChargeMin = 0.2f, spikeChargeMax = 0.6f,
                             usesSprint = false, diveMode = AIDiveMode.Never, blockChance = 0f, tipChance = 0f, attackStyle = AIDifficulty.Easy },
-            new AIProfile { reactionDelay = 0.23f, moveSpeedMultiplier = 1f, mistakeChance = 0.12f, aimSpread = 0.7f, spikeChargeMin = 0.4f, spikeChargeMax = 0.8f,
+            new AIProfile { reactionDelay = 0.215f, moveSpeedMultiplier = 1f, mistakeChance = 0.12f, aimSpread = 0.7f, spikeChargeMin = 0.4f, spikeChargeMax = 0.8f,
                             usesSprint = true, diveMode = AIDiveMode.IfStaminaAllows, blockChance = 0.4f, tipChance = 0f, attackStyle = AIDifficulty.Normal },
-            new AIProfile { reactionDelay = 0.19f, moveSpeedMultiplier = 1f, mistakeChance = 0.05f, aimSpread = 0.3f, spikeChargeMin = 0.6f, spikeChargeMax = 1.0f,
+            new AIProfile { reactionDelay = 0.21f, moveSpeedMultiplier = 1f, mistakeChance = 0.05f, aimSpread = 0.3f, spikeChargeMin = 0.6f, spikeChargeMax = 1.0f,
                             usesSprint = true, diveMode = AIDiveMode.Always, blockChance = 1f, tipChance = 0.15f, attackStyle = AIDifficulty.Hard },
         };
 

@@ -62,9 +62,9 @@ namespace Sandspike.Players
             bool towardAttacker = v.z * blockerSide < 0f;
 
             landing = hit; flightTime = 0.1f;
-            for (float down = t.downSpeed; down >= -0.01f; down -= 0.5f)
+            for (float down = t.downSpeed; down >= -4f; down -= 0.5f)   // if it cannot clear the net going down, launch it flatter, then slightly up
             {
-                float vy = -Mathf.Max(down, 0f);
+                float vy = -down;
                 float drop = Mathf.Max(hit.y - ballRadius, 0f);
                 flightTime = Mathf.Max(0.05f, (vy + Mathf.Sqrt(vy * vy + 2f * gravity * drop)) / gravity);   // time to fall to the sand
                 landing = new Vector3(hit.x + v.x * flightTime, 0f, hit.z + v.z * flightTime);
