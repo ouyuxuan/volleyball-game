@@ -263,8 +263,13 @@ namespace Sandspike.Players
             Vector3 n = BlockNormal;
             Vector3 vel = ball.Velocity;
             if (Vector3.Dot(vel, n) >= 0f) return false;                // must be travelling toward this side
+            // The block is a wall from the top of the net up to the fingertips: however high the jump, a ball that crosses
+            // just over the net and below the hands is still stopped (a high jump used to lift the shield clear over the ball).
             Vector3 centre = BlockCenter;
-            if (!BlockShield.TryCross(prev, cur, centre, n, block.width, block.height, ball.Radius, out Vector3 hit, out float u))
+            float top = centre.y + block.height * 0.5f;
+            float bottom = Mathf.Min(centre.y - block.height * 0.5f, BallTrajectory.NetTopHeight);
+            centre.y = (top + bottom) * 0.5f;
+            if (!BlockShield.TryCross(prev, cur, centre, n, block.width, top - bottom, ball.Radius, out Vector3 hit, out float u))
             {
                 if (BlockShield.TryCross(prev, cur, centre, n, 99f, 99f, 0f, out Vector3 near, out float nu))
                     Debug.Log($"[BlockMiss] p{PlayerId} ball passed the shield {nu:F2} m sideways, {near.y - centre.y:F2} m vertically off");

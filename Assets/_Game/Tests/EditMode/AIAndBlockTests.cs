@@ -360,9 +360,22 @@ namespace Sandspike.Tests
             MakePlayer();
             ball.Launch(new Vector3(0f, 3.5f, 4f), new Vector3(0f, 0f, -3f), 0.8f, false, HitType.Spike);
             Vector3 c = player.BlockCenter;
-            Assert.IsFalse(player.TryBlock(new Vector3(c.x + 0.7f, c.y, c.z + 0.3f), new Vector3(c.x + 0.7f, c.y, c.z - 0.3f)), "too wide");
+            Assert.IsFalse(player.TryBlock(new Vector3(c.x + 0.9f, c.y, c.z + 0.3f), new Vector3(c.x + 0.9f, c.y, c.z - 0.3f)), "too wide");
+            Assert.IsFalse(player.TryBlock(new Vector3(c.x, c.y + 0.6f, c.z + 0.3f), new Vector3(c.x, c.y + 0.6f, c.z - 0.3f)), "over the fingertips");
             ball.Launch(new Vector3(0f, 3.5f, 4f), new Vector3(0f, 0f, -3f), 0.8f, false, HitType.Serve);
             Assert.IsFalse(player.TryBlock(new Vector3(c.x, c.y, c.z + 0.3f), new Vector3(c.x, c.y, c.z - 0.3f)), "a serve can't be blocked");
+        }
+
+        [Test]
+        public void AHighJump_StillBlocksABallJustOverTheNet()
+        {
+            MakePlayer();
+            for (int i = 0; i < 3; i++) { Set(player, "grounded", false); player.TeleportTo(new Vector3(0f, 1.5f, -0.8f)); }   // a full jump: hands far above the net
+            ball.Launch(new Vector3(0f, 3.5f, 4f), new Vector3(0f, 0f, -3f), 0.8f, false, HitType.Spike);
+            Vector3 c = player.BlockCenter;
+            float y = BallTrajectory.NetTopHeight + 0.2f;      // well below the hands, just over the tape
+            Assert.Less(y, c.y - 0.5f);
+            Assert.IsTrue(player.TryBlock(new Vector3(c.x, y, c.z + 0.3f), new Vector3(c.x, y, c.z - 0.3f)));
         }
 
         // ---------------- block: the rules ----------------

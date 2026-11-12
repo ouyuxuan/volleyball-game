@@ -9,7 +9,7 @@ namespace Sandspike.Players
     public class BlockTuning
     {
         public float netDistance = 1.2f;     // a jump this close to the net (|z|) is a block
-        public float width = 0.8f;           // the shield: a flat rectangle in front of the raised hands
+        public float width = 1.2f;           // the shield: a flat rectangle in front of the raised hands (the arms open in a V)
         public float height = 0.6f;
         public float handHeight = 2.45f;     // shield centre above the feet
         public float forward = 0.25f;        // shield centre this far toward the net

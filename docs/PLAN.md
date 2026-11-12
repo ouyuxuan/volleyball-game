@@ -292,6 +292,8 @@ build.
   - **The block zone is a shield, not a ball.** It's a flat, hand-wide zone in front of the raised
     hands, facing the way the blocker faces. Facing and where the ball meets the hands decide where
     the rebound goes: square to the net sends it straight back, angled hands deflect it sideways.
+    After playtest: the zone is 1.2 m wide and reaches from the top of the net up to the fingertips,
+    so a high jump still stops a ball that crosses just over the tape.
   - **Strafe while blocking.** In the air, left/right input shifts the hands sideways a little.
     On the ground near the net, the player sidesteps without turning, so facing can be set precisely.
 - **Crosshair stays one size.** The 1st-person crosshair is a fixed screen size and never scales with
