@@ -1,10 +1,22 @@
 # Sandspike (working title)
 
 An arcade 2v2 beach volleyball game made in Unity, in a bright low-poly style. It's an early
-prototype: right now you can move, jump and hit balls fed to you on a beach court. Rally scoring
-and AI teammates and opponents come next.
+prototype: you play full matches with a bot teammate against two bot opponents, with serving, rally
+scoring, three difficulty levels and blocking at the net.
 
-![Third-person view of the beach court](docs/captures/camera-3rd-low.png)
+![Serving, with the dotted arc showing where the ball will land](docs/captures/serve-preview.png)
+
+| | |
+|---|---|
+| ![A spike at the net, seen from the side](docs/captures/chars-closeup.png) | ![Blocking at the net](docs/captures/m3-block-pose.png) |
+| A bot goes up for a spike | Jump at the net with no hit held to block |
+
+## The look
+
+The style is soft, flat-coloured low-poly with a small fixed palette (see `docs/ART_BIBLE.md`). This
+concept painting set the direction, and the game is still catching up to it.
+
+![Concept art: soft toon beach court](docs/concepts/concept-a-soft-toon.png)
 
 ## How it plays
 
@@ -14,9 +26,17 @@ and AI teammates and opponents come next.
   letting go would connect.
 - **Charged jump:** hold jump on the sand to crouch, then release. A tap is a hop, and a full charge is
   a high jump for spiking.
-- **Stamina:** charged jumps and hits use it up, and it refills over time.
+- **Stamina:** charged jumps, hits, sprinting and dives use it up, and it refills over time.
+- **Sprint and dive:** sprint to cover the court, and dive for a ball you can't reach. A dive with too
+  little stamina still happens, but leaves you slow and weak for two seconds.
+- **Blocking:** jump close to the net without holding a hit button and your arms go up as a block.
+  Move left or right in the air to slide it.
+- **Serve preview:** while you charge a serve, a dotted arc shows where it will land.
+- **Bots:** Easy, Normal and Hard. Harder bots react faster, read your spikes, dive, block and aim
+  for open sand.
+- **Scoring:** rally scoring to 11, 21 or 25, win by two.
 - **Two camera views:** in 3rd person you aim with the mouse cursor, and in 1st person with a crosshair.
-- **Controllers:** fully supported. Button hints switch to PlayStation names on a DualShock or DualSense.
+- **Controllers:** supported throughout. Button hints switch to PlayStation names on a DualShock or DualSense.
 
 ## Controls
 
@@ -28,8 +48,11 @@ and AI teammates and opponents come next.
 | Spike (hold to wind up) | Left click | Right trigger |
 | Bump (hold to wind up) | Right click | X / Square |
 | Set (hold to wind up) | E | Y / Triangle |
+| Sprint | Left Ctrl | Left stick click |
+| Dive | Left Shift | B / Circle |
+| Block | Jump at the net | Jump at the net |
 | Switch 1st / 3rd person | V | Right stick click |
-| Feed a practice ball | R | Select / Create |
+| Show / hide control hints | H | Select / Create |
 
 ## Running it
 
@@ -44,12 +67,14 @@ The EditMode tests run from **Window → General → Test Runner**.
 
 - `Assets/_Game/`: all game code, scenes, prefabs and materials
   - `Scripts/`: ball, players, aiming, camera, input, UI and art code
-  - `Tests/EditMode/`: tests for ball arcs, hitting, stamina and timing
+  - `Tests/EditMode/`: tests for ball arcs, hitting, stamina, rules, movement, AI and blocking
 - `docs/PLAN.md`: the design and milestone plan
 - `docs/ART_BIBLE.md`: the style and colour palette
 - `AGENTS.md`: instructions for AI coding agents working in this repo
 
 ## Status
 
-The project is at milestone 1 of the plan: court, ball, one player and both cameras. Next up are
-rally rules and scoring, then AI, local multiplayer, characters, sound and menus.
+Milestones 0 to 3 of the plan are done: court and cameras, hitting, rules and scoring, characters,
+movement, AI difficulties and blocking. Next up are local multiplayer, then sound, menus and polish.
+There is no difficulty menu yet: set `difficulty` on the Match Manager in the scene. Controllers are
+wired up but haven't been play-tested yet.
