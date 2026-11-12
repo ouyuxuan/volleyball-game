@@ -293,7 +293,10 @@ build.
     hands, facing the way the blocker faces. Facing and where the ball meets the hands decide where
     the rebound goes: square to the net sends it straight back, angled hands deflect it sideways.
     After playtest: the zone is 1.2 m wide and reaches from the top of the net up to the fingertips,
-    so a high jump still stops a ball that crosses just over the tape.
+    so a high jump still stops a ball that crosses just over the tape. The blocker also steers the
+    rebound: it lands at the aim point (cursor, crosshair or right stick) when that is on the
+    attacker's side, kept 1-4 m past the net and inside the side lines. Facing and the strike point
+    only decide the rebound when the aim is on the blocker's own side.
   - **Strafe while blocking.** In the air, left/right input shifts the hands sideways a little.
     On the ground near the net, the player sidesteps without turning, so facing can be set precisely.
 - **Crosshair stays one size.** The 1st-person crosshair is a fixed screen size and never scales with

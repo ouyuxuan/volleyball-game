@@ -276,7 +276,7 @@ namespace Sandspike.Players
                 return false;
             }
 
-            BlockShield.Rebound(hit, vel, n, u, courtSide, block, ball.Gravity, ball.Radius, out Vector3 landing, out float flight);
+            BlockShield.Rebound(hit, vel, n, u, courtSide, block, ball.Gravity, ball.Radius, out Vector3 landing, out float flight, brain.AimPoint);
             ball.Launch(hit, landing, flight, true, HitType.Block);
             Debug.Log($"[Block] p{PlayerId} shield=({centre.x:F2},{centre.y:F2},{centre.z:F2}) hit=({hit.x:F2},{hit.y:F2},{hit.z:F2}) offset={u:F2} in={vel.magnitude:F1} m/s rebound lands=({landing.x:F1},{landing.z:F1}) flight={flight:F2}");
             OnBlocked?.Invoke(this);

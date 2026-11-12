@@ -49,17 +49,19 @@ namespace Sandspike.Players
         /// shield normal, kicked sideways by where it struck, and slowed to 'rebound' of the incoming speed; then it is launched
         /// downward so it lands minPastNet..maxPastNet beyond the net (inside the court sides). If the reflection still heads for
         /// the blocker's side (angled hands, a soft block) it is left alone. Output: where it lands and the flight time, ready
-        /// for BallController.Launch.
+        /// for BallController.Launch. If 'aim' is given and lies on the attacker's side, the blocker steers the ball: it lands at
+        /// the aim point (kept inside the same landing zone) instead of where the mirror would send it.
         /// </summary>
         public static void Rebound(Vector3 hit, Vector3 velocity, Vector3 normal, float u, float blockerSide, BlockTuning t,
-            float gravity, float ballRadius, out Vector3 landing, out float flightTime)
+            float gravity, float ballRadius, out Vector3 landing, out float flightTime, Vector3? aim = null)
         {
             Vector3 vh = new Vector3(velocity.x, 0f, velocity.z);
             Vector3 right = Vector3.Cross(Vector3.up, normal);
             Vector3 v = vh - 2f * Vector3.Dot(vh, normal) * normal;                       // mirror about the shield
             v += right * (u / (t.width * 0.5f) * t.deflect);                              // outward kick: edge hits go wide
             v = v.sqrMagnitude > 1e-6f ? v.normalized * (vh.magnitude * t.rebound) : Vector3.zero;
-            bool towardAttacker = v.z * blockerSide < 0f;
+            bool aimed = aim.HasValue && aim.Value.z * blockerSide < 0f;
+            bool towardAttacker = aimed || v.z * blockerSide < 0f;
 
             landing = hit; flightTime = 0.1f;
             for (float down = t.downSpeed; down >= -4f; down -= 0.5f)   // if it cannot clear the net going down, launch it flatter, then slightly up
@@ -67,7 +69,7 @@ namespace Sandspike.Players
                 float vy = -down;
                 float drop = Mathf.Max(hit.y - ballRadius, 0f);
                 flightTime = Mathf.Max(0.05f, (vy + Mathf.Sqrt(vy * vy + 2f * gravity * drop)) / gravity);   // time to fall to the sand
-                landing = new Vector3(hit.x + v.x * flightTime, 0f, hit.z + v.z * flightTime);
+                landing = aimed ? new Vector3(aim.Value.x, 0f, aim.Value.z) : new Vector3(hit.x + v.x * flightTime, 0f, hit.z + v.z * flightTime);
                 if (!towardAttacker) return;
                 float past = Mathf.Clamp(-blockerSide * landing.z, t.minPastNet, t.maxPastNet);   // keep it 1..4 m past the net
                 landing = new Vector3(Mathf.Clamp(landing.x, -t.landHalfWidth, t.landHalfWidth), 0f, -blockerSide * past);

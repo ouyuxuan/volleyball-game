@@ -345,13 +345,14 @@ namespace Sandspike.Tests
             ball.Launch(new Vector3(0f, 3.5f, 4f), new Vector3(0f, 0f, -3f), 0.8f, false, HitType.Spike);   // a spike coming at the blocker
             int launches = ball.LaunchCount;
             Vector3 c = player.BlockCenter;
+            brain.aim = new Vector3(2f, 0f, 3f);             // the blocker aims right, on the attacker's side
             bool hit = player.TryBlock(new Vector3(c.x + 0.2f, c.y, c.z + 0.3f), new Vector3(c.x + 0.2f, c.y, c.z - 0.3f));
             Assert.IsTrue(hit);
             Assert.AreEqual(1, blocked);
             Assert.AreEqual(launches + 1, ball.LaunchCount);
             Assert.AreEqual(HitType.Block, ball.LastHitType);
             Assert.Greater(ball.LandingPoint.z, 0f, "back on the attacker's side");
-            Assert.Greater(ball.LandingPoint.x, 0f, "an off-centre hit to the right goes right");
+            Assert.AreEqual(brain.aim.x, ball.LandingPoint.x, 0.01f, "it lands where the blocker aims");
         }
 
         [Test]
@@ -376,6 +377,20 @@ namespace Sandspike.Tests
             float y = BallTrajectory.NetTopHeight + 0.2f;      // well below the hands, just over the tape
             Assert.Less(y, c.y - 0.5f);
             Assert.IsTrue(player.TryBlock(new Vector3(c.x, y, c.z + 0.3f), new Vector3(c.x, y, c.z - 0.3f)));
+        }
+
+        [Test]
+        public void Rebound_GoesWhereTheBlockerAims_InsideTheLandingZone()
+        {
+            var t = new BlockTuning();
+            Vector3 hit = new Vector3(0f, 2.8f, -0.5f), vel = new Vector3(0f, -2f, -8f);
+            BlockShield.Rebound(hit, vel, Normal, 0f, -1f, t, 20f, 0.11f, out Vector3 land, out _, new Vector3(-2.5f, 0f, 3f));
+            Assert.AreEqual(-2.5f, land.x, 0.01f); Assert.AreEqual(3f, land.z, 0.01f);
+            BlockShield.Rebound(hit, vel, Normal, 0f, -1f, t, 20f, 0.11f, out land, out _, new Vector3(9f, 0f, 7f));      // too wide and too deep
+            Assert.AreEqual(t.landHalfWidth, land.x, 0.01f); Assert.AreEqual(t.maxPastNet, land.z, 0.01f);
+            BlockShield.Rebound(hit, vel, Normal, 0f, -1f, t, 20f, 0.11f, out land, out _, new Vector3(3f, 0f, -5f));     // aiming at my own side: ignored
+            BlockShield.Rebound(hit, vel, Normal, 0f, -1f, t, 20f, 0.11f, out Vector3 plain, out _);
+            Assert.AreEqual(plain, land);
         }
 
         // ---------------- block: the rules ----------------
