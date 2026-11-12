@@ -299,6 +299,28 @@ build.
 - **AI uses everything players have:** sprint, dives (with burnout), the combo multiplier and backsets.
   Difficulty changes reaction time, positioning and hit quality.
 
+**M3 status: done (arm pose for the block comes later).** `SimpleBotBrain` is now the real AI (`AIDifficulty`, `AIProfile.Table`,
+`MatchManager.difficulty`), with reaction delay, sprint, dives, aimed attacks, tips and bot blocking. Blocking works for humans and bots
+(`BlockShield`, `PlayerController.IsBlocking / BlockCenter / BlockNormal`, `HitType.Block`, a block is a touch but not a double-touch).
+The 1st-person crosshair was already a fixed screen size (nothing scales it), so no change was needed. 172 EditMode tests pass.
+Final profile table (measured in all-bot matches at timeScale 3, 16+ points each):
+
+| | Easy | Normal | Hard |
+|---|---|---|---|
+| Reaction delay (s, +-8% per ball) | 0.45 | 0.195 | 0.145 |
+| Move speed x | 0.85 | 1.0 | 1.0 |
+| Mistake chance (1.5 m off) | 0.25 | 0.12 | 0.05 |
+| Attack aim spread (m) | 1.2 | 0.7 | 0.3 |
+| Spike charge | 0.2-0.6 | 0.4-0.8 | 0.6-1.0 |
+| Sprint / dive | no / no | yes / if stamina >= 15 | yes / always |
+| Blocks | never | 40% | always |
+
+The reaction delays moved from the brief's 0.25 / 0.10 to these: digging a spike has a steep cliff around 0.2 s (0.17 and below digs
+nearly everything, 0.22 and above digs almost nothing). Left: the Normal and Hard rally medians are noisy from run to run (Normal 4-10,
+Hard 4-22 across runs near the final values), because a spike is either dug or not; a smoother dig model (the defender guessing the
+attack line early) would calm that. Bot blocks are rare and seldom end a rally. Mistakes seldom go out (the targets sit 1 m inside the
+lines), so rallies mostly end on an undug spike.
+
 **M4 — Local multiplayer.** `PlayerJoinManager` (Input System `PlayerInputManager`) with split-screen,
 join-and-pick-side setup screen, AI fills empty slots; keyboard + mouse for one player, gamepads for
 the rest, right-stick aiming in both camera modes.
