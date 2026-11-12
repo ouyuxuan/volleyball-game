@@ -40,6 +40,85 @@ namespace Sandspike.Players
             charge = mateIsHuman ? humanCharge : botCharge;
             target = new Vector3(x, 0f, side * (mateIsHuman ? humanDistance : botDistance));
         }
+
+        /// <summary>
+        /// Where an attack (spike, or a bump sent over) should land, by difficulty. 'oppSide' is the z sign of the opponents' half.
+        /// Easy: deep middle. Normal: the spot farthest from the defender nearer to the ball's line. Hard: the most open spot (farthest
+        /// from both defenders, so it picks line or cross by where they stand), and 'tip' makes it a short dink. Then the profile's aim
+        /// spread is added and the result is clamped inside the court (inset from the lines). Uses UnityEngine.Random.
+        /// </summary>
+        public static Vector3 PickAttack(AIProfile p, float oppSide, Vector3 def1, Vector3 def2, float fromX,
+            float halfWidth, float halfLength, float inset, bool tip)
+        {
+            float maxX = halfWidth - inset;
+            Vector3 spot = new Vector3(0f, 0f, oppSide * halfLength * 0.7f);          // Easy: deep middle
+            if (p.attackStyle != AIDifficulty.Easy)
+            {
+                // the defender nearer the ball's line is the one Normal avoids
+                Vector3 near = Mathf.Abs(def1.x - fromX) <= Mathf.Abs(def2.x - fromX) ? def1 : def2;
+                float[] depths = tip ? new[] { 2.2f } : new[] { halfLength * 0.55f, halfLength * 0.8f };
+                float best = float.MinValue;
+                for (int xi = -2; xi <= 2; xi++)
+                    foreach (float d in depths)
+                    {
+                        var c = new Vector3(xi * maxX * 0.5f, 0f, oppSide * d);
+                        float score = p.attackStyle == AIDifficulty.Normal
+                            ? Flat(c - near)
+                            : Mathf.Min(Flat(c - def1), Flat(c - def2));
+                        score += Random.value * 0.3f;                                  // break ties differently each time
+                        if (score > best) { best = score; spot = c; }
+                    }
+            }
+            Vector2 spread = Random.insideUnitCircle * p.aimSpread;
+            spot.x = Mathf.Clamp(spot.x + spread.x, -maxX, maxX);
+            float z = Mathf.Clamp(Mathf.Abs(spot.z) + spread.y, tip ? 1.2f : inset, halfLength - inset);
+            spot.z = oppSide * z;
+            return spot;
+        }
+
+        static float Flat(Vector3 v) => new Vector2(v.x, v.z).magnitude;
+
+        /// <summary>A ball the bot cannot reach on foot in time but could reach with a dive (distances flat, in metres).</summary>
+        public static bool NeedsDive(float distToBall, float timeLeft, float runSpeed, float reach, float diveRange)
+        {
+            return distToBall > runSpeed * timeLeft + reach && distToBall <= diveRange + reach;
+        }
+
+        /// <summary>May this profile dive now? Hard always; Normal only if the dive does not burn it out; Easy never.</summary>
+        public static bool DiveAllowed(AIProfile p, float stamina, float diveCost)
+        {
+            return p.diveMode == AIDiveMode.Always || (p.diveMode == AIDiveMode.IfStaminaAllows && stamina >= diveCost);
+        }
+
+        /// <summary>
+        /// Seconds from now to press jump so the hands (hand height above the feet = handHeight) are at the ball's height when it
+        /// crosses the shield in 'timeToCross' seconds. Negative = already late. The feet only rise as far as a tap jump goes.
+        /// </summary>
+        public static float BlockJumpIn(float timeToCross, float ballHeight, float handHeight, float tapApex, float gravity)
+        {
+            float h = Mathf.Clamp(ballHeight - handHeight, 0.05f, tapApex);       // how high the feet must be
+            float v = ContactTiming.JumpSpeed(gravity, tapApex);
+            float up = (v - Mathf.Sqrt(Mathf.Max(0f, v * v - 2f * gravity * h))) / gravity;   // time to rise that high
+            return timeToCross - up;
+        }
+    }
+
+    /// <summary>
+    /// The reaction delay: when the ball's arc changes (a new launch), Ready() stays false for 'delay' seconds, so the bot keeps
+    /// acting on its old plan before it replans. Pure, so it is unit tested.
+    /// </summary>
+    public struct ReactionGate
+    {
+        int seen;
+        float since;
+
+        public bool Ready(int launchCount, float now, float delay)
+        {
+            if (launchCount != seen) { seen = launchCount; since = now; }
+            return now - since >= delay;
+        }
+
+        public float Elapsed(float now) => now - since;
     }
 
     /// <summary>
@@ -56,10 +135,7 @@ namespace Sandspike.Players
         [SerializeField] float serveDelay = 1.2f;      // a bot server waits this long
         [SerializeField] Vector2 serveChargeRange = new Vector2(0.4f, 0.9f);
 
-        [Header("Mistakes")]
-        [Range(0f, 1f)] [SerializeField] float errorChance = 0.1f;
-        [SerializeField] float lateReleaseSeconds = 0.25f;   // a "late" mistake releases this much too late
-        [SerializeField] float aimErrorMetres = 1.5f;        // an "aim" mistake lands this far from the target
+        // Difficulty numbers (reaction, mistakes, aim spread, charge, sprint, dive, block) come from AIProfile.Table.
 
         [Header("Targets (metres)")]
         [SerializeField] float targetInset = 1f;        // over-the-net targets stay this far inside the lines
@@ -80,6 +156,12 @@ namespace Sandspike.Players
         [SerializeField] float spikeMinDepth = 3.5f;         // a spike lands at least this far past the net (a short one cannot clear it)
         [SerializeField] float spikeMinGoodSpeed = 14f;      // a spike the net rule had to slow to the floor is not worth taking: bump it over
 
+        [Header("Dive / sprint / block")]
+        [SerializeField] float diveLead = 0.3f;              // start the dive this long before the ball arrives
+        [SerializeField] float sprintMinStamina = 12f;       // no sprint below this
+        [SerializeField] float blockStandDistance = 0.7f;    // a blocker waits this far from the net
+        [SerializeField] float blockAttackerRange = 3f;      // an opponent jumping / winding up a spike this close to the net triggers a block
+
         // A button the brain "holds": Step() turns the held flag into this frame's Down / Held / Up.
         class Btn
         {
@@ -92,9 +174,19 @@ namespace Sandspike.Players
         BallController ball;
         MatchManager match;
         HitResolver preview;       // the same maths the real hit will use, to check a shot before taking it
-        readonly Btn jump = new Btn(), spike = new Btn(), bump = new Btn(), set = new Btn();
+        readonly Btn jump = new Btn(), spike = new Btn(), bump = new Btn(), set = new Btn(), dive = new Btn();
         Vector2 move;
         Vector3 aim;
+        bool sprint;
+        AIDifficulty difficulty = AIDifficulty.Normal;
+        AIProfile profile = AIProfile.For(AIDifficulty.Normal);
+        ReactionGate gate;
+        int jitterLaunch = -1;
+        float reactionJitter = 1f;     // this ball's reaction delay is the profile's times 0.92..1.08
+
+        // block (the net-side bot of the defending team jumps at an incoming spike)
+        bool blockMode, blockJumped, blockRoll;
+        int blockRollLaunch = -99;
 
         // serve
         float lastServeStart = -1f, serveHoldUntil;
@@ -106,8 +198,8 @@ namespace Sandspike.Players
         int planLaunch = -1;
         bool planValid;
         HitType planType;
-        bool planJump, jumped, pressed, released, lateRelease;
-        Vector3 planStand, planAim;
+        bool planJump, jumped, pressed, released, dived;
+        Vector3 planStand, planAim, planBall;
         float planContactAt, setPressLead, setCharge;
         bool setTracksHuman;     // a set for a human: the aim follows the human until the button is released
 
@@ -117,10 +209,15 @@ namespace Sandspike.Players
         public ButtonState Spike => spike.state;
         public ButtonState Bump => bump.state;
         public ButtonState Set => set.state;
-        public ButtonState Dive => default;      // bots do not dive in M2
-        public bool Sprint => false;             // bots do not sprint
+        public ButtonState Dive => dive.state;
+        public bool Sprint => sprint;
+        public AIDifficulty Difficulty => difficulty;
+        public AIProfile Profile => profile;
 
         void Awake() { me = GetComponent<PlayerController>(); }
+
+        /// <summary>The MatchManager sets the level for all bots (at match start and whenever it changes).</summary>
+        public void SetDifficulty(AIDifficulty d) { difficulty = d; profile = AIProfile.For(d); }
 
         /// <summary>Called by the MatchManager once everything exists.</summary>
         public void Setup(MatchManager m, PlayerController player, BallController b)
@@ -133,14 +230,17 @@ namespace Sandspike.Players
         {
             if (match == null || me == null || ball == null || match.Rules == null) return;
 
-            if (jump.want) jump.want = false;          // a jump is a one-frame tap
+            if (jump.want) jump.want = false;          // a jump and a dive are one-frame taps
+            if (dive.want) dive.want = false;
+            sprint = false;
             switch (match.State)
             {
                 case MatchState.Serve: ServeLogic(); break;
                 case MatchState.Rally: RallyLogic(); break;
-                default: GoHome(); ClearPlan(); break;
+                default: GoHome(); ClearPlan(); blockMode = false; break;
             }
-            jump.Step(); spike.Step(); bump.Step(); set.Step();
+            move *= profile.moveSpeedMultiplier;       // Easy runs slower
+            jump.Step(); spike.Step(); bump.Step(); set.Step(); dive.Step();
         }
 
         // ---------------- serve ----------------
@@ -158,7 +258,7 @@ namespace Sandspike.Players
                 float side = -me.CourtSide;
                 serveTarget = new Vector3(Random.Range(-(match.HalfWidth - targetInset), match.HalfWidth - targetInset), 0f, side * Random.Range(match.HalfLength * 0.6f, match.HalfLength - targetInset));
                 serveCharge = Random.Range(serveChargeRange.x, serveChargeRange.y);
-                serveHolding = false;
+                serveHolding = false; spike.want = false;   // a restarted match must not leave the button held
             }
             aim = serveTarget;
 
@@ -175,7 +275,11 @@ namespace Sandspike.Players
 
         void RallyLogic()
         {
-            if (!ball.IsInFlight) { GoHome(); ClearPlan(); return; }
+            if (!ball.IsInFlight) { GoHome(); ClearPlan(); blockMode = false; return; }
+            if (ball.LaunchCount != jitterLaunch) { jitterLaunch = ball.LaunchCount; reactionJitter = Random.Range(0.92f, 1.08f); }   // people are not clockwork
+            bool ready = gate.Ready(ball.LaunchCount, Time.time, profile.reactionDelay * reactionJitter);   // false for the delay after a new hit
+            if (BlockLogic(ready)) return;
+            if (!ready) { if (planValid) Execute(); else GoHome(); return; }              // still reacting: carry on with the old plan
             if (planLaunch != ball.LaunchCount && planLaunch >= 0) ClearPlan();   // someone hit the ball: start over
 
             if (!pressed && !IsReceiver()) { GoHome(); planValid = false; planLaunch = -1; return; }
@@ -237,6 +341,12 @@ namespace Sandspike.Players
                 spikeChance = BotPlanner.IsHighNearNet(pos.z, pos.y, spikeMaxNetDistance, spikeHandHeight - 0.2f) && (pos.z < 0f ? -1f : 1f) == side;
             }
 
+            if (touches == 0) spikeChance = false;      // the first touch is a pass / dig, never a spike (real volleyball)
+
+            // Hard sometimes dinks a spike chance short instead of jumping (no jump, a soft hit over the net).
+            bool tip = spikeChance && Random.value < profile.tipChance;
+            if (tip) spikeChance = false;
+
             BotHit choice = BotPlanner.ChooseHit(touches, spikeChance, true);
             HitType type = choice == BotHit.Set ? HitType.Set : HitType.Bump;
             Vector3 target = Vector3.zero;
@@ -252,7 +362,8 @@ namespace Sandspike.Players
             }
             Vector3 contact = BallAt(contactTime);
             Vector3 flatBall = new Vector3(contact.x, 0f, contact.z);
-            float estCharge = Mathf.Clamp01((pressLead - releaseLead) / Mathf.Max(0.01f, me.SpikeCharge.secondsToFull));
+            float bumpCharge = Mathf.Clamp01((pressLead - releaseLead) / Mathf.Max(0.01f, me.SpikeCharge.secondsToFull));
+            float estCharge = choice == BotHit.Over && spikeChance ? Random.Range(profile.spikeChargeMin, profile.spikeChargeMax) : bumpCharge;
             setPressLead = pressLead;
             setTracksHuman = false;
 
@@ -271,29 +382,27 @@ namespace Sandspike.Players
             else
             {
                 // Over the net: try random spots in the opponent's half until the shot clears the net (spike first, then a bump over).
-                bool ok = type == HitType.Spike && PickOver(HitType.Spike, contact, flatBall, estCharge, out target);
+                bool ok = type == HitType.Spike && PickOver(HitType.Spike, contact, flatBall, estCharge, AttackSpot(flatBall.x, false), out target);
                 if (!ok)
                 {
                     type = HitType.Bump;
                     useJump = false;
+                    estCharge = bumpCharge;
                     float t = TimeAtHeight(me.ContactOffset(HitType.Bump).y);
                     contactTime = float.IsNaN(t) ? Mathf.Min(0.1f, ball.TimeToLanding) : t;
                     contact = BallAt(contactTime);
                     flatBall = new Vector3(contact.x, 0f, contact.z);
-                    PickOver(HitType.Bump, contact, flatBall, estCharge, out target);
+                    PickOver(HitType.Bump, contact, flatBall, estCharge, AttackSpot(flatBall.x, tip), out target);
                 }
             }
 
-            // Mistakes: now and then release late or send it a little off target, so rallies end.
-            lateRelease = false;
-            if (Random.value < errorChance)
-            {
-                // A late release drops a spike to the bottom of the reach zone, where it cannot clear the net,
-                // so a spike's mistake is always an aim error; bumps and sets can be late or off target.
-                if (type != HitType.Spike && Random.value < 0.5f) lateRelease = true;
-                else target += new Vector3(Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f)).normalized * aimErrorMetres;
-            }
+            // Mistakes: now and then send it off target, so rallies end.
+            if (Random.value < profile.mistakeChance)
+                target += new Vector3(Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f)).normalized * profile.mistakeMetres;
 
+            if (type == HitType.Spike) setPressLead = estCharge * me.SpikeCharge.secondsToFull + releaseLead;   // hold long enough for the chosen charge
+            planBall = flatBall;
+            dived = false;
             planType = type;
             planJump = useJump;
             planContactAt = Time.time + contactTime;
@@ -303,8 +412,18 @@ namespace Sandspike.Players
             planAim = preview.AimFor(type, estCharge, planStand, target);
         }
 
-        // Tries random targets in the opponent's half, 'targetInset' inside the lines; true if one clears the net.
-        bool PickOver(HitType type, Vector3 contact, Vector3 from, float charge, out Vector3 target)
+        // Where this bot's attack should land (the difficulty picks how smart the spot is).
+        Vector3 AttackSpot(float fromX, bool tip)
+        {
+            Vector3 d1 = Vector3.zero, d2 = Vector3.zero;
+            int n = 0;
+            foreach (PlayerController p in match.Players)
+                if (p.Team != me.Team) { if (n++ == 0) d1 = p.transform.position; else d2 = p.transform.position; }
+            return BotPlanner.PickAttack(profile, -me.CourtSide, d1, d2, fromX, match.HalfWidth, match.HalfLength, targetInset, tip);
+        }
+
+        // Tries the preferred target first, then random ones in the opponent's half, 'targetInset' inside the lines; true if one clears the net.
+        bool PickOver(HitType type, Vector3 contact, Vector3 from, float charge, Vector3 preferred, out Vector3 target)
         {
             float oppSide = -me.CourtSide;
             target = Vector3.zero;
@@ -316,8 +435,9 @@ namespace Sandspike.Players
             }
             for (int i = 0; i < targetTries; i++)
             {
-                target = new Vector3(Random.Range(-(match.HalfWidth - targetInset), match.HalfWidth - targetInset), 0f,
-                                     oppSide * Random.Range(type == HitType.Spike ? spikeMinDepth : targetInset, match.HalfLength - targetInset));
+                target = i == 0 ? preferred
+                    : new Vector3(Random.Range(-(match.HalfWidth - targetInset), match.HalfWidth - targetInset), 0f,
+                                  oppSide * Random.Range(type == HitType.Spike ? spikeMinDepth : targetInset, match.HalfLength - targetInset));
                 var input = new HitInput
                 {
                     type = type, charge = charge, timingError = 0f, closestDistance = 0f, reachRadius = me.ReachRadius,
@@ -355,10 +475,115 @@ namespace Sandspike.Players
             if (planJump && !jumped && remaining <= jumpRiseSeconds + jumpMarginSeconds) { jump.want = true; jumped = true; }
 
             Btn button = planType == HitType.Spike ? spike : planType == HitType.Set ? set : bump;
-            float lead = planType == HitType.Set ? setPressLead : pressLead;
+            float lead = planType == HitType.Bump ? pressLead : setPressLead;
             if (!pressed && remaining <= lead) { button.want = true; pressed = true; }
-            float releaseAt = lateRelease ? releaseLead - lateReleaseSeconds : releaseLead;
-            if (pressed && !released && remaining <= releaseAt) { button.want = false; released = true; }
+            if (pressed && !released && remaining <= releaseLead) { button.want = false; released = true; }
+
+            // Sprint to a far spot / spike approach (Normal and Hard).
+            Vector3 toStand = planStand - me.transform.position; toStand.y = 0f;
+            float dist = toStand.magnitude;
+            bool late = dist / me.MoveSpeed * 1.1f > remaining - 0.1f;
+            sprint = profile.usesSprint && me.Stamina.Current > sprintMinStamina && dist > 1.2f && (late || planJump);
+
+            // Dive for a ball that can't be reached on foot (the dig takes over inside the dive).
+            Vector3 toBall = planBall - me.transform.position; toBall.y = 0f;
+            if (!dived && me.IsGrounded && !planJump && !me.IsDiving && remaining > 0f && remaining <= diveLead
+                && BotPlanner.DiveAllowed(profile, me.Stamina.Current, me.Stamina.diveCost)
+                && BotPlanner.NeedsDive(toBall.magnitude, remaining, me.MoveSpeed * (sprint ? me.SprintMultiplier : 1f), me.ReachRadius, me.DiveDistance))
+            {
+                dived = true;
+                dive.want = true;
+                move = new Vector2(toBall.x, toBall.z).normalized;       // the dive goes where the move input points
+                button.want = false; pressed = released = true;
+            }
+        }
+
+        // ---------------- blocking ----------------
+
+        // The opponent who is about to spike (winding up or in the air near the net), or null.
+        PlayerController FindAttacker()
+        {
+            if (ball.LastHitType == HitType.Spike || ball.LastHitType == HitType.Serve || ball.LastHitType == HitType.Block) return null;
+            foreach (PlayerController o in match.Players)
+            {
+                if (o.Team == me.Team || match.Rules.PossessionTeam != o.Team) continue;
+                bool jumping = !o.IsGrounded || (o.WindingUp && o.WindUpType == HitType.Spike);
+                if (jumping && Mathf.Abs(o.transform.position.z) <= blockAttackerRange) return o;
+            }
+            return null;
+        }
+
+        // The net-side bot of the team blocks: the one nearer the net (ties: the lower id). A human teammate nearer the net blocks for themselves.
+        bool IsBlocker()
+        {
+            PlayerController mate = match.Teammate(me);
+            if (mate == null) return true;
+            float mine = Mathf.Abs(me.transform.position.z), his = Mathf.Abs(mate.transform.position.z);
+            return mine < his - 0.01f || (Mathf.Abs(mine - his) <= 0.01f && me.PlayerId < mate.PlayerId);
+        }
+
+        // Block when an opponent is about to spike (or already has): go to where the ball will cross the net, jump so the
+        // hands are up as it crosses, and slide the hands toward the crossing point. Returns true while busy blocking.
+        bool BlockLogic(bool ready)
+        {
+            if (profile.blockChance <= 0f) return false;
+            float side = me.CourtSide;
+            bool onTheirSide = ball.Position.z * side < 0f;
+            bool incomingAttack = onTheirSide && ball.Velocity.z * side > 0f && ball.LastHitType == HitType.Spike
+                                  && match.Rules.PossessionTeam != me.Team;
+            PlayerController attacker = FindAttacker();
+            if (!onTheirSide || (attacker == null && !incomingAttack)) { blockMode = false; return false; }
+            if (!blockMode)
+            {
+                if (!IsBlocker()) return false;
+                if (ball.LaunchCount - blockRollLaunch > 1)      // one dice roll per attack (the set and the spike share it)
+                {
+                    blockRollLaunch = ball.LaunchCount;
+                    blockRoll = Random.value < profile.blockChance;
+                }
+                if (!blockRoll) return false;
+                blockMode = true; blockJumped = false;
+            }
+
+            // Where will the ball cross my shield plane? Exact once the spike is flying (after the reaction delay), else a guess from the attacker's aim.
+            float planeZ = side * (blockStandDistance - me.Block.forward);
+            float crossX, crossY = 0f, tCross = -1f;
+            if (incomingAttack && ready)
+            {
+                tCross = (planeZ - ball.Position.z) / ball.Velocity.z;
+                Vector3 c = BallAt(Mathf.Max(0f, tCross));
+                crossX = c.x; crossY = c.y;
+            }
+            else
+            {
+                PlayerController a = attacker;
+                if (a == null) crossX = me.transform.position.x;     // reacting: hold position
+                else
+                {
+                    float k = Mathf.Abs(a.transform.position.z) / (Mathf.Abs(a.transform.position.z) + Mathf.Abs(a.Brain.AimPoint.z) + 0.01f);
+                    crossX = Mathf.Lerp(a.transform.position.x, a.Brain.AimPoint.x, k);   // the line from the attacker to their aim, at the net
+                }
+            }
+            crossX = Mathf.Clamp(crossX, -match.HalfWidth, match.HalfWidth);
+
+            Vector3 stand = new Vector3(crossX, 0f, side * blockStandDistance);
+            aim = new Vector3(crossX, 0f, -side * 4f);                      // face the net
+            if (me.IsGrounded)
+            {
+                move = Toward(stand);
+                Vector3 d = stand - me.transform.position; d.y = 0f;
+                sprint = profile.usesSprint && me.Stamina.Current > sprintMinStamina && d.magnitude > 1.5f;
+                // A spike reaches the net in ~0.07 s, so the jump has to start while the attacker is still rising.
+                if (!blockJumped && attacker != null && !attacker.IsGrounded && attacker.VerticalVelocity < 4.5f && d.magnitude < 1.2f)
+                { jump.want = true; blockJumped = true; }
+                else if (tCross > 0f && !blockJumped)
+                {
+                    float jumpIn = BotPlanner.BlockJumpIn(tCross, crossY, me.Block.handHeight, me.TapJumpHeight, me.JumpGravity);
+                    if (jumpIn <= 0.02f) { jump.want = true; blockJumped = true; }
+                }
+            }
+            else move = new Vector2(Mathf.Clamp((crossX - me.transform.position.x) / me.Block.strafe, -1f, 1f), 0f);   // strafe the hands
+            return true;
         }
 
         // ---------------- helpers ----------------
@@ -374,7 +599,7 @@ namespace Sandspike.Players
         {
             planValid = false;
             planLaunch = -1;
-            pressed = released = jumped = false;
+            pressed = released = jumped = dived = false;
             if (match.State != MatchState.Serve || !me.ServeMode) spike.want = false;
             bump.want = set.want = false;
         }
