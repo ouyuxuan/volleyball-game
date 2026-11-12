@@ -17,10 +17,20 @@ namespace Sandspike.Tests
         // ---------------- AI: profiles ----------------
 
         [Test]
+        public void ReadingASpike_UsesTheShortDelay_OnlyForSpikes_AndOnlyBelowTheReadChance()
+        {
+            AIProfile n = AIProfile.For(AIDifficulty.Normal);
+            Assert.AreEqual(n.readDelay, BotPlanner.ReactionFor(n, true, n.spikeReadChance - 0.01f, 1f));          // read
+            Assert.AreEqual(n.reactionDelay, BotPlanner.ReactionFor(n, true, n.spikeReadChance + 0.01f, 1f));     // not read
+            Assert.AreEqual(n.reactionDelay * 1.05f, BotPlanner.ReactionFor(n, false, 0f, 1.05f));                // a set is never "read"
+        }
+
+        [Test]
         public void Profiles_MatchThePinnedTable()
         {
             AIProfile e = AIProfile.For(AIDifficulty.Easy), n = AIProfile.For(AIDifficulty.Normal), h = AIProfile.For(AIDifficulty.Hard);
-            Assert.AreEqual(new[] { 0.45f, 0.195f, 0.145f }, new[] { e.reactionDelay, n.reactionDelay, h.reactionDelay });
+            Assert.AreEqual(new[] { 0.45f, 0.26f, 0.145f }, new[] { e.reactionDelay, n.reactionDelay, h.reactionDelay });
+            Assert.AreEqual(new[] { 0.25f, 0.3f, 0.5f }, new[] { e.spikeReadChance, n.spikeReadChance, h.spikeReadChance });
             Assert.AreEqual(new[] { 0.85f, 1f, 1f }, new[] { e.moveSpeedMultiplier, n.moveSpeedMultiplier, h.moveSpeedMultiplier });
             Assert.AreEqual(new[] { 0.25f, 0.12f, 0.05f }, new[] { e.mistakeChance, n.mistakeChance, h.mistakeChance });
             Assert.AreEqual(1.5f, e.mistakeMetres);

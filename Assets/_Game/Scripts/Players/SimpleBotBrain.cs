@@ -78,6 +78,16 @@ namespace Sandspike.Players
 
         static float Flat(Vector3 v) => new Vector2(v.x, v.z).magnitude;
 
+        /// <summary>
+        /// How long the bot takes to react to this ball. A spike it "read" (roll below the profile's spikeReadChance) gets the short
+        /// readDelay; everything else gets the normal delay times this ball's jitter. A spike is in the air for only ~0.3-0.45 s, so
+        /// the read chance decides how many spikes get dug, in a smooth, tunable way.
+        /// </summary>
+        public static float ReactionFor(AIProfile p, bool isSpike, float readRoll, float jitter)
+        {
+            return isSpike && readRoll < p.spikeReadChance ? p.readDelay : p.reactionDelay * jitter;
+        }
+
         /// <summary>A ball the bot cannot reach on foot in time but could reach with a dive (distances flat, in metres).</summary>
         public static bool NeedsDive(float distToBall, float timeLeft, float runSpeed, float reach, float diveRange)
         {
@@ -182,6 +192,8 @@ namespace Sandspike.Players
         ReactionGate gate;
         int jitterLaunch = -1;
         float reactionJitter = 1f;     // this ball's reaction delay is the profile's times 0.92..1.08
+        float readRoll = 1f;           // this ball's dice roll for reading a spike early
+        bool covering;                 // standing where the hitter aims (see CoverAttack)
 
         // block (the net-side bot of the defending team jumps at an incoming spike)
         bool blockMode, blockJumped, blockRoll;
@@ -275,16 +287,31 @@ namespace Sandspike.Players
         void RallyLogic()
         {
             if (!ball.IsInFlight) { GoHome(); ClearPlan(); blockMode = false; return; }
-            if (ball.LaunchCount != jitterLaunch) { jitterLaunch = ball.LaunchCount; reactionJitter = Random.Range(0.92f, 1.08f); }   // people are not clockwork
-            bool ready = gate.Ready(ball.LaunchCount, Time.time, profile.reactionDelay * reactionJitter);   // false for the delay after a new hit
+            if (ball.LaunchCount != jitterLaunch) { jitterLaunch = ball.LaunchCount; reactionJitter = Random.Range(0.92f, 1.08f); readRoll = Random.value; }   // people are not clockwork
+            bool ready = gate.Ready(ball.LaunchCount, Time.time, BotPlanner.ReactionFor(profile, ball.LastHitType == HitType.Spike, readRoll, reactionJitter));   // false for the delay after a new hit
             if (BlockLogic(ready)) return;
-            if (!ready) { if (planValid) Execute(); else GoHome(); return; }              // still reacting: carry on with the old plan
+            if (!ready) { if (planValid) Execute(); else if (covering) move = Vector2.zero; else GoHome(); return; }   // (a covering defender holds its spot)              // still reacting: carry on with the old plan
             if (planLaunch != ball.LaunchCount && planLaunch >= 0) ClearPlan();   // someone hit the ball: start over
 
-            if (!pressed && !IsReceiver()) { GoHome(); planValid = false; planLaunch = -1; return; }
+            if (!pressed && !IsReceiver()) { covering = CoverAttack(); if (!covering) GoHome(); planValid = false; planLaunch = -1; return; }
+            covering = false;
             if (!planValid) MakePlan();
             if (!planValid) { GoHome(); return; }
             Execute();
+        }
+
+        // Reading the hitter: while the opponents' set is in the air, the back defender (the one who is not at the net) who won this
+        // ball's read roll drifts to where the hitter is aiming, so it is already close when the spike comes.
+        bool CoverAttack()
+        {
+            PlayerController hitter = FindAttacker();
+            if (hitter == null || IsBlocker() || readRoll >= profile.spikeReadChance) return false;
+            Vector3 p = hitter.Brain.AimPoint;
+            float maxX = match.HalfWidth - targetInset;
+            Vector3 spot = new Vector3(Mathf.Clamp(p.x, -maxX, maxX), 0f, me.CourtSide * Mathf.Clamp(p.z * me.CourtSide, 2f, match.HalfLength - targetInset));
+            GoHome();                      // buttons up, face the net...
+            move = Toward(spot);           // ...but walk to the cover spot
+            return true;
         }
 
         // I am the receiver if the ball lands on my side (and in play), I may touch it, and I am the closest player on my team who may.

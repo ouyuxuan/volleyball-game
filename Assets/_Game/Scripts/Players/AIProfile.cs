@@ -13,6 +13,8 @@ namespace Sandspike.Players
     public class AIProfile
     {
         public float reactionDelay;        // seconds the bot keeps its old plan after the ball's arc changes
+        public float spikeReadChance;      // chance it reads an opponent's spike early and reacts in readDelay instead (this sets the dig rate)
+        public float readDelay = 0.05f;
         public float moveSpeedMultiplier;  // scales how fast it runs
         public float mistakeChance;        // per hit: send it mistakeMetres off target
         public float mistakeMetres = 1.5f;
@@ -27,11 +29,11 @@ namespace Sandspike.Players
         /// <summary>The pinned table (M3). Easy / Normal / Hard.</summary>
         public static readonly AIProfile[] Table =
         {
-            new AIProfile { reactionDelay = 0.45f, moveSpeedMultiplier = 0.85f, mistakeChance = 0.25f, aimSpread = 1.2f, spikeChargeMin = 0.2f, spikeChargeMax = 0.6f,
+            new AIProfile { reactionDelay = 0.45f, spikeReadChance = 0.25f, moveSpeedMultiplier = 0.85f, mistakeChance = 0.25f, aimSpread = 1.2f, spikeChargeMin = 0.2f, spikeChargeMax = 0.6f,
                             usesSprint = false, diveMode = AIDiveMode.Never, blockChance = 0f, tipChance = 0f, attackStyle = AIDifficulty.Easy },
-            new AIProfile { reactionDelay = 0.195f, moveSpeedMultiplier = 1f, mistakeChance = 0.12f, aimSpread = 0.7f, spikeChargeMin = 0.4f, spikeChargeMax = 0.8f,
+            new AIProfile { reactionDelay = 0.26f, spikeReadChance = 0.3f, moveSpeedMultiplier = 1f, mistakeChance = 0.12f, aimSpread = 0.7f, spikeChargeMin = 0.4f, spikeChargeMax = 0.8f,
                             usesSprint = true, diveMode = AIDiveMode.IfStaminaAllows, blockChance = 0.4f, tipChance = 0f, attackStyle = AIDifficulty.Normal },
-            new AIProfile { reactionDelay = 0.145f, moveSpeedMultiplier = 1f, mistakeChance = 0.05f, aimSpread = 0.3f, spikeChargeMin = 0.6f, spikeChargeMax = 1.0f,
+            new AIProfile { reactionDelay = 0.145f, spikeReadChance = 0.5f, moveSpeedMultiplier = 1f, mistakeChance = 0.05f, aimSpread = 0.3f, spikeChargeMin = 0.6f, spikeChargeMax = 1.0f,
                             usesSprint = true, diveMode = AIDiveMode.Always, blockChance = 1f, tipChance = 0.15f, attackStyle = AIDifficulty.Hard },
         };
 
