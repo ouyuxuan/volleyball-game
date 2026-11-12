@@ -20,7 +20,7 @@ namespace Sandspike.Tests
         public void Profiles_MatchThePinnedTable()
         {
             AIProfile e = AIProfile.For(AIDifficulty.Easy), n = AIProfile.For(AIDifficulty.Normal), h = AIProfile.For(AIDifficulty.Hard);
-            Assert.AreEqual(new[] { 0.45f, 0.205f, 0.145f }, new[] { e.reactionDelay, n.reactionDelay, h.reactionDelay });
+            Assert.AreEqual(new[] { 0.45f, 0.195f, 0.145f }, new[] { e.reactionDelay, n.reactionDelay, h.reactionDelay });
             Assert.AreEqual(new[] { 0.85f, 1f, 1f }, new[] { e.moveSpeedMultiplier, n.moveSpeedMultiplier, h.moveSpeedMultiplier });
             Assert.AreEqual(new[] { 0.25f, 0.12f, 0.05f }, new[] { e.mistakeChance, n.mistakeChance, h.mistakeChance });
             Assert.AreEqual(1.5f, e.mistakeMetres);
