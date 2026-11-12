@@ -199,7 +199,7 @@ crosshair aim with the V toggle; landing and aim markers; full gamepad bindings 
 aim and device-aware button prompts. EditMode tests for trajectory, hit
 resolution (charge × timing) and stamina.
 
-**Feel additions (after looking at genre reference footage; general ideas only, our own art):**
+**Feel additions (general ideas only, our own art):**
 - **Readable ball:** a slightly oversized ball with a bright outline. Hard hits leave a speed trail
   whose length scales with power. → M5 (outline in M2, so rallies are readable from the start)
 - **Higher, wider 3rd-person camera:** raise and pull back the default 3rd-person view so both
@@ -337,6 +337,84 @@ Measure with the dig rate (spikes dug / spikes landing in court), not the rally 
 
 Still open: bot blocks are rare and seldom end a rally. Mistakes seldom go out (the targets sit 1 m inside the lines), so rallies
 mostly end on an undug spike. These numbers are bot against bot at the same level, not against a human.
+
+**Feel pass (target feel set by the user, 2026-11-12; next pass, before M4).**
+This is the feel the user wants for serves, jumps, spikes, blocks, hit timing, motion and sound.
+Only mechanics, timing and feedback ideas are described here: our art, characters, names and sounds
+stay our own. The block and sound rows are the least certain and should be tuned by playtest.
+
+*Target feel, with target timings*
+
+| Topic | What happens | Timing |
+|---|---|---|
+| Serve | "Your serve, hold to toss" with a 15 s serve clock. The server walks freely inside a lit serve zone behind the baseline. Holding the hit button grows a dotted vertical line (the toss height), with a small gauge at the feet. Releasing throws the ball up and forward, and a ring on the sand shows where the toss will come down. The server runs under it, jumps and hits. A toss that drops is a fault. | Toss hold about 0.6–0.8 s. Toss in the air about 2.2 s. Bot servers hit about 0.9–1.1 s after the toss. |
+| Jump | Hold to charge, release to jump, like ours. A round gauge fills at the feet while the player keeps shuffling. Takeoff is explosive, then the player hangs. A white vertical streak joins the player to the ground, so height is readable. | Gauge fills in about 0.6 s. Most of the height is reached in the first 0.1 s. Airtime is at least 0.85 s on a full jump. |
+| Spike | In the air, holding the hit button charges at the ball: rings close around the ball, with an aim reticle on it and a combo badge (×2, ×3) beside it. On release there is a white burst and speed lines, the reticle rides the ball down, a marker shows the landing spot, and "in" or "out" appears there. The camera tilts up with the jump and keeps player and ball in frame. | Takeoff to contact about 0.4 s. Contact to sand about 0.25 s. |
+| Block | The blocker charges a jump at the net and hangs with the whole chest above the tape. Two kinds of block: hands simply in the way give a soft touch, and the ball drops slowly back on the attacker's side where the attackers can still save it; pressing the hit button as the ball arrives swats it straight down for a point (a stuff). An attacker's charge is visible to everyone: the rings and the combo badge appear on the ball as they wind up, which tells the blocker when to go. Jumping too early is the usual mistake, because the set hangs longer than expected. The hit button's hint reads "block" whenever a jump at the net would block. | Jump charge about 0.3–0.6 s. Blocker airtime about 1.0 s. A stuff lands within about 0.3 s. |
+| Hit timing | The ball always has a landing ring on the sand and a trail in the colour of the team that last touched it. The player's foot ring changes colour shortly before the right moment, and the ball gets an aura when a hit would connect. Sets hang long at the top. | Windows look generous. Nothing is frame-tight. |
+| Motion | The ball squashes and stretches with speed. Characters lean and crouch before a jump, flash on a hit, and kick up dust when they run, land and dive. The camera eases between the serve view and the play view. | Camera move after a serve takes about 1.3 s. |
+| After a point | Whistle, score pop, a banner naming the scorer, short callouts over players' heads (praise on the winning side, consolation on the other), then sometimes an instant replay in slow motion from a low side camera, ending in a wipe. | Whistle about 0.4 s after the ball lands. |
+| HUD | A list of actions with their keys sits in the bottom-right corner. Actions that can't be used right now are greyed out, and the main hit button's label changes with context (toss, bump, touch). | |
+
+*What to build (does not change settled behaviour)*
+- **Jump streak and landing dust.** A vertical streak from the sand to every airborne player, and dust
+  puffs on takeoff, landing, dives and sprint. This helps both spiking and blocking.
+- **Landing ring for every ball,** not only serves, in the last toucher's team colour, with a matching
+  ball trail. "In" and "out" text at the landing spot.
+- **Spike charge shown at the ball.** While a spike is held in the air, the charge ring closes around
+  the ball itself and the combo badge sits beside it, so the eyes never leave the ball. The existing
+  hit-now cue becomes the ball's aura. The foot ring changes colour just before the hit-now moment.
+- **Hit feedback:** a white burst and speed lines on spikes, a flash on the hitter, and ball squash
+  and stretch scaled by speed.
+- **Smoother character motion:** a lean and crouch while a jump charges, arm anticipation before each
+  swing and an eased follow-through after it, and an eased return to idle. No snapping between poses.
+- **Camera:** tilt up to follow the player's jump and keep the ball in frame, and ease between the
+  serve view and the rally view.
+- **Jump cue for blockers:** the attacker's streak and a short rising sound mark the moment to jump.
+- **Context control hints:** grey out actions that can't be used now, and show "Block" in place of
+  "Spike" when a jump at the net would block.
+- **Point sequence:** whistle, score pop, then the next serve. Instant replay is optional and comes
+  last (M6).
+
+*Needs the user's yes (each changes something settled or playtest-approved)*
+1. **Toss serve.** Replace the charge-and-release serve with hold-to-toss, then jump and hit, with a
+   15 s serve clock, free movement in the serve zone and a fault when the toss drops. The serve
+   preview would show the toss, not the serve arc. This is harder than today's serve.
+2. **Floatier jump.** Keep charge-then-release, but give the jump a quicker launch and a longer hang
+   near the top (airtime about 0.85 s or more on a full jump, against 0.72 s now; a tap jump is 0.54 s). The
+   approved heights (0.9 m tap, 1.6 m full) could stay; only the time in the air changes.
+3. **One context hit button.** The alternative is one button that bumps on the ground, spikes in the
+   air and tosses on serve, plus a separate set button. Ours has separate bump and spike buttons.
+   Recommendation: keep ours, because it already works and suits a gamepad.
+4. **Soft and active blocks.** Hands that are only in the way (no button) give a soft block: the ball
+   drops slowly back on the attacker's side, 1–2 m from the net, and the attackers can save it. Pressing
+   Spike while blocking, within about 0.15 s of the ball reaching the hands, is a stuff: fast and
+   straight down toward the aim point. Today every block is the fast aimed kind, with no button.
+5. **Show every player's spike charge on the ball,** opponents' included, so blockers can time their
+   jump. Today only your own charge is shown, at your feet.
+
+*Sound list (M5 audio, moved up to this pass if the user wants it sooner)*
+
+| Sound | When | Character |
+|---|---|---|
+| Countdown hits | Three, one second apart, before the first serve | The loudest sounds in the match, low and punchy, about 0.5 s decay |
+| Start whistle | About 1.2 s after the last countdown hit | Narrow tone near 2.6 kHz, about 0.4 s |
+| Serve clock tick | Each second of the serve clock | Very short, quiet blip |
+| Toss | Toss release | Short soft blip |
+| Bump | Contact | Dull, short thud, mostly low frequencies |
+| Set | Contact | Softer and shorter than a bump |
+| Spike | Contact | Full-band crack, the sharpest hit sound, louder with charge |
+| Spike charge | While charging in the air | Rising whoosh over the last 0.25 s before contact |
+| Jump and landing | Takeoff, touchdown | Light whoosh up, sand thud down |
+| Block | Ball meets hands | Hard slap, between a bump and a spike |
+| Ball on sand | Landing | Soft thump |
+| Point whistle | About 0.4 s after the ball lands | Same whistle, about 0.5 s; a different pattern for a fault |
+| Crowd | After a point, bigger for spikes and blocks | A cheer that swells for about a second |
+| Callouts | Good plays | Short voice-like chirps |
+| Music | Whole match | A steady, upbeat loop under everything, quieter than the hits |
+
+All of these are synthesized placeholders first (`AudioDirector`), through the mixer's SFX and Music
+groups, with pitch and volume varied a little on every play.
 
 **M4 — Local multiplayer.** `PlayerJoinManager` (Input System `PlayerInputManager`) with split-screen,
 join-and-pick-side setup screen, AI fills empty slots; keyboard + mouse for one player, gamepads for
