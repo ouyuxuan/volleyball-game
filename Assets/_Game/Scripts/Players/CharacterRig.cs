@@ -34,6 +34,9 @@ namespace Sandspike.Players
         [SerializeField] float diveArmDegrees = -150f;      // arms reach ahead in a dive
         [SerializeField] float bumpForwardDegrees = 35f;    // bump platform: arms at least this far forward of hanging
         [SerializeField] float setRaiseDegrees = 20f;       // set: hands this much higher than the shared pose
+        [SerializeField] float blockArmDegrees = -165f;     // block: both arms up, tipped slightly over the net
+        [SerializeField] float blockSpread = 0.45f;         // block: arms open into a V so they show either side of the head
+        [SerializeField] float blockLean = 0.9f;            // block: how far the arms lean sideways per metre of shield strafe
 
         [SerializeField] float burnoutTint = 0.55f;         // how far the colours shift toward Shadow while burned out
 
@@ -134,13 +137,14 @@ namespace Sandspike.Players
             bool queued = player.HasQueuedHit;               // released early: hold the wind-up until the ball arrives
             bool hitPose = swinging || queued || player.WindingUp;
             bool diving = player.DiveAmount > 0.1f;
-            poseWeight = Mathf.MoveTowards(poseWeight, hitPose || diving ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, poseBlendSeconds));
+            bool blocking = !hitPose && !diving && player.IsBlocking;   // in the air at the net with no hit held
+            poseWeight = Mathf.MoveTowards(poseWeight, hitPose || diving || blocking ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, poseBlendSeconds));
             if (poseWeight <= 0f) return;
 
             HitType type = swinging ? player.LastReport.type : queued ? player.QueuedHitType : player.WindUpType;
             float left, right;
             if (hitPose) PlayerVisual.ArmPose(type, player.SpikeCharge.Value, false, out left, out right);   // the wind-up pose
-            else { left = right = diveArmDegrees; type = HitType.Bump; }
+            else { left = right = blocking ? blockArmDegrees : diveArmDegrees; type = HitType.Bump; }
 
             // The shared pose table was tuned for the primitive body. On this model a bump needs the arms held
             // forward as a platform (never hanging down), and a set needs the hands a little higher.
@@ -161,8 +165,11 @@ namespace Sandspike.Players
             float inward = !hitPose ? 0.15f : type == HitType.Bump ? bumpArmsInward : type == HitType.Set ? setHandsInward : 0f;
             bool cocked = hitPose && !swinging && type != HitType.Bump && type != HitType.Set;      // the spike arm before the swing
             bool setElbows = hitPose && type == HitType.Set && (!swinging || swing < 0.5f);         // elbows straighten in the push
-            AimArm(upperL, lowerL, fistL, left, +inward, setElbows);
-            AimArm(upperR, lowerR, fistR, right, -inward, setElbows || cocked);
+            // Block: the hands follow the shield as it strafes, so the arms show where the block really is.
+            float lean = blocking ? Vector3.Dot(player.BlockCenter - player.transform.position, transform.right) * blockLean : 0f;
+            if (blocking) inward = -blockSpread;
+            AimArm(upperL, lowerL, fistL, left, lean + inward, setElbows);
+            AimArm(upperR, lowerR, fistR, right, lean - inward, setElbows || cocked);
         }
 
         // Bump stance: drop the hips and bend the knees. The feet are separate bones that stay planted on the sand,

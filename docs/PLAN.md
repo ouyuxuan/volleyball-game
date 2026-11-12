@@ -299,7 +299,7 @@ build.
 - **AI uses everything players have:** sprint, dives (with burnout), the combo multiplier and backsets.
   Difficulty changes reaction time, positioning and hit quality.
 
-**M3 status: done (arm pose for the block comes later).** `SimpleBotBrain` is now the real AI (`AIDifficulty`, `AIProfile.Table`,
+**M3 status: done.** The block has its own arm pose (both arms up in a V, leaning with the strafe; `CharacterRig`). `SimpleBotBrain` is now the real AI (`AIDifficulty`, `AIProfile.Table`,
 `MatchManager.difficulty`), with reaction delay, sprint, dives, aimed attacks, tips and bot blocking. Blocking works for humans and bots
 (`BlockShield`, `PlayerController.IsBlocking / BlockCenter / BlockNormal`, `HitType.Block`, a block is a touch but not a double-touch).
 The 1st-person crosshair was already a fixed screen size (nothing scales it), so no change was needed. 172 EditMode tests pass.
