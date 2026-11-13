@@ -39,6 +39,9 @@ namespace Sandspike.Players
         [SerializeField] float blockLean = 0.9f;            // block: how far the arms lean sideways per metre of shield strafe
 
         [SerializeField] float burnoutTint = 0.55f;         // how far the colours shift toward Shadow while burned out
+        [SerializeField] float hitFlash = 0.6f;             // how far the colours jump toward white when this player hits the ball
+        [SerializeField] float hitFlashSeconds = 0.12f;     // the flash fades over this long
+        [SerializeField] float jumpCrouch = 0.35f;          // how deep the legs load while a jump charges (1 = the bump crouch); the body squash adds to it
 
         Animator animator;
         SkinnedMeshRenderer skinRenderer;
@@ -48,6 +51,7 @@ namespace Sandspike.Players
         Transform upperL, lowerL, fistL, upperR, lowerR, fistR;
         Transform bodyBone, upperLegL, lowerLegL, upperLegR, lowerLegR;
         float poseWeight;
+        float legLoad;      // 0..1, eased: how far the legs are bent for a charging jump
         bool spawned;
 
         static readonly int SpeedId = Animator.StringToHash("Speed");
@@ -64,14 +68,16 @@ namespace Sandspike.Players
 
             // Burnout: the whole character pulses toward the cool shadow colour until it wears off.
             float burn = player.IsBurnedOut ? burnoutTint * (0.75f + 0.25f * Mathf.Sin(Time.time * 12f)) : 0f;
-            if (skinRenderer != null && (burn > 0f || tinted))
+            // Hit flash: a quick pop toward white on contact, so you can see who touched the ball.
+            float flash = hitFlash * Mathf.Clamp01(1f - (Time.time - player.LastHitTime) / Mathf.Max(0.01f, hitFlashSeconds));
+            if (skinRenderer != null && (burn > 0f || flash > 0f || tinted))
             {
                 for (int i = 0; i < baseColors.Length; i++)
                 {
-                    block.SetColor("_BaseColor", Color.Lerp(baseColors[i], Palette.Shadow, burn));
+                    block.SetColor("_BaseColor", Color.Lerp(Color.Lerp(baseColors[i], Palette.Shadow, burn), Palette.CourtLines, flash));
                     skinRenderer.SetPropertyBlock(block, i);
                 }
-                tinted = burn > 0f;
+                tinted = burn > 0f || flash > 0f;
             }
         }
 
@@ -139,7 +145,11 @@ namespace Sandspike.Players
             bool diving = player.DiveAmount > 0.1f;
             bool blocking = !hitPose && !diving && player.IsBlocking;   // in the air at the net with no hit held
             poseWeight = Mathf.MoveTowards(poseWeight, hitPose || diving || blocking ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, poseBlendSeconds));
-            if (poseWeight <= 0f) return;
+
+            // Jump charge: the legs load up as the jump is held, and spring back in a tenth of a second on release.
+            float wantLoad = player.JumpCharge.IsCharging && player.IsGrounded ? jumpCrouch * (0.4f + 0.6f * player.JumpCharge.Value) : 0f;
+            legLoad = Mathf.MoveTowards(legLoad, wantLoad, Time.deltaTime / 0.1f);
+            if (poseWeight <= 0f) { Crouch(legLoad); return; }
 
             HitType type = swinging ? player.LastReport.type : queued ? player.QueuedHitType : player.WindUpType;
             float left, right;
@@ -160,7 +170,7 @@ namespace Sandspike.Players
                 else if (type == HitType.Set) left = right = Mathf.Lerp(left, setPushDegrees, ease);                        // hands push up and through
                 else { right = Mathf.Lerp(spikeContactDegrees, spikeFollowDegrees, ease); left = Mathf.Lerp(left, -30f, ease); }   // whip over the top and down
             }
-            Crouch(crouch * poseWeight);
+            Crouch(Mathf.Max(crouch * poseWeight, legLoad));
 
             float inward = !hitPose ? 0.15f : type == HitType.Bump ? bumpArmsInward : type == HitType.Set ? setHandsInward : 0f;
             bool cocked = hitPose && !swinging && type != HitType.Bump && type != HitType.Set;      // the spike arm before the swing
@@ -208,7 +218,7 @@ namespace Sandspike.Players
             if (bone == null || child == null) return;
             Vector3 current = (child.position - bone.position).normalized;
             Quaternion target = Quaternion.FromToRotation(current, dir) * bone.rotation;
-            bone.rotation = Quaternion.Slerp(bone.rotation, target, poseWeight);
+            bone.rotation = Quaternion.Slerp(bone.rotation, target, Mathf.SmoothStep(0f, 1f, poseWeight));   // eased, so arms never snap in or out of a pose
         }
 
         // A matte material in one palette colour, shared by every part that uses that colour.
