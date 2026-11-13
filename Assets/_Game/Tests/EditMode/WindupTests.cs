@@ -9,7 +9,7 @@ namespace Sandspike.Tests
     /// <summary>Wind-up hits and the charged jump (the parts that do not need a ball in flight).</summary>
     public class WindupTests
     {
-        const float G = 25f;
+        static readonly JumpArc Arc = new JumpArc(30f, 2.2f, 0.35f);
         const float Dt = 0.02f;
 
         // Drives the real PlayerController.UpdateJump: press, hold for 'holdSeconds' (frame by frame), release. Returns the jump's apex.
@@ -38,7 +38,7 @@ namespace Sandspike.Tests
 
             float v = p.VerticalVelocity;
             Object.DestroyImmediate(go);
-            return v * v / (2f * G);
+            return Arc.ApexHeight(v);
         }
 
         [Test]

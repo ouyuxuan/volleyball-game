@@ -104,12 +104,10 @@ namespace Sandspike.Players
         /// Seconds from now to press jump so the hands (hand height above the feet = handHeight) are at the ball's height when it
         /// crosses the shield in 'timeToCross' seconds. Negative = already late. The feet only rise as far as a tap jump goes.
         /// </summary>
-        public static float BlockJumpIn(float timeToCross, float ballHeight, float handHeight, float tapApex, float gravity)
+        public static float BlockJumpIn(float timeToCross, float ballHeight, float handHeight, float tapApex, JumpArc arc)
         {
             float h = Mathf.Clamp(ballHeight - handHeight, 0.05f, tapApex);       // how high the feet must be
-            float v = ContactTiming.JumpSpeed(gravity, tapApex);
-            float up = (v - Mathf.Sqrt(Mathf.Max(0f, v * v - 2f * gravity * h))) / gravity;   // time to rise that high
-            return timeToCross - up;
+            return timeToCross - arc.TimeToHeight(tapApex, h);   // minus the time the feet need to rise that high
         }
     }
 
@@ -158,7 +156,6 @@ namespace Sandspike.Players
         [Header("Spike")]
         [SerializeField] float spikeHandHeight = 3.2f;       // hand height at the top of a tap jump (2.3 + 0.9)
         [SerializeField] float spikeMaxNetDistance = 3.5f;   // only spike a ball this close to the net
-        [SerializeField] float jumpRiseSeconds = 0.27f;      // a tap jump takes this long to reach the top
         [SerializeField] float jumpMarginSeconds = 0.05f;
         [SerializeField] int targetTries = 8;
         [SerializeField] float spikeContactSlack = 0.35f;      // the bot checks a spike as if the ball were this much lower than planned...
@@ -224,6 +221,9 @@ namespace Sandspike.Players
         public bool Sprint => sprint;
         public AIDifficulty Difficulty => difficulty;
         public AIProfile Profile => profile;
+
+        // A tap jump takes this long to reach the top; the bot times its spike so the hand meets the ball there (the hang gives it slack).
+        float JumpRiseSeconds => me.Arc.TimeToApex(me.TapJumpHeight);
 
         void Awake() { me = GetComponent<PlayerController>(); }
 
@@ -361,7 +361,7 @@ namespace Sandspike.Players
             // Is there a good jump-spike chance (ball high and near the net)?
             float tSpike = TimeAtHeight(spikeHandHeight);
             bool spikeChance = false;
-            if (!float.IsNaN(tSpike) && tSpike >= jumpRiseSeconds + jumpMarginSeconds + 0.03f)
+            if (!float.IsNaN(tSpike) && tSpike >= JumpRiseSeconds + jumpMarginSeconds + 0.03f)
             {
                 Vector3 pos = BallAt(tSpike);
                 spikeChance = BotPlanner.IsHighNearNet(pos.z, pos.y, spikeMaxNetDistance, spikeHandHeight - 0.2f) && (pos.z < 0f ? -1f : 1f) == side;
@@ -498,7 +498,7 @@ namespace Sandspike.Players
             }
             aim = planAim;
 
-            if (planJump && !jumped && remaining <= jumpRiseSeconds + jumpMarginSeconds) { jump.want = true; jumped = true; }
+            if (planJump && !jumped && remaining <= JumpRiseSeconds + jumpMarginSeconds) { jump.want = true; jumped = true; }
 
             Btn button = planType == HitType.Spike ? spike : planType == HitType.Set ? set : bump;
             float lead = planType == HitType.Bump ? pressLead : setPressLead;
@@ -612,7 +612,7 @@ namespace Sandspike.Players
                 { jump.want = true; blockJumped = true; Debug.Log($"[BlockPlan] p{me.PlayerId} jumps at x={me.transform.position.x:F1} z={me.transform.position.z:F1}"); }
                 else if (tCross > 0f && !blockJumped)
                 {
-                    float jumpIn = BotPlanner.BlockJumpIn(tCross, crossY, me.Block.handHeight, me.TapJumpHeight, me.JumpGravity);
+                    float jumpIn = BotPlanner.BlockJumpIn(tCross, crossY, me.Block.handHeight, me.TapJumpHeight, me.Arc);
                     if (jumpIn <= 0.02f) { jump.want = true; blockJumped = true; }
                 }
             }

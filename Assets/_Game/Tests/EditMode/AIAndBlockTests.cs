@@ -141,8 +141,8 @@ namespace Sandspike.Tests
         [Test]
         public void BlockJump_IsLaterForAHigherBall_AndNeverAfterTheCrossing()
         {
-            float low = BotPlanner.BlockJumpIn(0.5f, 2.6f, 2.45f, 0.9f, 25f);
-            float high = BotPlanner.BlockJumpIn(0.5f, 3.2f, 2.45f, 0.9f, 25f);
+            float low = BotPlanner.BlockJumpIn(0.5f, 2.6f, 2.45f, 0.9f, new JumpArc(30f, 2.2f, 0.35f));
+            float high = BotPlanner.BlockJumpIn(0.5f, 3.2f, 2.45f, 0.9f, new JumpArc(30f, 2.2f, 0.35f));
             Assert.Less(low, 0.5f);
             Assert.Less(high, low, "a higher ball needs the hands higher, which takes longer to rise to: jump earlier");
         }

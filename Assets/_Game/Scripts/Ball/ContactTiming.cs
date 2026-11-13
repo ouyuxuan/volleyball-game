@@ -11,17 +11,6 @@ namespace Sandspike.Ball
     /// </summary>
     public static class ContactTiming
     {
-        /// <summary>The player's height 'dt' seconds from now, following the jump arc (never below the ground at 0).</summary>
-        public static float PlayerHeightAt(float y0, float verticalVelocity, float gravity, float dt)
-        {
-            if (dt <= 0f) return y0;
-            float y = y0 + verticalVelocity * dt - 0.5f * gravity * dt * dt;
-            return Mathf.Max(0f, y);
-        }
-
-
-        /// <summary>Takeoff speed for a jump that peaks at 'apex' metres: v = sqrt(2*g*h).</summary>
-        public static float JumpSpeed(float gravity, float apex) => Mathf.Sqrt(2f * gravity * apex);
 
         /// <summary>True when the ball is within 'reach' metres of the contact point (drives the "hit now" cue).</summary>
         public static bool InReach(Vector3 ball, Vector3 contact, float reach) => (ball - contact).sqrMagnitude <= reach * reach;
@@ -69,6 +58,93 @@ namespace Sandspike.Ball
             best = (lo + hi) * 0.5f;
             distance = (ballAt(best) - contactAt(best)).magnitude;
             return best;
+        }
+    }
+
+    /// <summary>
+    /// The player's jump arc (pure maths). Gravity is 'gravity' while the vertical speed is at least 'hangSpeed' (either way),
+    /// and only 'gravity * hangScale' below it, so the player launches fast and hangs near the top, with the same apex heights.
+    /// </summary>
+    public readonly struct JumpArc
+    {
+        public readonly float gravity, hangSpeed, hangScale;
+
+        public JumpArc(float gravity, float hangSpeed, float hangScale)
+        {
+            this.gravity = gravity; this.hangSpeed = hangSpeed; this.hangScale = hangScale;
+        }
+
+        float HangGravity => gravity * hangScale;
+        float HangHeight => hangSpeed * hangSpeed / (2f * HangGravity);   // height gained while slowing from hangSpeed to 0
+
+        /// <summary>The gravity to apply at this vertical speed.</summary>
+        public float GravityAt(float verticalSpeed) => Mathf.Abs(verticalSpeed) < hangSpeed ? HangGravity : gravity;
+
+        /// <summary>Takeoff speed for a jump whose feet peak 'apex' metres above the start.</summary>
+        public float LaunchSpeed(float apex)
+        {
+            if (apex <= HangHeight) return Mathf.Sqrt(2f * HangGravity * apex);   // the whole jump is inside the hang band
+            return Mathf.Sqrt(2f * gravity * (apex - HangHeight) + hangSpeed * hangSpeed);
+        }
+
+        /// <summary>The peak height of a jump that takes off at 'launchSpeed' (the inverse of LaunchSpeed).</summary>
+        public float ApexHeight(float launchSpeed)
+        {
+            if (launchSpeed <= hangSpeed) return launchSpeed * launchSpeed / (2f * HangGravity);
+            return (launchSpeed * launchSpeed - hangSpeed * hangSpeed) / (2f * gravity) + HangHeight;
+        }
+
+        /// <summary>Seconds from takeoff to the peak.</summary>
+        public float TimeToApex(float apex)
+        {
+            float v = LaunchSpeed(apex);
+            return v <= hangSpeed ? v / HangGravity : (v - hangSpeed) / gravity + hangSpeed / HangGravity;
+        }
+
+        /// <summary>Seconds after takeoff (on the way up) when the feet of a jump peaking at 'apex' first reach height 'h' (clamped to the apex).</summary>
+        public float TimeToHeight(float apex, float h)
+        {
+            h = Mathf.Clamp(h, 0f, apex);
+            float v = LaunchSpeed(apex);
+            float fastHeight = v <= hangSpeed ? 0f : apex - HangHeight;   // height gained before the speed drops to hangSpeed
+            if (v > hangSpeed && h <= fastHeight) return (v - Mathf.Sqrt(Mathf.Max(0f, v * v - 2f * gravity * h))) / gravity;
+            float t0 = v > hangSpeed ? (v - hangSpeed) / gravity : 0f;
+            float vh = Mathf.Min(v, hangSpeed), rest = h - fastHeight;
+            return t0 + (vh - Mathf.Sqrt(Mathf.Max(0f, vh * vh - 2f * HangGravity * rest))) / HangGravity;
+        }
+
+        /// <summary>Seconds from takeoff to landing (the arc is symmetric).</summary>
+        public float AirTime(float apex) => 2f * TimeToApex(apex);
+
+        /// <summary>Feet height 't' seconds after a takeoff at 'launchSpeed' (never below the sand).</summary>
+        public float HeightAt(float launchSpeed, float t) => HeightFrom(0f, launchSpeed, t);
+
+        /// <summary>Height 't' seconds from now for a body at height y0 moving vertically at v0 (never below the sand).</summary>
+        public float HeightFrom(float y0, float v0, float t)
+        {
+            float v = v0;
+            return Mathf.Max(0f, y0 + Advance(ref v, t));
+        }
+
+        /// <summary>
+        /// Moves the vertical speed 'v' forward by 't' seconds and returns the height gained. It steps exactly through the three
+        /// gravity bands (fast up, hang, fast down), so any frame length gives the same arc. PlayerController.Move uses it.
+        /// </summary>
+        public float Advance(ref float v, float t)
+        {
+            float dy = 0f;
+            for (int i = 0; i < 8 && t > 1e-6f; i++)   // at most 3 bands; the cap guards against float edge cases
+            {
+                float g, span;   // this band's gravity, and how long until the speed leaves it
+                if (v > hangSpeed) { g = gravity; span = (v - hangSpeed) / g; }
+                else if (v > -hangSpeed) { g = HangGravity; span = (v + hangSpeed) / g; }
+                else { g = gravity; span = float.PositiveInfinity; }
+                float step = Mathf.Min(t, span);
+                dy += v * step - 0.5f * g * step * step;
+                v -= g * step;
+                t -= step;
+            }
+            return dy;
         }
     }
 }

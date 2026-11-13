@@ -199,7 +199,7 @@ namespace Sandspike.Tests
             Assert.IsFalse(player.IsSprinting);
         }
 
-        static float ContactTimingJump(float height) => ContactTiming.JumpSpeed(25f, height);
+        static float ContactTimingJump(float height) => new JumpArc(30f, 2.2f, 0.35f).LaunchSpeed(height);
 
         // ---------------- jump cancel ----------------
 

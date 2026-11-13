@@ -156,13 +156,5 @@ namespace Sandspike.Tests
             Assert.Greater(dist, Reach);
         }
 
-        [Test]
-        public void PlayerHeight_FollowsTheJumpArcAndStopsAtGround()
-        {
-            float g = 25f, vy = 8f;
-            Assert.AreEqual(0f, ContactTiming.PlayerHeightAt(0f, 0f, g, 0.5f), 1e-5f);
-            Assert.AreEqual(vy * 0.2f - 0.5f * g * 0.04f, ContactTiming.PlayerHeightAt(0f, vy, g, 0.2f), 1e-4f);
-            Assert.AreEqual(0f, ContactTiming.PlayerHeightAt(0f, vy, g, 2f), 1e-5f);
-        }
     }
 }

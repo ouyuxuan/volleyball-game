@@ -45,7 +45,9 @@ namespace Sandspike.Players
         [Header("Jump")]
         [SerializeField] float tapJumpHeight = 0.9f;
         [SerializeField] float fullJumpHeight = 1.6f;
-        [SerializeField] float gravity = 25f;        // the player's gravity (snappier than the ball's)
+        [SerializeField] float gravity = 30f;        // the player's gravity outside the hang band (fast launch and landing)
+        [SerializeField] float hangSpeed = 2.2f;     // m/s: while the vertical speed is below this (near the top) gravity is weaker...
+        [SerializeField, Range(0.1f, 1f)] float hangGravityScale = 0.35f;   // ...this fraction of 'gravity', so the jump hangs and there is time to hit in the air
         [SerializeField] float chargeSeconds = 0.4f; // holding jump this long on the ground gives a full charge
 
         [Header("Sprint (Left Ctrl / left-stick click)")]
@@ -140,7 +142,8 @@ namespace Sandspike.Players
         // numbers the AI needs to judge what it can reach
         public float MoveSpeed => moveSpeed;
         public float SprintMultiplier => sprintMultiplier;
-        public float JumpGravity => gravity;
+        /// <summary>The jump arc (launch speed, hang time, height over time). The AI and the contact prediction use it too.</summary>
+        public JumpArc Arc => new JumpArc(gravity, hangSpeed, hangGravityScale);
         public float TapJumpHeight => tapJumpHeight;
         public float DiveDistance => diveDistance;
         public float DigReach => reachRadius + digReachBonus;
@@ -341,11 +344,12 @@ namespace Sandspike.Players
                 if (!grounded) planarVelocity = Vector3.ClampMagnitude(planarVelocity, Mathf.Max(airSpeedCap, 0f));
             }
 
-            if (grounded && verticalVelocity < 0f) verticalVelocity = -2f;   // stay pressed onto the sand
-            else verticalVelocity -= gravity * dt;
+            float dy;   // height gained this frame
+            if (grounded && verticalVelocity < 0f) { verticalVelocity = -2f; dy = verticalVelocity * dt; }   // stay pressed onto the sand
+            else dy = Arc.Advance(ref verticalVelocity, dt);                                                 // weaker gravity near the top of a jump
 
             Vector3 pos = transform.position;
-            Vector3 next = pos + (planarVelocity + Vector3.up * verticalVelocity) * dt;
+            Vector3 next = pos + planarVelocity * dt + Vector3.up * dy;
             next = ClampToCourt(next);
             controller.Move(next - pos);
             grounded = controller.isGrounded || transform.position.y <= 0.001f;
@@ -523,7 +527,7 @@ namespace Sandspike.Players
         public void Jump(float charge)
         {
             float apex = Mathf.Lerp(tapJumpHeight, fullJumpHeight, Mathf.Clamp01(charge));
-            verticalVelocity = ContactTiming.JumpSpeed(gravity, apex);
+            verticalVelocity = Arc.LaunchSpeed(apex);
             grounded = false;
             // a jump from (almost) standing still keeps little sideways speed; a running jump keeps its run-up
             airSpeedCap = planarVelocity.magnitude < standingJumpSpeed ? standingJumpAirSpeed : float.PositiveInfinity;
@@ -594,7 +598,7 @@ namespace Sandspike.Players
         {
             Vector3 o = ContactOffset(type);
             Vector3 p = transform.position;
-            float y = ContactTiming.PlayerHeightAt(p.y, verticalVelocity, gravity, dt);
+            float y = Arc.HeightFrom(p.y, verticalVelocity, Mathf.Max(0f, dt));
             Vector3 flatFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
             Vector3 flatRight = Vector3.Cross(Vector3.up, flatFwd);
             return new Vector3(p.x, y, p.z) + flatRight * o.x + Vector3.up * o.y + flatFwd * o.z;
