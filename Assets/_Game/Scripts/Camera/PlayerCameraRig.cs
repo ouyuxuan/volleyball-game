@@ -40,8 +40,16 @@ namespace Sandspike.CameraRig
         [SerializeField] float startPitch = 8f;
         [SerializeField] bool invertY = false;
 
+        [Header("3rd person jump tilt")]
+        [SerializeField] float jumpTiltDegrees = 8f;           // the camera tips up this much (at most) while the player is airborne after a jump
+        [SerializeField] float jumpTiltSeconds = 0.25f;        // ease in and out
+
         float yaw;
         float pitch;
+        PlayerController player;
+        bool jumped;                  // airborne after a real jump
+        float tiltT;                  // 0..1, how far into the tilt (smooth-stepped when applied)
+        Quaternion restRotation;      // the approved 3rd-person rotation, put back exactly when the tilt is over
 
         public ViewMode Mode { get; private set; }
         public bool IsFirstPerson => Mode == ViewMode.FirstPerson;
@@ -58,6 +66,14 @@ namespace Sandspike.CameraRig
             if (cinemachineBrain != null)
                 cinemachineBrain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, blendSeconds);
             SetMode(startMode, true);
+
+            restRotation = thirdPersonCamera.transform.rotation;
+            player = brain != null ? brain.GetComponent<PlayerController>() : null;
+            if (player != null)
+            {
+                player.OnJumped += _ => jumped = true;
+                player.OnLanded += _ => jumped = false;
+            }
         }
 
         void Update()
@@ -89,6 +105,20 @@ namespace Sandspike.CameraRig
             }
 
             UpdateCursor();
+            UpdateJumpTilt(dt);
+        }
+
+        // 3rd person only: while the human is airborne after a jump the camera tips up (and so looks higher), easing in and out,
+        // so the player and the ball stay in frame. At rest the camera is exactly the approved rotation.
+        void UpdateJumpTilt(float dt)
+        {
+            if (player == null) return;
+            bool want = !IsFirstPerson && jumped && !player.IsGrounded;
+            float before = tiltT;
+            tiltT = Mathf.MoveTowards(tiltT, want ? 1f : 0f, dt / Mathf.Max(0.01f, jumpTiltSeconds));
+            if (tiltT <= 0f && before <= 0f) return;                  // resting: leave the camera alone
+            float tilt = Mathf.SmoothStep(0f, jumpTiltDegrees, tiltT);
+            thirdPersonCamera.transform.rotation = tiltT > 0f ? Quaternion.AngleAxis(-tilt, restRotation * Vector3.right) * restRotation : restRotation;
         }
 
         /// <summary>Switches view. 'instant' skips the blend (used at start-up).</summary>
