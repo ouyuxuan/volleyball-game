@@ -65,6 +65,18 @@ namespace Sandspike.Tests
         }
 
         [Test]
+        public void MatchPoint_IsTheLeaderNeedingOnePointToWin()
+        {
+            Assert.AreEqual(-1, Hud.MatchPointTeam(0, 0, 11, 2));
+            Assert.AreEqual(-1, Hud.MatchPointTeam(9, 8, 11, 2));       // 10-8 would not win
+            Assert.AreEqual(0, Hud.MatchPointTeam(10, 9, 11, 2));       // 11-9 wins
+            Assert.AreEqual(1, Hud.MatchPointTeam(5, 10, 11, 2));
+            Assert.AreEqual(-1, Hud.MatchPointTeam(10, 10, 11, 2));     // level: nobody leads
+            Assert.AreEqual(0, Hud.MatchPointTeam(11, 10, 11, 2));      // must win by 2: 12-10 wins
+            Assert.AreEqual(-1, Hud.MatchPointTeam(11, 11, 11, 2));
+        }
+
+        [Test]
         public void LandingRing_IsWhiteUntilTheLastSecond_ThenRunsYellowOrangeRed()
         {
             AssertColour(Palette.CourtLines, LandingMarker.UrgencyColour(2.5f));

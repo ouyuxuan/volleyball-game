@@ -29,8 +29,8 @@ namespace Sandspike.UI
         [SerializeField] Image serveDotA;
         [SerializeField] Image serveDotB;
         [SerializeField] Image[] touchPips;             // three small dots under the score
-        [SerializeField] float popScale = 1.35f;
         [SerializeField] float popSeconds = 0.3f;
+        const float PopScale = 1.3f;                    // the score swells 1 -> 1.3 -> 1 over popSeconds
 
         [Header("Point banner and match over")]
         [SerializeField] GameObject bannerRoot;
@@ -93,6 +93,22 @@ namespace Sandspike.UI
         static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c);
         static Color TeamColour(int team) => team == 0 ? Palette.TeamA : Palette.TeamB;
         static string TeamName(int team) => team == 0 ? "TEAM A" : "TEAM B";
+
+        /// <summary>
+        /// The team that leads and needs just one more point to win the match (first to 'target', ahead by 'winBy'), or -1.
+        /// A match is one game, so this is both "set point" and "match point"; the banner says "match point".
+        /// </summary>
+        public static int MatchPointTeam(int scoreA, int scoreB, int target, int winBy)
+        {
+            if (scoreA == scoreB) return -1;
+            int lead = scoreA > scoreB ? 0 : 1;
+            int hi = Mathf.Max(scoreA, scoreB), lo = Mathf.Min(scoreA, scoreB);
+            bool wins = hi + 1 >= target && hi + 1 - lo >= winBy;
+            return wins ? lead : -1;
+        }
+
+        // Who touched the ball last, in words (player 0 is the human).
+        static string ToucherName(int playerId) => playerId < 0 ? "" : playerId == 0 ? "You" : playerId == 1 ? "Teammate" : "Opponent";
 
         void Update()
         {
@@ -159,8 +175,8 @@ namespace Sandspike.UI
                 firstToText.text = $"First to {r.targetScore}";
             }
             popLeft = Mathf.Max(0f, popLeft - Time.unscaledDeltaTime);
-            float k = popSeconds > 0f ? popLeft / popSeconds : 0f;
-            float s = 1f + (popScale - 1f) * k * k;      // quick pop, eases back
+            float k = popSeconds > 0f ? 1f - popLeft / popSeconds : 1f;     // 0 at the start of the pop, 1 at its end
+            float s = popLeft > 0f ? 1f + (PopScale - 1f) * Mathf.Sin(k * Mathf.PI) : 1f;
             scoreRoot.localScale = new Vector3(s, s, 1f);
 
             if (serveDotA != null) serveDotA.enabled = r.ServingTeam == 0;
@@ -188,9 +204,14 @@ namespace Sandspike.UI
             if (point)
             {
                 int w = r.LastPointWinner;
-                bannerText.text = $"POINT · {TeamName(w)}";
+                bannerText.text = $"Point: {TeamName(w)}";
                 bannerText.color = TeamColour(w);
-                bannerReason.text = MatchManager.ReasonText(r.LastReason, match.LastPointViaNet);
+                string reason = MatchManager.ReasonText(r.LastReason, match.LastPointViaNet);
+                string who = ToucherName(r.LastToucherId);
+                int mp = r.IsMatchOver ? -1 : MatchPointTeam(r.Score[0], r.Score[1], r.targetScore, r.winBy);
+                if (who != "") reason += (reason != "" ? "  ·  " : "") + "last touch: " + who;
+                if (mp >= 0) reason += (reason != "" ? "  ·  " : "") + $"{TeamName(mp)} match point";
+                bannerReason.text = reason;
             }
 
             bool over = match.State == MatchState.MatchOver;
