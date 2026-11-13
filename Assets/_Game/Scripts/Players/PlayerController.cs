@@ -191,6 +191,9 @@ namespace Sandspike.Players
         public bool TossCharging => ServeMode && !Tossed && tossMeter.IsCharging;
         /// <summary>Raised when the ball is tossed. It is not a touch: the MatchManager only uses it to watch for a dropped toss.</summary>
         public event Action<PlayerController> OnTossed;
+        public event Action<PlayerController> OnJumped;     // takeoff
+        public event Action<PlayerController> OnLanded;     // touched down after being airborne
+        public event Action<PlayerController> OnDiveEnded;  // the dive lunge finished
         public bool IsDiving => diving;
         public bool HasQueuedHit => pending.active;          // a released hit is waiting for the ball (the visual holds its pose)
         public HitType QueuedHitType => pending.type;
@@ -370,8 +373,10 @@ namespace Sandspike.Players
             Vector3 pos = transform.position;
             Vector3 next = pos + planarVelocity * dt + Vector3.up * dy;
             next = ClampToCourt(next);
+            bool wasGrounded = grounded;
             controller.Move(next - pos);
             grounded = controller.isGrounded || transform.position.y <= 0.001f;
+            if (grounded && !wasGrounded) OnLanded?.Invoke(this);
             if (grounded) airSpeedCap = float.PositiveInfinity;
         }
 
@@ -424,6 +429,7 @@ namespace Sandspike.Players
             if (diveLeft <= 0f)
             {
                 diving = false;
+                OnDiveEnded?.Invoke(this);
                 recoverLeft = diveRecoverySeconds;
                 planarVelocity = Vector3.zero;     // the lunge ends where it ends (3.5 m)
             }
@@ -591,6 +597,7 @@ namespace Sandspike.Players
             // a jump from (almost) standing still keeps little sideways speed; a running jump keeps its run-up
             airSpeedCap = planarVelocity.magnitude < standingJumpSpeed ? standingJumpAirSpeed : float.PositiveInfinity;
             stamina.SpendJump(charge);
+            OnJumped?.Invoke(this);
         }
 
         // ---------------- hitting ----------------
