@@ -385,6 +385,14 @@ stay our own. The block and sound rows are the least certain and should be tuned
 - **Point sequence:** whistle, score pop, then the next serve. Instant replay is optional and comes
   last (M6).
 
+*Status of the list above:* done: jump streak and dust, landing ring for every ball (with urgency colour, team rim, trail,
+IN / OUT label), spike charge at the ball (ring, combo badge, aura, foot ring brightening), hit burst and ball squash and
+stretch, camera tilt in the jump, context control hints, touch counter, score pop and point banner (reason, last touch, match
+point), bots' aim on the sand. Not built in this step: character lean and crouch, arm motion smoothing, the hit flash on the
+character, the jump-cue sound for blockers, the ball rolling after a point, instant replay, and callouts over heads. The
+serve-to-rally camera ease is skipped because the third-person camera has the same view in both. A match is one game, so the
+banner says "match point" and never "set point"; there is no break point yet.
+
 *Needs the user's yes (each changes something settled or playtest-approved)*
 1. **Toss serve. Approved and done.** Hold Spike to fill the toss meter (0.8 s to full, no stamina cost),
    release to toss, then run under it, jump and hit with Spike. Toss peak 3.6 m (tap) to 6.0 m (full), landing
