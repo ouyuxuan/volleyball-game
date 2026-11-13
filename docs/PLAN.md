@@ -374,6 +374,14 @@ stay our own. The block and sound rows are the least certain and should be tuned
 - **Jump cue for blockers:** the attacker's streak and a short rising sound mark the moment to jump.
 - **Context control hints:** grey out actions that can't be used now, and show "Block" in place of
   "Spike" when a jump at the net would block.
+- **Landing ring shows urgency.** The ball's landing ring shifts from white through yellow and orange
+  to red as the ball nears the sand, so the ring alone tells you how long you have.
+- **Touch counter.** Three small dots under the score fill as the team with the ball uses its touches.
+- **Everyone's aim on the sand.** A small ring in the team colour marks where each bot intends to send
+  the ball, so you can read a teammate's pass or set before it is hit.
+- **Hit flash in the team colour,** and the ball keeps bouncing and rolling on the sand after a point.
+- **Point banner with credit.** It names the scorer, or the player whose error gave the point away,
+  and calls out break point, set point and match point.
 - **Point sequence:** whistle, score pop, then the next serve. Instant replay is optional and comes
   last (M6).
 
@@ -453,6 +461,11 @@ volume settings, scene transitions (craft floor: game-shell).
 - **Rebindable controls** for every action, on keyboard and gamepad, with a reset to defaults.
 - **Match rules option: point cap.** Win by 2 stays the default, with an optional cap (for example
   11 → 15, 21 → 25, 25 → 30) so a deuce can't go on forever.
+- **Match setup, in one screen:** stage, team size, points per set, sets (single set or best of 3),
+  a deuce toggle, one difficulty for all bots plus a per-bot override, and a "join" slot for a second
+  player. Sets are new: a match is one set today.
+- **Pause menu:** resume, settings (audio, video, display), controllers (drop in or out), how to play,
+  back to menu, exit game.
 - **How to Play** screen covering each touch, charging, the queue, dive and burnout, block, and
   the combo multiplier.
 
