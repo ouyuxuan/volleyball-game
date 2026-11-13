@@ -15,6 +15,7 @@ namespace Sandspike.Feel
             var go = new GameObject("FeelFx");
             go.AddComponent<JumpFx>();
             go.AddComponent<BallFx>();
+            go.AddComponent<SpikeChargeFx>();
         }
 
         static Texture2D softDot;

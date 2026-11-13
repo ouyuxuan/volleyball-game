@@ -11,6 +11,15 @@ namespace Sandspike.Tests
         static void AssertColour(Color want, Color got) => Assert.That(Vector4.Distance(want, got), Is.LessThan(0.01f));
 
         [Test]
+        public void ComboBadge_ShowsNothingOnTheFirstTouch_ThenX2AndX3()
+        {
+            Assert.AreEqual("", Feel.SpikeChargeFx.ComboBadge(0));
+            Assert.AreEqual("×2", Feel.SpikeChargeFx.ComboBadge(1));
+            Assert.AreEqual("×3", Feel.SpikeChargeFx.ComboBadge(2));
+            Assert.AreEqual("×3", Feel.SpikeChargeFx.ComboBadge(5));   // never past x3
+        }
+
+        [Test]
         public void LandingRing_IsWhiteUntilTheLastSecond_ThenRunsYellowOrangeRed()
         {
             AssertColour(Palette.CourtLines, LandingMarker.UrgencyColour(2.5f));

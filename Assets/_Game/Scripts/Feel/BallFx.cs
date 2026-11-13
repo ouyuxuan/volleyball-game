@@ -22,6 +22,7 @@ namespace Sandspike.Feel
         BallController ball;
         MatchManager match;
         TrailRenderer trail;
+        GameObject trailObject;
         TextMeshPro label;
         float labelLeft;
         int lastLaunch = -1;
@@ -32,7 +33,8 @@ namespace Sandspike.Feel
             match = FindFirstObjectByType<MatchManager>();
             if (ball == null) { enabled = false; return; }
 
-            trail = ball.gameObject.AddComponent<TrailRenderer>();
+            trailObject = new GameObject("BallTrail");   // its own object, not on the ball: HitCue looks for the ball's own renderer
+            trail = trailObject.AddComponent<TrailRenderer>();
             trail.sharedMaterial = FeelFx.ParticleMaterial();
             trail.widthCurve = new AnimationCurve(new Keyframe(0f, trailWidth), new Keyframe(1f, 0f));
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -54,7 +56,7 @@ namespace Sandspike.Feel
             ball.OnGroundContact += OnLanded;
         }
 
-        void OnDestroy() { if (ball != null) ball.OnGroundContact -= OnLanded; }
+        void OnDestroy() { if (ball != null) ball.OnGroundContact -= OnLanded; if (trailObject != null) Destroy(trailObject); }
 
         void Update()
         {
@@ -62,6 +64,7 @@ namespace Sandspike.Feel
 
             // trail: only while flying; cleared at each new flight so it never draws a line across the court
             if (ball.LaunchCount != lastLaunch) { lastLaunch = ball.LaunchCount; trail.Clear(); }
+            trailObject.transform.position = ball.Position;
             trail.emitting = ball.IsInFlight;
             trail.time = Mathf.Lerp(trailMinSeconds, trailMaxSeconds, Mathf.Clamp01(ball.Velocity.magnitude / fullSpeed));
             int team = match != null && match.Rules != null ? match.Rules.LastTouchTeam : -1;

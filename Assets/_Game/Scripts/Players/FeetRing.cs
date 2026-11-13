@@ -78,6 +78,7 @@ namespace Sandspike.Players
 
             float charge = player.JumpCharge.IsCharging ? player.JumpCharge.Value : player.TossCharge.IsCharging ? player.TossCharge.Value : player.SpikeCharge.Value;
             RingMesh.FillArc(chargeMesh, innerInner, innerOuter, charge);
+            chargeMat.color = player.HitReady(out _) ? Palette.HitCue : Palette.Accent;   // brightens while letting go would connect
         }
 
         void OnDestroy()
