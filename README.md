@@ -76,7 +76,7 @@ The EditMode tests run from **Window → General → Test Runner**.
 ## Status
 
 Milestones 0 to 3 of the plan are done: court and cameras, hitting, rules and scoring, characters,
-movement, AI difficulties and blocking. The game also has placeholder synthesized sound effects and a
+movement, AI difficulties and blocking. The game also has sound effects (CC0 recordings plus a few synthesized in code) and a synthesized
 music loop. Next up are local multiplayer, then menus and polish.
 There is no difficulty menu yet: set `difficulty` on the Match Manager in the scene. Controllers are
 wired up but haven't been play-tested yet.

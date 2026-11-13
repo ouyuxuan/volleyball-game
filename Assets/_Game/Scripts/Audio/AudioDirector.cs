@@ -82,8 +82,11 @@ namespace Sandspike.Audio
             return s;
         }
 
+        // A recorded file named Assets/_Game/Audio/Resources/Sounds/<name> wins; without one, the synthesized samples are used.
         static AudioClip Clip(string name, float[] samples)
         {
+            var file = Resources.Load<AudioClip>("Sounds/" + name);
+            if (file != null) return file;
             var c = AudioClip.Create(name, samples.Length, 1, SoundSynth.Rate, false);
             c.SetData(samples, 0);
             return c;
