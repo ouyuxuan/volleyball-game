@@ -216,6 +216,8 @@ namespace Sandspike.Players
 
         public Vector2 Move => move;
         public Vector3 AimPoint => aim;
+        /// <summary>True while this bot has a planned hit for the ball that is flying now (not yet hit). The aim ring on the sand uses it.</summary>
+        public bool HasPlan => planValid && !released && ball != null && ball.IsInFlight && planLaunch == ball.LaunchCount;
         public ButtonState Jump => jump.state;
         public ButtonState Spike => spike.state;
         public ButtonState Bump => bump.state;

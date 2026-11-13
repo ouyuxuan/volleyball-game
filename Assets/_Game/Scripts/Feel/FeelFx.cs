@@ -18,6 +18,7 @@ namespace Sandspike.Feel
             go.AddComponent<SpikeChargeFx>();
             go.AddComponent<HitBurst>();
             go.AddComponent<BallSquash>();
+            go.AddComponent<BotAimFx>();
         }
 
         static Texture2D softDot;
