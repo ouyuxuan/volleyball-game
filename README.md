@@ -4,7 +4,7 @@ An arcade 2v2 beach volleyball game made in Unity, in a bright low-poly style. I
 prototype: you play full matches with a bot teammate against two bot opponents, with serving, rally
 scoring, three difficulty levels and blocking at the net.
 
-![Serving, with the dotted arc showing where the ball will land](docs/captures/serve-preview.png)
+![A jump serve, just after the hit](docs/captures/toss-serve.png)
 
 | | |
 |---|---|
@@ -31,7 +31,8 @@ concept painting set the direction, and the game is still catching up to it.
   little stamina still happens, but leaves you slow and weak for two seconds.
 - **Blocking:** jump close to the net without holding a hit button and your arms go up as a block.
   Move left or right in the air to slide it.
-- **Serve preview:** while you charge a serve, a dotted arc shows where it will land.
+- **Toss serve:** hold Spike to toss the ball (a dotted arc and ring show where the toss will come down), then run under it, jump and hit it with Spike. Let the toss drop, or take longer than 15 seconds to toss, and it's a fault. A jump serve is flatter and faster the harder you charge the hit.
+- **Floaty jump:** the jump launches fast and hangs near the top, so there's time to hit in the air.
 - **Bots:** Easy, Normal and Hard. Harder bots react faster, read your spikes, dive, block and aim
   for open sand.
 - **Scoring:** rally scoring to 11, 21 or 25, win by two.
@@ -45,7 +46,7 @@ concept painting set the direction, and the game is still catching up to it.
 | Move | WASD | Left stick |
 | Aim | Mouse | Right stick |
 | Jump (hold to charge) | Space | A / Cross |
-| Spike (hold to wind up) | Left click | Right trigger |
+| Spike (hold to wind up; on serve: hold to toss, then tap to hit) | Left click | Right trigger |
 | Bump (hold to wind up) | Right click | X / Square |
 | Set (hold to wind up) | E | Y / Triangle |
 | Sprint | Left Ctrl | Left stick click |

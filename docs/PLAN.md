@@ -265,8 +265,9 @@ Also in this pass (from community devlog research, general mechanics only):
 - **Jump cancel.** While charging a jump, pressing Dive cancels the charge and dives instead of
   jumping. Hit buttons never cancel it, because holding jump and spike together is how a jump-spike
   is charged.
-- **Serve preview.** While charging a serve, a dotted line on the court shows the predicted serve path
-  and landing spot.
+- **Serve preview.** While holding Spike to toss, a dotted line on the court shows the toss arc and a
+  ring shows where the toss will come down (it used to preview the serve; the serve is now hit by the
+  server after the toss).
 - **Serve fault test.** A test proves a legal serve never counts as a fault, including the net-clear
   assist.
 - Movement pass status: done
@@ -377,12 +378,20 @@ stay our own. The block and sound rows are the least certain and should be tuned
   last (M6).
 
 *Needs the user's yes (each changes something settled or playtest-approved)*
-1. **Toss serve.** Replace the charge-and-release serve with hold-to-toss, then jump and hit, with a
-   15 s serve clock, free movement in the serve zone and a fault when the toss drops. The serve
-   preview would show the toss, not the serve arc. This is harder than today's serve.
-2. **Floatier jump.** Keep charge-then-release, but give the jump a quicker launch and a longer hang
-   near the top (airtime about 0.85 s or more on a full jump, against 0.72 s now; a tap jump is 0.54 s). The
-   approved heights (0.9 m tap, 1.6 m full) could stay; only the time in the air changes.
+1. **Toss serve. Approved and done.** Hold Spike to fill the toss meter (0.8 s to full, no stamina cost),
+   release to toss, then run under it, jump and hit with Spike. Toss peak 3.6 m (tap) to 6.0 m (full), landing
+   0.8 to 2.5 m ahead, straight toward the net. The server walks freely behind the baseline (at least 0.1 m
+   back) before the toss; the serve clock is 15 s. A dropped toss, or the clock reaching 0, is a serve fault:
+   the receivers score and the serve rotates (HUD text "fault"). Only the server can touch the toss and it is
+   never blocked. A jump serve is flatter by spike charge, capped at 22 m/s. The preview shows the toss.
+   Bots (all-bot matches, about 40 points each): Easy toss charge 0.2 standing; Normal 0.6, jump serve half
+   the time; Hard 0.8, always jumping. Measured: serve faults 0% on every level (0 of about 43, 28 and 46
+   serves), aces 2.3% Normal (1 of 43) and 0% on Easy and Hard.
+2. **Floatier jump. Approved and done.** Still charge-then-release, same apex heights (0.9 m tap, 1.6 m full).
+   Gravity is 30 m/s^2 while the vertical speed is at least 2.2 m/s and 0.35 times that (10.5) below it, up
+   and down. Airtime is 0.72 s for a tap (was 0.54 s) and 0.90 s for a full jump (was 0.72 s). Note: the
+   launch is not quicker to 80% of the apex (tap 0.19 s against 0.15 s before) because the higher gravity
+   slows the early rise; the gain is the hang, with about 0.34 s spent above 80% of a tap apex against 0.24 s.
 3. **One context hit button.** The alternative is one button that bumps on the ground, spikes in the
    air and tosses on serve, plus a separate set button. Ours has separate bump and spike buttons.
    Recommendation: keep ours, because it already works and suits a gamepad.
