@@ -53,6 +53,8 @@ namespace Sandspike.Art
 
         public static readonly Color Orange      = Color.Lerp(Accent, TeamA, 0.55f);      // between the sun yellow and the coral red: the landing ring's "soon" step
 
+        public static readonly Color UiMuted     = Color.Lerp(Shadow, CourtLines, 0.6f);                              // greyed-out text (an action that can't be used now; use at 50% alpha)
+
         /// <summary>Same colour with a different alpha (so other files never need a Color literal).</summary>
         public static Color WithAlpha(Color c, float a) { c.a = a; return c; }
 

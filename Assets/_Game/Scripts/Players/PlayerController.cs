@@ -214,6 +214,16 @@ namespace Sandspike.Players
         public bool IsBlocking => brain != null && !grounded && !diving && !ServeMode && !pending.active && !HoldingHit
                                   && Mathf.Abs(transform.position.z) <= block.netDistance;
 
+        /// <summary>
+        /// Would a jump (or the jump in progress) block right now? Same conditions as IsBlocking but ignoring whether the player is
+        /// on the ground: near the net, not diving, not serving, no hit held or queued. The control hints use it.
+        /// </summary>
+        public bool BlockAvailable => brain != null && !diving && !ServeMode && !pending.active && !HoldingHit
+                                      && Mathf.Abs(transform.position.z) <= block.netDistance;
+
+        /// <summary>Stamina needed to start a sprint (the control hints grey Sprint below it).</summary>
+        public float SprintMinStamina => sprintMinStamina;
+
         /// <summary>The shield faces the way the body faces (square to the net while blocking). Flat, points at the opponents.</summary>
         public Vector3 BlockNormal => FlatForward();
 
