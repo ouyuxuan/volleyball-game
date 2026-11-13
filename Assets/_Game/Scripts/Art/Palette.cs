@@ -48,6 +48,9 @@ namespace Sandspike.Art
         public static readonly Color Belt        = Color.Lerp(CourtLines, Shadow, 0.15f);     // pale waistband
         public static readonly Color Eyes        = BallOutline;                               // dark eyes that read on any skin tone
 
+        // ---- Feel pass: visual feedback ----
+        public static readonly Color Dust        = Color.Lerp(Sand, CourtLines, 0.35f);   // dust puffs: sand, a little paler so they read on the court
+
         /// <summary>Same colour with a different alpha (so other files never need a Color literal).</summary>
         public static Color WithAlpha(Color c, float a) { c.a = a; return c; }
 
