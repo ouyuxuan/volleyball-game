@@ -61,6 +61,23 @@ namespace Sandspike.Audio
             return s;
         }
 
+        /// <summary>
+        /// How loud a clip is: the RMS of its loudest 50 ms (interleaved samples, any channel count). A short hit and a long
+        /// cheer can then be compared, and silence around a sound does not change the answer.
+        /// </summary>
+        public static float Loudness(float[] s, int rate, int channels)
+        {
+            int win = Math.Max(1, Math.Min(s.Length, rate / 20 * channels));
+            double sum = 0, best = 0;
+            for (int i = 0; i < s.Length; i++)
+            {
+                sum += s[i] * s[i];
+                if (i >= win) sum -= s[i - win] * s[i - win];
+                if (sum > best) best = sum;
+            }
+            return (float)Math.Sqrt(best / win);
+        }
+
         // ---- the sounds ----
 
         /// <summary>Low punchy thump (about 110 Hz, dropping a little) with a click on top; the loudest clip.</summary>

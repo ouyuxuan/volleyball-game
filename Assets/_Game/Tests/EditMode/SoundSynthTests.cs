@@ -61,6 +61,17 @@ namespace Sandspike.Tests
         }
 
         [Test]
+        public void Loudness_IsTheLoudest50ms_AndIgnoresSilenceAroundTheSound()
+        {
+            var tone = new float[SoundSynth.Rate / 2];                       // half a second of a 440 Hz sine at amplitude 0.5
+            for (int i = 0; i < tone.Length; i++) tone[i] = 0.5f * (float)Math.Sin(2 * Math.PI * 440 * i / SoundSynth.Rate);
+            var padded = new float[tone.Length * 4];
+            tone.CopyTo(padded, tone.Length);
+            Assert.That(SoundSynth.Loudness(tone, SoundSynth.Rate, 1), Is.EqualTo(0.5f / (float)Math.Sqrt(2)).Within(0.01f));
+            Assert.That(SoundSynth.Loudness(padded, SoundSynth.Rate, 1), Is.EqualTo(SoundSynth.Loudness(tone, SoundSynth.Rate, 1)).Within(0.001f));
+        }
+
+        [Test]
         public void Music_LoopsCleanlyAndIsEightBars()
         {
             float[] m = SoundSynth.Music();

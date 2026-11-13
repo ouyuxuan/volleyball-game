@@ -26,6 +26,7 @@ namespace Sandspike.Audio
         public bool MusicPlaying => music != null && music.isPlaying;
 
         const int PoolSize = 8;
+        const float Mix = 0.7f;         // scales every level, so the loudest one (a full spike, 0.36) is still within reach of a short, sharp recording
 
         AudioSource[] pool;
         AudioSource music;
@@ -35,6 +36,8 @@ namespace Sandspike.Audio
         bool wasReady;                  // spike "hit now" cue was on last frame
         int lastTick;
         readonly List<(float at, Action act)> later = new List<(float, Action)>();
+
+        readonly Dictionary<AudioClip, float> loudness = new Dictionary<AudioClip, float>();   // each clip's own loudness, measured once
 
         AudioClip countdown, whistleStart, whistlePoint, whistleBlast, tick, toss, bump, set, spike, charge, jump, landing, block, sand, net, crowd, crowdBig;
 
@@ -83,24 +86,36 @@ namespace Sandspike.Audio
         }
 
         // A recorded file named Assets/_Game/Audio/Resources/Sounds/<name> wins; without one, the synthesized samples are used.
-        static AudioClip Clip(string name, float[] samples)
+        AudioClip Clip(string name, float[] samples)
         {
-            var file = Resources.Load<AudioClip>("Sounds/" + name);
-            if (file != null) return file;
-            var c = AudioClip.Create(name, samples.Length, 1, SoundSynth.Rate, false);
-            c.SetData(samples, 0);
+            var c = Resources.Load<AudioClip>("Sounds/" + name);
+            if (c == null)
+            {
+                c = AudioClip.Create(name, samples.Length, 1, SoundSynth.Rate, false);
+                c.SetData(samples, 0);
+            }
+            else
+            {
+                samples = new float[c.samples * c.channels];
+                c.GetData(samples, 0);
+            }
+            loudness[c] = Mathf.Max(0.01f, SoundSynth.Loudness(samples, c.frequency, c.channels));
             return c;
         }
 
-        /// <summary>Plays a clip on a free source with pitch +-5% and volume +-10% random variation. Dropped (and counted) if all 8 are busy.</summary>
-        public void Play(AudioClip clip, float volume = 1f, float pitch = 1f)
+        /// <summary>
+        /// Plays a clip on a free source at the wanted loudness 'level' (0.05 = barely there, 0.2 = a normal hit, 0.35 = the loudest),
+        /// whatever the file's own volume is: swapping a sound file never changes the mix. A clip quieter than 'level' plays at full.
+        /// Pitch varies +-5% and loudness +-10%. Dropped (and counted) if all 8 sources are busy.
+        /// </summary>
+        public void Play(AudioClip clip, float level, float pitch = 1f)
         {
             int busy = 0;
             AudioSource free = null;
             foreach (AudioSource s in pool) { if (s.isPlaying) busy++; else if (free == null) free = s; }
             MaxBusy = Mathf.Max(MaxBusy, busy + (free != null ? 1 : 0));
             if (free == null) { Dropped++; return; }
-            volume = Mathf.Clamp01(volume * sfxVolume * UnityEngine.Random.Range(0.9f, 1.1f));
+            float volume = Mathf.Clamp01(level * Mix / loudness[clip] * sfxVolume / 0.8f * UnityEngine.Random.Range(0.9f, 1.1f));   // levels are tuned at the default sfxVolume 0.8
             free.clip = clip;
             free.volume = volume;
             free.pitch = pitch * UnityEngine.Random.Range(0.95f, 1.05f);
@@ -118,17 +133,17 @@ namespace Sandspike.Audio
             ball = FindFirstObjectByType<BallController>();
             if (match == null || ball == null) { match = null; return; }
             match.OnPoint += OnPoint;
-            ball.OnGroundContact += _ => Play(sand, 0.7f);
-            ball.OnNetTouch += _ => Play(net, 0.6f);
+            ball.OnGroundContact += _ => Play(sand, 0.14f);
+            ball.OnNetTouch += _ => Play(net, 0.06f);
             foreach (PlayerController p in match.Players)
             {
                 PlayerController who = p;
                 who.OnHitAttempt += r => OnHit(r);
-                who.OnBlocked += _ => Play(block, 0.9f);
-                who.OnTossed += _ => Play(toss, 0.7f);
-                who.OnJumped += _ => Play(jump, 0.6f);
-                who.OnLanded += _ => Play(landing, 0.6f);
-                who.OnDiveEnded += _ => Play(landing, 1f);     // a dive ends with a bigger thud
+                who.OnBlocked += _ => Play(block, 0.28f);
+                who.OnTossed += _ => Play(toss, 0.08f);
+                who.OnJumped += _ => Play(jump, 0.06f);
+                who.OnLanded += _ => Play(landing, 0.10f);
+                who.OnDiveEnded += _ => Play(landing, 0.18f);     // a dive ends with a bigger thud
             }
             seenRules = null;
         }
@@ -138,10 +153,10 @@ namespace Sandspike.Audio
             if (!r.contact) return;
             switch (r.type)
             {
-                case HitType.Bump: Play(bump, 0.7f); break;
-                case HitType.Set: Play(set, 0.5f); break;
+                case HitType.Bump: Play(bump, 0.20f); break;
+                case HitType.Set: Play(set, 0.12f); break;
                 case HitType.Spike:
-                case HitType.Serve: Play(spike, Mathf.Lerp(0.6f, 1f, r.charge), 1f + 0.1f * r.charge); break;
+                case HitType.Serve: Play(spike, Mathf.Lerp(0.22f, 0.36f, r.charge), 1f + 0.1f * r.charge); break;
             }
         }
 
@@ -150,12 +165,12 @@ namespace Sandspike.Audio
             bool fault = reason != PointReason.BallIn && reason != PointReason.BallOut;
             Later(0.4f, () =>
             {
-                if (!fault) { Play(whistlePoint, 0.8f); return; }
-                Play(whistleBlast, 0.8f);                                       // a fault is two short blasts
-                Later(0.25f, () => Play(whistleBlast, 0.8f));
+                if (!fault) { Play(whistlePoint, 0.2f); return; }
+                Play(whistleBlast, 0.2f);                                       // a fault is two short blasts
+                Later(0.25f, () => Play(whistleBlast, 0.2f));
             });
             bool big = ball.LastHitType == HitType.Spike || ball.LastHitType == HitType.Block;
-            Later(0.3f, () => Play(big ? crowdBig : crowd, big ? 0.9f : 0.6f));
+            Later(0.3f, () => Play(big ? crowdBig : crowd, big ? 0.16f : 0.10f));
         }
 
         // ---- per-frame: new match, music, serve clock, spike charge, delayed sounds ----
@@ -169,8 +184,8 @@ namespace Sandspike.Audio
             if (match.Rules != seenRules)       // a new match began: countdown, whistle, music
             {
                 seenRules = match.Rules;
-                for (int i = 0; i < 3; i++) Later(i, () => Play(countdown, 1f));
-                Later(2.5f, () => Play(whistleStart, 0.8f));
+                for (int i = 0; i < 3; i++) Later(i, () => Play(countdown, 0.3f));
+                Later(2.5f, () => Play(whistleStart, 0.2f));
                 music.Play();
             }
 
@@ -183,13 +198,13 @@ namespace Sandspike.Audio
             if (match.State == MatchState.Serve && match.Server == human && !human.Tossed)
             {
                 int left = Mathf.CeilToInt(match.ServeClockLeft);
-                if (left >= 1 && left <= 5 && left != lastTick) { lastTick = left; Play(tick, 0.5f); }
+                if (left >= 1 && left <= 5 && left != lastTick) { lastTick = left; Play(tick, 0.05f); }
             }
             else lastTick = 0;
 
             // spike charge whoosh: the human holds a spike in the air and the ball comes into reach
             bool ready = !human.IsGrounded && human.HitReady(out HitType t) && t == HitType.Spike;
-            if (ready && !wasReady) Play(charge, 0.7f);
+            if (ready && !wasReady) Play(charge, 0.09f);
             wasReady = ready;
 
             for (int i = later.Count - 1; i >= 0; i--)
