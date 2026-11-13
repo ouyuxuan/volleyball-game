@@ -20,6 +20,16 @@ namespace Sandspike.Tests
         }
 
         [Test]
+        public void BallStretch_GrowsWithSpeedTo135At25_NeverMore_AndASquashIs08()
+        {
+            Assert.AreEqual(1f, Feel.BallSquash.AlongScale(0f, false), 1e-4f);
+            Assert.AreEqual(1.35f, Feel.BallSquash.AlongScale(25f, false), 1e-4f);
+            Assert.AreEqual(1.35f, Feel.BallSquash.AlongScale(40f, false), 1e-4f);
+            Assert.That(Feel.BallSquash.AlongScale(12.5f, false), Is.EqualTo(1.175f).Within(1e-4f));
+            Assert.AreEqual(0.8f, Feel.BallSquash.AlongScale(25f, true), 1e-4f);
+        }
+
+        [Test]
         public void LandingRing_IsWhiteUntilTheLastSecond_ThenRunsYellowOrangeRed()
         {
             AssertColour(Palette.CourtLines, LandingMarker.UrgencyColour(2.5f));

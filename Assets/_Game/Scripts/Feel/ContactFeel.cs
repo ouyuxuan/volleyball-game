@@ -7,7 +7,7 @@ namespace Sandspike.Feel
 {
     /// <summary>
     /// The "feel" of each touch, put on the Ball next to the BallController. It listens to the ball's OnHit event and adds:
-    /// spike = a short hit-stop, camera shake and heavy spin; bump = a quick squash and some spin; set = almost no spin;
+    /// spike = a short hit-stop, camera shake and heavy spin; bump = some spin; set = almost no spin;
     /// and a smaller shake when a spiked ball reaches the sand. Every number is a tunable.
     /// The camera shake needs a CinemachineImpulseSource on the ball and a CinemachineImpulseListener on each virtual
     /// camera; this script adds them itself if the scene doesn't have them.
@@ -25,8 +25,6 @@ namespace Sandspike.Feel
 
         [Header("Bump and set")]
         [SerializeField] float bumpSpin = 300f;
-        [SerializeField] float bumpSquash = 0.85f;            // scale along the direction of travel
-        [SerializeField] float bumpSquashSeconds = 0.08f;
         [SerializeField] float setSpin = 60f;
 
         BallController ball;
@@ -43,15 +41,9 @@ namespace Sandspike.Feel
         float stopUntil;
         float savedScale = 1f;
 
-        // squash state
-        float squashUntil;
-        int squashAxis;
-        Vector3 baseScale;
-
         void Awake()
         {
             ball = GetComponent<BallController>();
-            baseScale = transform.localScale;
             EnsureImpulse();
         }
 
@@ -66,7 +58,6 @@ namespace Sandspike.Feel
             ball.OnHit -= OnHit;
             ball.OnGroundContact -= OnGround;
             ReleaseHitStop();      // never leave the game frozen if play stops or this is switched off
-            transform.localScale = baseScale;
         }
 
         void OnDestroy() { ReleaseHitStop(); }
@@ -114,7 +105,6 @@ namespace Sandspike.Feel
                     break;
                 case HitType.Bump:
                     ball.SetSpin(bumpSpin);
-                    Squash();
                     break;
                 case HitType.Set:
                     ball.SetSpin(setSpin);
@@ -155,22 +145,9 @@ namespace Sandspike.Feel
             if (Mathf.Approximately(Time.timeScale, savedScale * hitStopTimeScale)) Time.timeScale = savedScale;
         }
 
-        // ---- squash: shorten the ball along the local axis closest to its direction of travel ----
-
-        void Squash()
-        {
-            Vector3 local = Quaternion.Inverse(transform.rotation) * ball.LaunchDirection;
-            squashAxis = Mathf.Abs(local.x) > Mathf.Abs(local.y) ? (Mathf.Abs(local.x) > Mathf.Abs(local.z) ? 0 : 2) : (Mathf.Abs(local.y) > Mathf.Abs(local.z) ? 1 : 2);
-            squashUntil = Time.unscaledTime + bumpSquashSeconds;
-        }
-
         void Update()
         {
             if (stopped && Time.unscaledTime >= stopUntil) ReleaseHitStop();
-
-            Vector3 s = baseScale;
-            if (Time.unscaledTime < squashUntil) s[squashAxis] *= bumpSquash;
-            transform.localScale = s;
         }
     }
 }
