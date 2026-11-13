@@ -433,6 +433,12 @@ stay our own. The block and sound rows are the least certain and should be tuned
 All of these are synthesized placeholders first (`AudioDirector`), through the mixer's SFX and Music
 groups, with pitch and volume varied a little on every play.
 
+*Sound status:* placeholder sounds and the music loop are in (`AudioDirector`, `SoundSynth`; nobody has listened to
+them yet). Skipped: callouts (voice-like chirps, not asked for in this pass). Not true to the list: the countdown
+and start whistle play at the start of a match but do not hold up the first serve (no gameplay change), and the net
+rustle is wired but never fired in the test matches. Volumes are two fields (`sfxVolume`, `musicVolume`) until the M6
+mixer replaces them.
+
 **M4 — Local multiplayer.** `PlayerJoinManager` (Input System `PlayerInputManager`) with split-screen,
 join-and-pick-side setup screen, AI fills empty slots; keyboard + mouse for one player, gamepads for
 the rest, right-stick aiming in both camera modes.
