@@ -141,7 +141,9 @@ namespace Sandspike.Players
         [SerializeField] float pressLead = 0.35f;      // press the hit button this early (the arm winds up)
         [SerializeField] float releaseLead = 0.08f;    // let go this early (the hit fires on release)
         [SerializeField] float serveDelay = 1.2f;      // a bot server waits this long
-        [SerializeField] Vector2 serveChargeRange = new Vector2(0.4f, 0.9f);
+        [Tooltip("Toss charge (0..1) by level: Easy, Normal, Hard.")]
+        [SerializeField] float[] tossChargeByLevel = { 0.2f, 0.6f, 0.8f };
+        [SerializeField, Range(0f, 1f)] float normalJumpServeChance = 0.5f;   // Easy never jumps to serve, Hard always does
 
         // Difficulty numbers (reaction, mistakes, aim spread, charge, sprint, dive, block) come from AIProfile.Table.
 
@@ -156,7 +158,7 @@ namespace Sandspike.Players
         [Header("Spike")]
         [SerializeField] float spikeHandHeight = 3.2f;       // hand height at the top of a tap jump (2.3 + 0.9)
         [SerializeField] float spikeMaxNetDistance = 3.5f;   // only spike a ball this close to the net
-        [SerializeField] float jumpMarginSeconds = 0.05f;
+                [SerializeField] float jumpMarginSeconds = 0.05f;
         [SerializeField] int targetTries = 8;
         [SerializeField] float spikeContactSlack = 0.35f;      // the bot checks a spike as if the ball were this much lower than planned...
         [SerializeField] float spikeNetSlack = 0.5f;         // ...and this much closer to the net (real contacts come a little low and near)
@@ -200,7 +202,8 @@ namespace Sandspike.Players
         float lastServeStart = -1f, serveHoldUntil;
         bool serveHolding;
         Vector3 serveTarget;
-        float serveCharge;
+        float serveCharge, serveTossCharge;
+        bool serveJump, servePlan;     // this serve is a jump serve; the current plan is a serve plan (cleared when the rally starts)
 
         // the plan for the ball that is flying now
         int planLaunch = -1;
@@ -256,36 +259,69 @@ namespace Sandspike.Players
 
         // ---------------- serve ----------------
 
+        // A bot server waits, tosses, then walks under its own toss and hits it with the same spike plan/execute code as a rally spike.
         void ServeLogic()
         {
-            ClearPlan();
-            if (!me.ServeMode) { GoHome(); serveHolding = false; return; }
+            if (!me.ServeMode) { ClearPlan(); GoHome(); serveHolding = false; return; }
 
-            move = Vector2.zero;
             if (!Mathf.Approximately(lastServeStart, match.ServeStartTime))
             {
-                // a new serve: pick a deep spot in the opponent's half and how hard to hit it
+                // a new serve: pick a deep spot in the opponent's half, how high to toss, whether to jump, and how hard to hit
                 lastServeStart = match.ServeStartTime;
+                ClearPlan();
                 float side = -me.CourtSide;
                 serveTarget = new Vector3(Random.Range(-(match.HalfWidth - targetInset), match.HalfWidth - targetInset), 0f, side * Random.Range(match.HalfLength * 0.6f, match.HalfLength - targetInset));
-                serveCharge = Random.Range(serveChargeRange.x, serveChargeRange.y);
+                serveTossCharge = tossChargeByLevel[(int)difficulty];
+                serveJump = difficulty == AIDifficulty.Hard || (difficulty == AIDifficulty.Normal && Random.value < normalJumpServeChance);
+                serveCharge = difficulty == AIDifficulty.Easy ? profile.spikeChargeMin : Random.Range(profile.spikeChargeMin, profile.spikeChargeMax);
                 serveHolding = false; spike.want = false;   // a restarted match must not leave the button held
             }
             aim = serveTarget;
 
-            if (!serveHolding && Time.time - match.ServeStartTime >= serveDelay)
+            if (!me.Tossed)
             {
-                spike.want = true;
-                serveHolding = true;
-                serveHoldUntil = Time.time + serveCharge * me.SpikeCharge.secondsToFull;
+                move = Vector2.zero;
+                if (!serveHolding && Time.time - match.ServeStartTime >= serveDelay)
+                {
+                    spike.want = true;
+                    serveHolding = true;
+                    serveHoldUntil = Time.time + serveTossCharge * me.TossCharge.secondsToFull;
+                }
+                else if (serveHolding && Time.time >= serveHoldUntil) spike.want = false;   // let go: the toss
+                return;
             }
-            else if (serveHolding && Time.time >= serveHoldUntil) spike.want = false;
+
+            if (!planValid || planLaunch != ball.LaunchCount) MakeServePlan();
+            Execute();
+        }
+
+        // The plan for hitting my own toss: meet it on the way down (hand at the top of a tap jump for a jump serve), facing the target.
+        void MakeServePlan()
+        {
+            planLaunch = ball.LaunchCount;
+            planValid = servePlan = true;
+            jumped = pressed = released = dived = false;
+            float t = TimeAtHeight(serveJump ? spikeHandHeight : me.ContactOffset(HitType.Spike).y);
+            if (float.IsNaN(t)) t = Mathf.Min(0.1f, ball.TimeToLanding);
+            Vector3 contact = BallAt(t);
+            Vector3 flatBall = new Vector3(contact.x, 0f, contact.z);
+            Vector3 toTarget = serveTarget - flatBall; toTarget.y = 0f;
+            Vector3 dir = toTarget.sqrMagnitude > 0.01f ? toTarget.normalized : new Vector3(0f, 0f, -me.CourtSide);
+            planType = HitType.Spike;
+            planJump = serveJump;
+            planContactAt = Time.time + t;
+            planBall = flatBall;
+            planStand = flatBall - dir * me.ContactOffset(HitType.Spike).z;
+            planAim = serveTarget;
+            setTracksHuman = false;
+            setPressLead = serveCharge * me.SpikeCharge.secondsToFull + releaseLead;   // hold long enough for the chosen charge
         }
 
         // ---------------- rally ----------------
 
         void RallyLogic()
         {
+            if (servePlan) ClearPlan();    // the serve was hit: forget its plan
             if (!ball.IsInFlight) { GoHome(); ClearPlan(); blockMode = false; return; }
             if (ball.LaunchCount != jitterLaunch) { jitterLaunch = ball.LaunchCount; reactionJitter = Random.Range(0.92f, 1.08f); readRoll = Random.value; }   // people are not clockwork
             bool ready = gate.Ready(ball.LaunchCount, Time.time, BotPlanner.ReactionFor(profile, ball.LastHitType == HitType.Spike, readRoll, reactionJitter));   // false for the delay after a new hit
@@ -513,7 +549,7 @@ namespace Sandspike.Players
 
             // Dive for a ball that can't be reached on foot (the dig takes over inside the dive).
             Vector3 toBall = planBall - me.transform.position; toBall.y = 0f;
-            if (!dived && me.IsGrounded && !planJump && !me.IsDiving && remaining > 0f && remaining <= diveLead
+            if (!dived && me.IsGrounded && !me.ServeMode && !planJump && !me.IsDiving && remaining > 0f && remaining <= diveLead
                 && BotPlanner.DiveAllowed(profile, me.Stamina.Current, me.Stamina.diveCost)
                 && BotPlanner.NeedsDive(toBall.magnitude, remaining, me.MoveSpeed * (sprint ? me.SprintMultiplier : 1f), me.ReachRadius, me.DiveDistance))
             {
@@ -631,6 +667,7 @@ namespace Sandspike.Players
 
         void ClearPlan()
         {
+            servePlan = false;
             planValid = false;
             planLaunch = -1;
             pressed = released = jumped = dived = false;

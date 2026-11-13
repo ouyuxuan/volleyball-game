@@ -36,6 +36,7 @@ namespace Sandspike.Core
         [Header("Timing")]
         [SerializeField] float pointPauseSeconds = 1.5f;
         [SerializeField] float serveBallLift = 0.15f; // the held ball floats this far above the server's hand
+        [SerializeField] float serveClockSeconds = 15f; // the server must toss within this long, or it is a serve fault
 
         [Header("AI")]
         [Tooltip("How good all three bots are. Changing it (even during play) updates every bot.")]
@@ -49,6 +50,8 @@ namespace Sandspike.Core
         public MatchState State { get; private set; }
         public PlayerController[] Players => players;
         public float ServeStartTime { get; private set; }
+        /// <summary>Seconds the server has left to toss (stops counting at the toss).</summary>
+        public float ServeClockLeft { get; private set; }
         public float HalfWidth => halfWidth;
         public float HalfLength => halfLength;
         public int TargetScore => targetScore;
@@ -108,6 +111,11 @@ namespace Sandspike.Core
             {
                 case MatchState.Serve:
                     HoldBall();
+                    if (!Server.Tossed)       // the serve clock runs until the toss
+                    {
+                        ServeClockLeft = Mathf.Max(0f, ServeClockLeft - Time.deltaTime);
+                        if (ServeClockLeft <= 0f) { Rules.ServeFault(); EndPoint(); }
+                    }
                     break;
                 case MatchState.PointScored:
                     stateTimer -= Time.deltaTime;
@@ -139,6 +147,7 @@ namespace Sandspike.Core
             State = MatchState.Serve;
             netTouched = false;
             ServeStartTime = Time.time;
+            ServeClockLeft = serveClockSeconds;
             Rules.Serve(Rules.ServingTeam);
             int serverId = Rules.ServerId;
 
@@ -157,7 +166,7 @@ namespace Sandspike.Core
         // The ball floats above the server's hitting hand until the serve.
         void HoldBall()
         {
-            if (ball.IsInFlight) return;
+            if (ball.IsInFlight || Server.Tossed) return;     // once tossed, the ball is no longer held
             ball.PlaceAt(Server.ContactPointAt(HitType.Serve) + Vector3.up * serveBallLift);
         }
 
@@ -185,6 +194,12 @@ namespace Sandspike.Core
 
         void OnLanded(Vector3 point)
         {
+            if (State == MatchState.Serve && Server.Tossed)    // the toss hit the sand before the server hit it
+            {
+                Rules.ServeFault();
+                EndPoint();
+                return;
+            }
             if (State != MatchState.Rally) return;
             if (Rules.BallLanded(point.x, point.z) != PointReason.None) EndPoint();
         }
@@ -209,6 +224,7 @@ namespace Sandspike.Core
                 case PointReason.BallOut: return "out";
                 case PointReason.FourTouches: return "4 touches";
                 case PointReason.DoubleTouch: return "double touch";
+                case PointReason.ServeFault: return "fault";
                 default: return "";
             }
         }

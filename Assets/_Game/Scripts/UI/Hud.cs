@@ -2,6 +2,7 @@ using Sandspike.Art;
 using Sandspike.CameraRig;
 using Sandspike.Controls;
 using Sandspike.Core;
+using Sandspike.Players;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -67,6 +68,7 @@ namespace Sandspike.UI
             foreach (var pip in touchPips) if (pip != null) { pip.sprite = dot; pip.raycastTarget = false; }
             if (serveDotA != null) { serveDotA.sprite = dot; serveDotA.color = Palette.TeamA; }
             if (serveDotB != null) { serveDotB.sprite = dot; serveDotB.color = Palette.TeamB; }
+            MakeServePrompt();
         }
 
         // A soft-edged white-ish disc, drawn once, for the pips and the serving dot (tinted by Image.color).
@@ -102,6 +104,48 @@ namespace Sandspike.UI
             UpdateScore(r);
             UpdatePips(r);
             UpdateBanner(r);
+            UpdateServePrompt();
+        }
+
+        // ---- serve prompt (built in code, bottom centre): "Your serve: hold [Spike] to toss" / "Jump and hit!" ----
+
+        TMP_Text servePrompt;
+        string servePromptShown;
+
+        void MakeServePrompt()
+        {
+            Canvas canvas = GetComponentInParent<Canvas>();
+            if (canvas == null) return;
+            var go = new GameObject("Serve Prompt", typeof(RectTransform), typeof(TextMeshProUGUI));
+            go.transform.SetParent(canvas.transform, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+            rt.pivot = new Vector2(0.5f, 0f);
+            rt.anchoredPosition = new Vector2(0f, 150f);
+            rt.sizeDelta = new Vector2(1000f, 60f);
+            servePrompt = go.GetComponent<TextMeshProUGUI>();
+            if (scoreText != null) servePrompt.font = scoreText.font;
+            servePrompt.fontSize = 34f;
+            servePrompt.fontStyle = FontStyles.Bold;
+            servePrompt.characterSpacing = 2f;
+            servePrompt.outlineWidth = 0.2f;
+            servePrompt.outlineColor = (Color32)Palette.Shadow;
+            servePrompt.alignment = TextAlignmentOptions.Center;
+            servePrompt.color = Palette.CourtLines;
+            servePrompt.raycastTarget = false;
+            servePrompt.text = "";
+        }
+
+        void UpdateServePrompt()
+        {
+            if (servePrompt == null) return;
+            string text = "";
+            PlayerController server = match.State == MatchState.Serve ? match.Server : null;
+            if (server != null && server.Brain is HumanBrain)
+                text = server.Tossed
+                    ? "Jump and hit!"
+                    : $"Your serve: hold <color=#{Hex(Palette.Accent)}>{ControlPrompts.Label(PromptAction.Spike, InputDevices.Style)}</color> to toss   {Mathf.CeilToInt(match.ServeClockLeft)}";
+            if (text != servePromptShown) { servePromptShown = text; servePrompt.text = text; }
         }
 
         void UpdateScore(RulesEngine r)

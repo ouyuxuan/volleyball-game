@@ -69,7 +69,7 @@ namespace Sandspike.Controls
                 case PromptAction.Move: return "Move";
                 case PromptAction.Aim: return "Aim";
                 case PromptAction.Jump: return "Jump (hold = higher)";
-                case PromptAction.Spike: return "Spike (hold = harder)";
+                case PromptAction.Spike: return "Spike / toss serve (hold = harder)";
                 case PromptAction.Bump: return "Bump (hold = harder)";
                 case PromptAction.Set: return "Set (hold = harder)";
                 case PromptAction.ToggleView: return "1st / 3rd person";

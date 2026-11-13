@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Sandspike.Core
 {
     /// <summary>Why a rally ended. 'None' means play goes on.</summary>
-    public enum PointReason { None, BallIn, BallOut, FourTouches, DoubleTouch }
+    public enum PointReason { None, BallIn, BallOut, FourTouches, DoubleTouch, ServeFault }
 
     /// <summary>
     /// The rules of the match as plain C# (no scene objects), so it is easy to unit test.
@@ -105,6 +105,17 @@ namespace Sandspike.Core
                 return PointReason.FourTouches;
             }
             return PointReason.None;
+        }
+
+        /// <summary>
+        /// The tossed ball hit the sand before the server hit it, or the serve clock ran out: the receivers score
+        /// (a side-out: the serve changes teams and that team's server rotates, as for any lost rally).
+        /// </summary>
+        public PointReason ServeFault()
+        {
+            if (!RallyActive) return PointReason.None;
+            Award(1 - ServingTeam, PointReason.ServeFault);
+            return PointReason.ServeFault;
         }
 
         /// <summary>Is a ball landing here inside the lines? The ball radius counts, so a line ball is in.</summary>

@@ -76,7 +76,7 @@ namespace Sandspike.Players
             float alpha = player.IsBurnedOut ? Mathf.Lerp(0.25f, 1f, 0.5f + 0.5f * Mathf.Sin(Time.time * burnoutFlickerHz * 2f * Mathf.PI)) : 1f;
             staminaMat.color = Palette.WithAlpha(staminaColour, alpha);
 
-            float charge = player.JumpCharge.IsCharging ? player.JumpCharge.Value : player.SpikeCharge.Value;
+            float charge = player.JumpCharge.IsCharging ? player.JumpCharge.Value : player.TossCharge.IsCharging ? player.TossCharge.Value : player.SpikeCharge.Value;
             RingMesh.FillArc(chargeMesh, innerInner, innerOuter, charge);
         }
 

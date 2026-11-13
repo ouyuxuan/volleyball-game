@@ -88,10 +88,17 @@ namespace Sandspike.Players
         [SerializeField] float digReachBonus = 0.3f;      // the dig reaches this much farther than a normal hit
         [SerializeField] float digCharge = 0.3f;          // the dig is a soft auto-bump toward the aim point
 
-        [Header("Serve")]
+        [Header("Serve (hold Spike to toss, then jump and hit)")]
         [SerializeField] float serveNetMargin = 0.2f;     // a serve is slowed (lobbed) until it clears the net by this much
         [SerializeField] float serveMaxExtraSeconds = 1.0f;
         [SerializeField] float servePushStep = 0.25f;     // a serve aimed too close to the net to clear it lands this much deeper per step
+        [SerializeField] float serveLineDistance = 8.1f;  // before the toss the server stays at least this far from the net (0.1 m behind the baseline)
+        [SerializeField] float tossChargeSeconds = 0.8f;  // holding Spike this long gives a full toss
+        [SerializeField] float tossApexMin = 3.6f;        // world height of the toss peak at charge 0...
+        [SerializeField] float tossApexMax = 6.0f;        // ...and at full charge
+        [SerializeField] float tossDistanceMin = 0.8f;    // the toss lands this far in front of the server (toward the net) at charge 0...
+        [SerializeField] float tossDistanceMax = 2.5f;    // ...and at full charge
+        [SerializeField] float jumpServeMaxSpeed = 22f;   // a jump serve is flattened (shorter flight) but never faster than this sideways-plus-forward speed (m/s)
 
         [Header("Block (jump at the net with no hit button held)")]
         [SerializeField] BlockTuning block = new BlockTuning();
@@ -117,6 +124,7 @@ namespace Sandspike.Players
         CharacterController controller;
         IPlayerBrain brain;
         HitResolver resolver;
+        readonly ChargeMeter tossMeter = new ChargeMeter();
         Vector3 planarVelocity;
         float verticalVelocity;
         bool grounded;
@@ -173,8 +181,16 @@ namespace Sandspike.Players
         public float CourtSide => courtSide;
         public int Team => courtSide < 0f ? 0 : 1;
         public HitTuning Tuning => hitTuning;
-        /// <summary>True while this player is the server and the ball is held: a spike-button hold/release serves.</summary>
+        /// <summary>True while this player is the server and the serve is not hit yet: Spike tosses, then Spike hits the toss.</summary>
         public bool ServeMode { get; set; }
+        /// <summary>True once this server has tossed the ball (until the serve is hit or the point ends).</summary>
+        public bool Tossed { get; private set; }
+        /// <summary>The toss meter (0..1 while Spike is held before the toss). No stamina cost.</summary>
+        public ChargeMeter TossCharge => tossMeter;
+        /// <summary>True while the server holds Spike to charge the toss (the toss preview shows then).</summary>
+        public bool TossCharging => ServeMode && !Tossed && tossMeter.IsCharging;
+        /// <summary>Raised when the ball is tossed. It is not a touch: the MatchManager only uses it to watch for a dropped toss.</summary>
+        public event Action<PlayerController> OnTossed;
         public bool IsDiving => diving;
         public bool HasQueuedHit => pending.active;          // a released hit is waiting for the ball (the visual holds its pose)
         public HitType QueuedHitType => pending.type;
@@ -213,6 +229,7 @@ namespace Sandspike.Players
             brain = GetComponent<IPlayerBrain>();
             resolver = new HitResolver(hitTuning);
             jumpCharge.secondsToFull = chargeSeconds;
+            tossMeter.secondsToFull = tossChargeSeconds;
         }
 
         void Update() { if (brain != null) Tick(Time.deltaTime); }
@@ -234,7 +251,7 @@ namespace Sandspike.Players
             if (!busy)
             {
                 UpdateJump(dt);
-                if (ServeMode) UpdateServe(dt); else UpdateHits(dt);
+                if (ServeMode && !Tossed) UpdateToss(dt); else UpdateHits(dt);   // after the toss the server hits with Spike like anyone
                 UpdatePending();
                 if (IsBlocking) FaceNet(dt); else FaceAim(dt);
             }
@@ -258,11 +275,11 @@ namespace Sandspike.Players
 
         /// <summary>
         /// Did the ball cross the shield between 'prev' and 'cur'? If so it rebounds (BlockShield.Rebound), the ball is launched
-        /// again and OnBlocked fires. A serve can't be blocked. Returns true on a block.
+        /// again and OnBlocked fires. A serve (or a toss) can't be blocked. Returns true on a block.
         /// </summary>
         public bool TryBlock(Vector3 prev, Vector3 cur)
         {
-            if (!IsBlocking || ball == null || !ball.IsInFlight || ball.LastHitType == HitType.Serve) return false;
+            if (!IsBlocking || ball == null || !ball.IsInFlight || ball.LastHitType == HitType.Serve || ball.LastHitType == HitType.Toss) return false;
             Vector3 n = BlockNormal;
             Vector3 vel = ball.Velocity;
             if (Vector3.Dot(vel, n) >= 0f) return false;                // must be travelling toward this side
@@ -297,6 +314,8 @@ namespace Sandspike.Players
             sprinting = false;
             jumpCharge.Cancel();
             spikeCharge.Cancel();
+            tossMeter.Cancel();
+            Tossed = false;
             cooldownLeft = 0f;
             blockSlide = 0f;
             prevLaunch = -1;
@@ -360,7 +379,7 @@ namespace Sandspike.Players
         Vector3 ClampToCourt(Vector3 p)
         {
             p.x = Mathf.Clamp(p.x, -sideLimit, sideLimit);
-            float near = courtSide * netMargin;                     // closest z to the net
+            float near = courtSide * (ServeMode && !Tossed ? serveLineDistance : netMargin);   // closest z to the net (before the toss: behind the baseline)
             float far = courtSide * backLimit;
             p.z = Mathf.Clamp(p.z, Mathf.Min(near, far), Mathf.Max(near, far));
             return p;
@@ -423,7 +442,7 @@ namespace Sandspike.Players
 
         void TryDig()
         {
-            if (ball == null || !ball.IsInFlight || cooldownLeft > 0f) return;
+            if (ball == null || !ball.IsInFlight || cooldownLeft > 0f || TossIsNotMine) return;
             Vector3 p = DigPoint;
             if (!ContactTiming.DigInReach(ball.Position, p, reachRadius, digReachBonus)) return;
             Vector3 aim = brain.AimPoint;
@@ -436,46 +455,68 @@ namespace Sandspike.Players
             Finish(HitType.Bump, digCharge, resolver.Resolve(input), 0f, p, Time.time, Time.time, aim);
         }
 
-        // ---------------- serve ----------------
+        // ---------------- serve: toss, then jump and hit ----------------
 
-        // The server holds the spike button to charge and lets go to serve toward the aim point (perfect timing, no ball needed in flight).
-        void UpdateServe(float dt)
+        // Before the toss: hold Spike to fill the toss meter, let go to toss the ball (no ball needed in flight, no stamina).
+        void UpdateToss(float dt)
         {
             ButtonState spike = brain.Spike;
-            if (!spikeCharge.IsCharging)
+            if (!tossMeter.IsCharging)
             {
-                if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Serve; }
+                if (spike.Down) tossMeter.Begin();
                 return;
             }
-            spikeCharge.Tick(dt, ChargeCap);
-            if (spike.Up || !spike.Held)
-            {
-                spikeCharge.Lock();
-                DoServe(spikeCharge.Value);
-            }
+            tossMeter.Tick(dt, 1f);
+            if (spike.Up || !spike.Held) DoToss(tossMeter.Release());
         }
 
-        void DoServe(float charge)
+        /// <summary>The toss a release would make now at this charge: peak height, landing spot (straight toward the net) and flight time. The preview uses it too.</summary>
+        public HitResult PredictToss(float charge)
         {
-            if (ball == null || ball.IsInFlight) { spikeCharge.Cancel(); return; }
-            HitResult result = PredictServe(charge);
-            ServeMode = false;
-            Finish(HitType.Serve, charge, result, 0f, ball.Position, Time.time, Time.time, brain.AimPoint);
-        }
-
-        /// <summary>True while the server holds the spike button to charge a serve (the serve preview shows then).</summary>
-        public bool ServeCharging => ServeMode && spikeCharge.IsCharging;
-
-        /// <summary>The serve a release would make right now at this charge: the real resolver call plus the net-clear assist. DoServe and the preview both use it.</summary>
-        public HitResult PredictServe(float charge)
-        {
+            charge = Mathf.Clamp01(charge);
             Vector3 start = ball.Position;
+            float apex = Mathf.Lerp(tossApexMin, tossApexMax, charge);
+            float distance = Mathf.Lerp(tossDistanceMin, tossDistanceMax, charge);
+            return new HitResult
+            {
+                contact = true, apex = apex,
+                target = new Vector3(start.x, 0f, transform.position.z - courtSide * distance),
+                flightTime = BallTrajectory.FlightTimeForApex(start.y, apex, ball.Radius, ball.Gravity),
+            };
+        }
+
+        // Launches the toss. It is not a touch (no OnBallTouched): the rally starts when the server hits it.
+        void DoToss(float charge)
+        {
+            if (ball == null || ball.IsInFlight) return;
+            HitResult toss = PredictToss(charge);
+            ball.Launch(ball.Position, toss.target, toss.flightTime, false, HitType.Toss);
+            Tossed = true;
+            Debug.Log($"[Toss] p{PlayerId} charge={charge:F2} apex={toss.apex:F2} lands=({toss.target.x:F1},{toss.target.z:F1}) flight={toss.flightTime:F2}");
+            OnTossed?.Invoke(this);
+        }
+
+        /// <summary>
+        /// The serve a hit at 'start' would make now: the real resolver call plus the net-clear assist, and for an airborne
+        /// server (a jump serve) a flatter, faster flight blended in by the charge. The hit itself and the tests use it.
+        /// </summary>
+        public HitResult PredictServe(float charge, Vector3 start, bool airborne)
+        {
             var input = new HitInput
             {
                 type = HitType.Serve, charge = charge, timingError = 0f, closestDistance = 0f, reachRadius = reachRadius,
                 contactHeight = start.y, aimPoint = brain.AimPoint, hitterPosition = transform.position, ballPosition = start,
                 ballGravity = ball.Gravity,
             };
+            return ServeFrom(input, airborne);
+        }
+
+        // A serve never scatters (timing error 0) so a legal aim is never turned into a fault.
+        HitResult ServeFrom(HitInput input, bool airborne)
+        {
+            input.type = HitType.Serve;
+            input.timingError = 0f;
+            Vector3 start = input.ballPosition;
             HitResult result = resolver.Resolve(input);
             // Net-clear assist: lob the serve (longer flight) until it clears the net. A target so close to the net that no lob
             // can clear it is moved back, away from the net, a step at a time (same idea as the spike's push), never past the baseline.
@@ -488,7 +529,25 @@ namespace Sandspike.Players
                 time = result.flightTime;
             }
             result.flightTime = time;
+            if (airborne) result.flightTime = FlattenedFlight(start, result.target, result.flightTime, input.charge);
             return result;
+        }
+
+        // Jump serve: the shortest flight time (0.05 s steps below the lob's) that still clears the net by serveNetMargin and keeps
+        // the speed under jumpServeMaxSpeed. The charge blends from the lob (0) to that flat serve (1). Clearance only grows with
+        // flight time, so every blend in between clears too.
+        float FlattenedFlight(Vector3 start, Vector3 groundTarget, float lobTime, float charge)
+        {
+            float g = ball.Gravity;
+            Vector3 centre = new Vector3(groundTarget.x, ball.Radius, groundTarget.z);
+            float flat = new Vector2(centre.x - start.x, centre.z - start.z).magnitude;
+            float best = lobTime;
+            for (float t = lobTime - 0.05f; t >= 0.1f && flat / t <= jumpServeMaxSpeed; t -= 0.05f)
+            {
+                Vector3 v0 = BallTrajectory.SolveLaunchVelocity(start, centre, t, g);
+                if (BallTrajectory.ClearsNet(start, v0, t, BallTrajectory.NetTopHeight + serveNetMargin, ball.Radius, 0f, g)) best = t;
+            }
+            return Mathf.Lerp(lobTime, best, Mathf.Clamp01(charge));
         }
 
         // Tries longer flight times (up to serveMaxExtraSeconds more) until the serve clears the net by serveNetMargin.
@@ -547,8 +606,8 @@ namespace Sandspike.Players
             if (!spikeCharge.IsCharging)
             {
                 if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Spike; }
-                else if (bump.Down) { spikeCharge.Begin(); chargingType = HitType.Bump; }
-                else if (set.Down) { spikeCharge.Begin(); chargingType = HitType.Set; }
+                else if (!ServeMode && bump.Down) { spikeCharge.Begin(); chargingType = HitType.Bump; }   // a server only has Spike
+                else if (!ServeMode && set.Down) { spikeCharge.Begin(); chargingType = HitType.Set; }
             }
             if (spikeCharge.IsCharging)
             {
@@ -619,7 +678,7 @@ namespace Sandspike.Players
         /// </summary>
         public bool AttemptHit(HitType type, float? charge = null, float? timingOverride = null)
         {
-            if (ball == null || !ball.IsInFlight || cooldownLeft > 0f) return false;
+            if (ball == null || !ball.IsInFlight || cooldownLeft > 0f || TossIsNotMine) return false;
             pending.active = false;   // a new press replaces a queued hit
 
             // Ideal contact = when the ball's arc passes closest to the (moving) contact point.
@@ -646,7 +705,7 @@ namespace Sandspike.Players
                 hitterVelocity = planarVelocity,
                 teamTouchIndex = TeamTouchCount != null ? TeamTouchCount() : 0,
             };
-            HitResult result = resolver.Resolve(input);
+            HitResult result = ResolveHit(input);
 
             // Ball not at the contact point yet: hold the hit until it gets there.
             if (result.contact && offset > 0.02f && !timingOverride.HasValue)
@@ -655,9 +714,17 @@ namespace Sandspike.Players
                 return true;
             }
 
-            Finish(type, input.charge, result, timingError, contactPoint, Time.time + offset, Time.time, aim);
+            Finish(FinalType(type), input.charge, result, timingError, contactPoint, Time.time + offset, Time.time, aim);
             return true;
         }
+
+        // Nobody but the server may touch the tossed ball.
+        bool TossIsNotMine => !ServeMode && ball != null && ball.LastHitType == HitType.Toss;
+
+        // While serving, a Spike swing at the toss IS the serve: same reach and wind-up, but the serve maths decide where it goes.
+        bool IsServeSwing(HitType type) => ServeMode && Tossed && type == HitType.Spike;
+        HitType FinalType(HitType type) => IsServeSwing(type) ? HitType.Serve : type;
+        HitResult ResolveHit(HitInput input) => IsServeSwing(input.type) ? ServeFrom(input, !grounded) : resolver.Resolve(input);
 
         // Applies the result: spends stamina, launches the ball on a connect (a Miss leaves it alone), and reports it.
         void Finish(HitType type, float charge, HitResult result, float timingError, Vector3 contactPoint, float idealTime, float pressTime, Vector3 aim)
@@ -705,7 +772,7 @@ namespace Sandspike.Players
             input.ballGravity = ball.Gravity;
             input.hitterVelocity = planarVelocity;     // the run-up speed at the moment of contact
             input.teamTouchIndex = TeamTouchCount != null ? TeamTouchCount() : 0;
-            Finish(pending.type, input.charge, resolver.Resolve(input), pending.timingError, pending.contactPoint, pending.idealTime, pending.pressTime, input.aimPoint);
+            Finish(FinalType(pending.type), input.charge, ResolveHit(input), pending.timingError, pending.contactPoint, pending.idealTime, pending.pressTime, input.aimPoint);
         }
 
         // ---------------- facing ----------------

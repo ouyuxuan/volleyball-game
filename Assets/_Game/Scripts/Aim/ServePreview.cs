@@ -6,9 +6,9 @@ using UnityEngine;
 namespace Sandspike.Aim
 {
     /// <summary>
-    /// While the human server holds the spike button to charge a serve, shows where the serve will go:
+    /// While the human server holds the spike button to charge the toss, shows where the toss will go:
     /// a dotted arc from the ball to the landing point, and a ring on the sand there.
-    /// It asks the player for the same prediction the serve will use (same charge, aim and net-clear assist), every frame.
+    /// It asks the player for the same prediction the toss will use (same charge), every frame.
     /// </summary>
     public class ServePreview : MonoBehaviour
     {
@@ -61,11 +61,11 @@ namespace Sandspike.Aim
         void LateUpdate()
         {
             BallController ball = player != null ? player.Ball : null;
-            bool show = ball != null && !ball.IsInFlight && player.Brain is HumanBrain && player.ServeCharging;
+            bool show = ball != null && !ball.IsInFlight && player.Brain is HumanBrain && player.TossCharging;
             if (dots[0].gameObject.activeSelf != show) Show(show);
             if (!show) return;
 
-            HitResult serve = player.PredictServe(player.SpikeCharge.Value);
+            HitResult serve = player.PredictToss(player.TossCharge.Value);
             Vector3 start = ball.Position;
             Vector3 v0 = BallTrajectory.SolveLaunchVelocity(start, new Vector3(serve.target.x, ball.Radius, serve.target.z), serve.flightTime, ball.Gravity);
             for (int i = 0; i < dots.Length; i++)
