@@ -51,6 +51,8 @@ namespace Sandspike.Art
         // ---- Feel pass: visual feedback ----
         public static readonly Color Dust        = Color.Lerp(Sand, CourtLines, 0.35f);   // dust puffs: sand, a little paler so they read on the court
 
+        public static readonly Color Orange      = Color.Lerp(Accent, TeamA, 0.55f);      // between the sun yellow and the coral red: the landing ring's "soon" step
+
         /// <summary>Same colour with a different alpha (so other files never need a Color literal).</summary>
         public static Color WithAlpha(Color c, float a) { c.a = a; return c; }
 

@@ -14,6 +14,7 @@ namespace Sandspike.Feel
             if (Object.FindFirstObjectByType<JumpFx>() != null) return;
             var go = new GameObject("FeelFx");
             go.AddComponent<JumpFx>();
+            go.AddComponent<BallFx>();
         }
 
         static Texture2D softDot;
