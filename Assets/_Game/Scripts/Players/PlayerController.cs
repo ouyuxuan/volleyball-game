@@ -192,7 +192,8 @@ namespace Sandspike.Players
         /// <summary>Raised when the ball is tossed. It is not a touch: the MatchManager only uses it to watch for a dropped toss.</summary>
         public event Action<PlayerController> OnTossed;
         public event Action<PlayerController> OnJumped;     // takeoff
-        public event Action<PlayerController> OnLanded;     // touched down after being airborne
+        public event Action<PlayerController> OnLanded;     // touched down after a jump
+        bool jumpedAndAirborne;
         public event Action<PlayerController> OnDiveEnded;  // the dive lunge finished
         public bool IsDiving => diving;
         public bool HasQueuedHit => pending.active;          // a released hit is waiting for the ball (the visual holds its pose)
@@ -321,6 +322,7 @@ namespace Sandspike.Players
             Tossed = false;
             cooldownLeft = 0f;
             blockSlide = 0f;
+            jumpedAndAirborne = false;
             prevLaunch = -1;
         }
 
@@ -376,7 +378,7 @@ namespace Sandspike.Players
             bool wasGrounded = grounded;
             controller.Move(next - pos);
             grounded = controller.isGrounded || transform.position.y <= 0.001f;
-            if (grounded && !wasGrounded) OnLanded?.Invoke(this);
+            if (grounded && !wasGrounded && jumpedAndAirborne) { jumpedAndAirborne = false; OnLanded?.Invoke(this); }   // only after a real jump (the ground check can flicker while running)
             if (grounded) airSpeedCap = float.PositiveInfinity;
         }
 
@@ -597,6 +599,7 @@ namespace Sandspike.Players
             // a jump from (almost) standing still keeps little sideways speed; a running jump keeps its run-up
             airSpeedCap = planarVelocity.magnitude < standingJumpSpeed ? standingJumpAirSpeed : float.PositiveInfinity;
             stamina.SpendJump(charge);
+            jumpedAndAirborne = true;
             OnJumped?.Invoke(this);
         }
 
