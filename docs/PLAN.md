@@ -377,8 +377,9 @@ stay our own. The block and sound rows are the least certain and should be tuned
 - **Landing ring shows urgency.** The ball's landing ring shifts from white through yellow and orange
   to red as the ball nears the sand, so the ring alone tells you how long you have.
 - **Touch counter.** Three small dots under the score fill as the team with the ball uses its touches.
-- **Everyone's aim on the sand.** A small ring in the team colour marks where each bot intends to send
-  the ball, so you can read a teammate's pass or set before it is hit.
+- **No aim rings for other players (dropped after playtest).** A ring showing where a bot intends to hit
+  gave the shot away before the ball was struck. Where the ball is going is shown only after the hit,
+  by the landing ring.
 - **Hit flash in the team colour,** and the ball keeps bouncing and rolling on the sand after a point.
 - **Point banner with credit.** It names the scorer, or the player whose error gave the point away,
   and calls out break point, set point and match point.
@@ -388,7 +389,7 @@ stay our own. The block and sound rows are the least certain and should be tuned
 *Status of the list above:* done: jump streak and dust, landing ring for every ball (with urgency colour, team rim, trail,
 IN / OUT label), spike charge at the ball (ring, combo badge, aura, foot ring brightening), hit burst and ball squash and
 stretch, camera tilt in the jump, context control hints, touch counter, score pop and point banner (reason, last touch, match
-point), bots' aim on the sand. Not built in this step: character lean and crouch, arm motion smoothing, the hit flash on the
+point). Bots' aim on the sand was built, then removed after playtest. Not built in this step: character lean and crouch, arm motion smoothing, the hit flash on the
 character, the jump-cue sound for blockers, the ball rolling after a point, instant replay, and callouts over heads. The
 serve-to-rally camera ease is skipped because the third-person camera has the same view in both. A match is one game, so the
 banner says "match point" and never "set point"; there is no break point yet.
