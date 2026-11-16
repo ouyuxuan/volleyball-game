@@ -19,6 +19,7 @@ namespace Sandspike.Core
         public readonly float halfWidth;      // court x limit (4)
         public readonly float halfLength;     // court z limit (8)
         public readonly float ballRadius;     // a ball touching the line counts as in
+        public readonly bool pointCap;        // on: the first team to reach CapScore wins even when not 2 ahead
 
         // ---- state ----
         public int[] Score { get; } = new int[2];
@@ -32,8 +33,9 @@ namespace Sandspike.Core
         public int LastPointWinner { get; private set; } = -1;
         public PointReason LastReason { get; private set; }
 
-        public RulesEngine(int targetScore = 11, int winBy = 2, int maxTouches = 3, float halfWidth = 4f, float halfLength = 8f, float ballRadius = 0.11f, int firstServingTeam = 0)
+        public RulesEngine(int targetScore = 11, int winBy = 2, int maxTouches = 3, float halfWidth = 4f, float halfLength = 8f, float ballRadius = 0.11f, int firstServingTeam = 0, bool pointCap = false)
         {
+            this.pointCap = pointCap;
             this.targetScore = targetScore;
             this.winBy = winBy;
             this.maxTouches = maxTouches;
@@ -50,13 +52,18 @@ namespace Sandspike.Core
 
         public bool IsMatchOver => Winner >= 0;
 
-        /// <summary>The winning team (first to the target AND ahead by winBy), or -1.</summary>
+        /// <summary>The score that ends the match outright (11 -> 15, 21 -> 25, 25 -> 30), or int.MaxValue when the cap is off.</summary>
+        public int CapScore => pointCap ? CapFor(targetScore) : int.MaxValue;
+
+        public static int CapFor(int target) => target == 11 ? 15 : target == 21 ? 25 : target == 25 ? 30 : target + 4;
+
+        /// <summary>The winning team (first to the target AND ahead by winBy, or first to the cap), or -1.</summary>
         public int Winner
         {
             get
             {
                 for (int t = 0; t < 2; t++)
-                    if (Score[t] >= targetScore && Score[t] - Score[1 - t] >= winBy) return t;
+                    if (Score[t] >= CapScore || (Score[t] >= targetScore && Score[t] - Score[1 - t] >= winBy)) return t;
                 return -1;
             }
         }

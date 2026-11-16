@@ -24,6 +24,8 @@ namespace Sandspike.Core
         [Tooltip("First to this many points (11, 21 or 25), and you must win by 2.")]
         [SerializeField] int targetScore = 11;
         [SerializeField] int winBy = 2;
+        [Tooltip("On: the first to the cap (11 -> 15, 21 -> 25, 25 -> 30) wins even without a 2 point lead.")]
+        [SerializeField] bool pointCap;
         [SerializeField] int firstServingTeam = 0;
 
         [Header("Court (metres)")]
@@ -101,10 +103,13 @@ namespace Sandspike.Core
             foreach (var p in players) if (p != null) { p.OnBallTouched -= OnTouched; p.OnBlocked -= OnBlocked; }
         }
 
+        /// <summary>Match options from the setup screen; they take effect at the next NewMatch.</summary>
+        public void SetOptions(int target, bool cap) { targetScore = target; pointCap = cap; }
+
         /// <summary>Scores back to 0-0 and starts the first serve.</summary>
         public void NewMatch()
         {
-            Rules = new RulesEngine(targetScore, winBy, 3, halfWidth, halfLength, ball.Radius, firstServingTeam);
+            Rules = new RulesEngine(targetScore, winBy, 3, halfWidth, halfLength, ball.Radius, firstServingTeam, pointCap);
             PointCount = 0;
             BeginServe();
         }
