@@ -1,4 +1,5 @@
 using Sandspike.Aim;
+using Sandspike.CameraRig;
 using Sandspike.Art;
 using Sandspike.Players;
 using UnityEngine;
@@ -15,11 +16,15 @@ namespace Sandspike.Feel
         [SerializeField] int lineCount = 7;
         [SerializeField] float baseRadius = 0.9f;      // ring radius at the end, at full charge (less for a light hit)
 
+        Camera cam;                // the human's camera the burst faces (one HitBurst per human, drawn only in that viewport)
         Transform root, ring;
+        readonly System.Collections.Generic.List<(PlayerController, System.Action<HitReport>)> hooks = new();
         Transform[] lines;
         Material mat;
         float age = 99f;
         float size;
+
+        public void Bind(Camera viewCamera) { cam = viewCamera; }
 
         void Start()
         {
@@ -45,9 +50,17 @@ namespace Sandspike.Feel
             }
             root.gameObject.SetActive(false);
 
+            ViewLayers.ApplyToChildren(gameObject);
             foreach (PlayerController p in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
-                p.OnHitAttempt += r => { if (r.contact && (r.type == HitType.Spike || r.type == HitType.Serve)) Play(p.Ball.Position, r.charge); };
+            {
+                PlayerController owner = p;
+                System.Action<HitReport> h = r => { if (r.contact && (r.type == HitType.Spike || r.type == HitType.Serve)) Play(owner.Ball.Position, r.charge); };
+                owner.OnHitAttempt += h;
+                hooks.Add((owner, h));
+            }
         }
+
+        void OnDestroy() { foreach (var (p, h) in hooks) if (p != null) p.OnHitAttempt -= h; }
 
         void Setup(MeshRenderer r)
         {
@@ -58,7 +71,6 @@ namespace Sandspike.Feel
 
         void Play(Vector3 at, float charge)
         {
-            Camera cam = Camera.main;
             if (cam == null) return;
             root.position = at;
             root.rotation = cam.transform.rotation;      // local XY plane faces the camera

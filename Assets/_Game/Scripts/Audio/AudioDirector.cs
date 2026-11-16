@@ -181,7 +181,7 @@ namespace Sandspike.Audio
 
             music.volume = musicVolume;
 
-            if (match.Rules != seenRules)       // a new match began: countdown, whistle, music
+            if (match.State != MatchState.Setup && match.Rules != seenRules)       // a new match began: countdown, whistle, music
             {
                 seenRules = match.Rules;
                 for (int i = 0; i < 3; i++) Later(i, () => Play(countdown, 0.3f));
@@ -194,8 +194,9 @@ namespace Sandspike.Audio
             else if (!over && !music.isPlaying) music.UnPause();
 
             // serve clock: one tick for each of the last 5 seconds of the human's serve
-            PlayerController human = match.Players[0];
-            if (match.State == MatchState.Serve && match.Server == human && !human.Tossed)
+            // (any human: the slots LocalPlayers gave to people, whoever or whatever is driving them)
+            PlayerController server = match.State == MatchState.Serve ? match.Server : null;
+            if (server != null && match.IsHumanSlot(server.PlayerId) && !server.Tossed)
             {
                 int left = Mathf.CeilToInt(match.ServeClockLeft);
                 if (left >= 1 && left <= 5 && left != lastTick) { lastTick = left; Play(tick, 0.05f); }
@@ -203,7 +204,12 @@ namespace Sandspike.Audio
             else lastTick = 0;
 
             // spike charge whoosh: the human holds a spike in the air and the ball comes into reach
-            bool ready = !human.IsGrounded && human.HitReady(out HitType t) && t == HitType.Spike;
+            bool ready = false;
+            for (int i = 0; i < match.Players.Length && !ready; i++)
+            {
+                PlayerController human = match.Players[i];
+                ready = match.IsHumanSlot(i) && !human.IsGrounded && human.HitReady(out HitType t) && t == HitType.Spike;
+            }
             if (ready && !wasReady) Play(charge, 0.09f);
             wasReady = ready;
 

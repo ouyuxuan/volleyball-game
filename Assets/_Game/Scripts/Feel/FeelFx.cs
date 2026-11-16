@@ -15,8 +15,7 @@ namespace Sandspike.Feel
             var go = new GameObject("FeelFx");
             go.AddComponent<JumpFx>();
             go.AddComponent<BallFx>();
-            go.AddComponent<SpikeChargeFx>();
-            go.AddComponent<HitBurst>();
+            // SpikeChargeFx and HitBurst are per human: HumanView adds them.
             go.AddComponent<BallSquash>();
         }
 

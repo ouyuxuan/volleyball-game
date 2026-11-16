@@ -13,6 +13,8 @@ namespace Sandspike.Aim
         [SerializeField] float maxRayDistance = 25f;
         [SerializeField] float fallbackDistance = 20f;
 
+        public void Setup(Transform view) { viewTransform = view; }
+
         public Vector3 AimPoint => Compute(viewTransform != null ? viewTransform : transform);
 
         public Vector3 Compute(Transform view)

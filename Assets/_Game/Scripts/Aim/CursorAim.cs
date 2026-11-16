@@ -1,4 +1,3 @@
-using Sandspike.Controls;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -20,19 +19,29 @@ namespace Sandspike.Aim
         [SerializeField] Vector2 areaHalfSize = new Vector2(8f, 12f);   // x and z limits around the court centre
 
         Vector3 aimPoint;
+        float stickYaw;     // 180 for a player on the +z side: their camera looks the other way, so "stick up" is -z
 
         public Vector3 AimPoint => aimPoint;
 
         void Awake() { aimPoint = startPoint; }
 
-        /// <summary>Called by the camera rig each frame while 3rd person is active. stick = right stick value.</summary>
-        public void Tick(Vector2 rawStick, float dt)
+        /// <summary>Gives a cloned rig its camera and its side of the court (-1 = the -z end, +1 = the +z end).</summary>
+        public void Setup(Camera cam, float side)
         {
-            if (InputDevices.UsingGamepad)
+            viewCamera = cam;
+            stickYaw = side > 0f ? 180f : 0f;
+            aimPoint = new Vector3(startPoint.x, 0f, side < 0f ? startPoint.z : -startPoint.z);   // start on the opponents' half
+        }
+
+        /// <summary>Called by the camera rig each frame while 3rd person is active. rawStick = right stick value; usePad = this person aims with a gamepad.</summary>
+        public void Tick(Vector2 rawStick, float dt, bool usePad)
+        {
+            if (usePad)
             {
                 Vector2 s = Sandspike.Players.HumanBrain.ApplyDeadZone(rawStick, stickDeadZone);
-                // stick up = further from the camera (+z), stick right = +x
-                aimPoint += new Vector3(s.x, 0f, s.y) * (stickAimSpeed * dt);
+                // stick up = further from the camera, stick right = to the right of the camera
+                Vector3 d = Quaternion.Euler(0f, stickYaw, 0f) * new Vector3(s.x, 0f, s.y);
+                aimPoint += d * (stickAimSpeed * dt);
                 aimPoint.x = Mathf.Clamp(aimPoint.x, -areaHalfSize.x, areaHalfSize.x);
                 aimPoint.z = Mathf.Clamp(aimPoint.z, -areaHalfSize.y, areaHalfSize.y);
                 aimPoint.y = 0f;

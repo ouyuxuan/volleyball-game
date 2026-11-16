@@ -3,6 +3,8 @@
     "rootNamespace": "Sandspike.Tests",
     "references": [
         "Sandspike",
+        "Unity.InputSystem",
+        "Unity.InputSystem.TestFramework",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

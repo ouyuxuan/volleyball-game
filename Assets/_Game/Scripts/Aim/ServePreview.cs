@@ -12,7 +12,7 @@ namespace Sandspike.Aim
     /// </summary>
     public class ServePreview : MonoBehaviour
     {
-        [SerializeField] PlayerController player;      // the human player
+        [SerializeField] PlayerController player;      // the human player (set by Bind)
         [SerializeField] int dotCount = 16;
         [SerializeField] float dotSize = 0.14f;
         [SerializeField] float ringRadius = 0.5f;      // landing ring (outer radius, metres)
@@ -21,6 +21,8 @@ namespace Sandspike.Aim
 
         Transform[] dots;
         Transform ring;
+
+        public void Bind(PlayerController p) { player = p; }
 
         void Awake()
         {
@@ -43,6 +45,7 @@ namespace Sandspike.Aim
             SetLook(r.GetComponent<MeshRenderer>(), mat);
             ring = r.transform;
             Show(false);
+            Sandspike.CameraRig.ViewLayers.ApplyToChildren(gameObject);   // only this human's camera shows the preview
         }
 
         static void SetLook(MeshRenderer m, Material mat)

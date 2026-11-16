@@ -1,4 +1,5 @@
 using Sandspike.Aim;
+using Sandspike.CameraRig;
 using Sandspike.Art;
 using Sandspike.Ball;
 using Sandspike.Core;
@@ -9,10 +10,10 @@ using UnityEngine;
 namespace Sandspike.Feel
 {
     /// <summary>
-    /// The human's spike wind-up, drawn at the ball so the eyes never leave it: while Spike is held in the air a ring
+    /// One per human, drawn only in that human's viewport (its own layer). The human's spike wind-up, drawn at the ball so the eyes never leave it: while Spike is held in the air a ring
     /// closes around the ball (1.6 times its size down to 1.0 as the charge fills), a soft aura glows when letting go would
     /// connect (the HitCue), and a small "x2" / "x3" badge shows beside the ball when the team's touch count raises the combo.
-    /// "The human" is player 0, so an auto-play bot standing in for it shows the same thing.
+    /// The player is the slot's player, so an auto-play bot standing in for it shows the same thing.
     /// </summary>
     public class SpikeChargeFx : MonoBehaviour
     {
@@ -24,11 +25,15 @@ namespace Sandspike.Feel
         Renderer ballRenderer;
         PlayerController human;
         HitCue cue;
+        Camera cam;
         Transform ring, aura;
         TextMeshPro badge;
 
         /// <summary>The badge text for a team that has already used 'teamTouches' touches: nothing on the 1st, "x2", "x3" after. Matches the combo multiplier steps in HitResolver.</summary>
         public static string ComboBadge(int teamTouches) => teamTouches <= 0 ? "" : "×" + (Mathf.Min(teamTouches, 2) + 1);
+
+        /// <summary>Whose wind-up to draw and which camera it faces (call right after AddComponent, before the first frame).</summary>
+        public void Bind(PlayerController p, HitCue c, Camera viewCamera) { human = p; cue = c; cam = viewCamera; }
 
         void Start()
         {
@@ -64,6 +69,7 @@ namespace Sandspike.Feel
             badge.outlineColor = (Color32)Palette.Shadow;
             badge.rectTransform.sizeDelta = new Vector2(2f, 1f);
             b.SetActive(false);
+            ViewLayers.ApplyToChildren(gameObject);
         }
 
         Transform Make(string name, Mesh mesh, Material mat)
@@ -81,15 +87,7 @@ namespace Sandspike.Feel
 
         void LateUpdate()
         {
-            if (match == null) return;
-            if (human == null)
-            {
-                if (match.Players == null || match.Players.Length == 0 || match.Players[0] == null) return;
-                human = match.Players[0];
-                cue = human.GetComponent<HitCue>();
-            }
-            Camera cam = Camera.main;
-            if (cam == null) return;
+            if (match == null || human == null || cam == null) return;
 
             bool air = ball.IsInFlight && !human.IsGrounded;
             bool charging = air && human.SpikeCharge.IsCharging && human.WindUpType == HitType.Spike;

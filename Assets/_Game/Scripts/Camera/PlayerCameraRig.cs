@@ -46,6 +46,7 @@ namespace Sandspike.CameraRig
 
         float yaw;
         float pitch;
+        float side = -1f;             // court side of this player: +1 looks toward -z, so the view and the controls turn 180 degrees
         PlayerController player;
         bool jumped;                  // airborne after a real jump
         float tiltT;                  // 0..1, how far into the tilt (smooth-stepped when applied)
@@ -54,14 +55,26 @@ namespace Sandspike.CameraRig
         public ViewMode Mode { get; private set; }
         public bool IsFirstPerson => Mode == ViewMode.FirstPerson;
 
-        /// <summary>Camera yaw (degrees) that WASD / left stick should be relative to: 0 in 3rd person (the net is "up").</summary>
-        public float MoveYaw => IsFirstPerson ? yaw : 0f;
+        /// <summary>Camera yaw (degrees) that WASD / left stick should be relative to: 0 (or 180 on the far side) in 3rd person, so the net is "up".</summary>
+        public float MoveYaw => IsFirstPerson ? yaw : (side > 0f ? 180f : 0f);
+
+        // What the scene rig has, for HumanView to clone from.
+        public CinemachineBrain CinemachineBrainRef => cinemachineBrain;
+        public CinemachineCamera ThirdPersonCamera => thirdPersonCamera;
+        public CinemachineCamera FirstPersonCamera => firstPersonCamera;
+
+        /// <summary>Fills in a rig that was just created in code (before its first frame).</summary>
+        public void Setup(HumanBrain b, PlayerVisual visual, CinemachineBrain cb, CinemachineCamera tp, CinemachineCamera fp, Transform head, CursorAim cursor, CrosshairAim cross, float courtSide)
+        {
+            brain = b; playerVisual = visual; cinemachineBrain = cb; thirdPersonCamera = tp; firstPersonCamera = fp;
+            headTarget = head; cursorAim = cursor; crosshairAim = cross; side = courtSide;
+        }
 
         public Vector3 AimPoint => IsFirstPerson ? crosshairAim.AimPoint : cursorAim.AimPoint;
 
         void Start()
         {
-            yaw = 0f;
+            yaw = side > 0f ? 180f : 0f;
             pitch = startPitch;
             if (cinemachineBrain != null)
                 cinemachineBrain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, blendSeconds);
@@ -89,7 +102,7 @@ namespace Sandspike.CameraRig
             if (IsFirstPerson)
             {
                 Vector2 look;
-                if (InputDevices.UsingGamepad)
+                if (brain.UsingGamepad)
                     look = HumanBrain.ApplyDeadZone(rawAim, stickDeadZone) * (stickLookSpeed * dt);
                 else
                     look = rawAim * mouseSensitivity;   // mouse delta is already "per frame"
@@ -101,7 +114,7 @@ namespace Sandspike.CameraRig
             }
             else
             {
-                cursorAim.Tick(rawAim, dt);
+                cursorAim.Tick(rawAim, dt, brain.UsingGamepad);
             }
 
             UpdateCursor();
@@ -161,10 +174,12 @@ namespace Sandspike.CameraRig
         }
 
         // 3rd person with mouse: free visible cursor. 1st person with mouse: locked and hidden. Gamepad: hidden.
+        // Only the person on keyboard + mouse owns the mouse cursor (a gamepad player must not hide or lock it).
         void UpdateCursor()
         {
+            if (brain == null || brain.Scope == DeviceScope.Pad) return;
             bool fp = IsFirstPerson;
-            bool pad = InputDevices.UsingGamepad;
+            bool pad = brain.UsingGamepad;
             Cursor.lockState = fp ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !fp && !pad;
         }

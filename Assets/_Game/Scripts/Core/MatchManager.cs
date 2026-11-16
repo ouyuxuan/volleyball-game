@@ -5,7 +5,8 @@ using UnityEngine;
 
 namespace Sandspike.Core
 {
-    public enum MatchState { Serve, Rally, PointScored, MatchOver }
+    /// <summary>Setup = the join screen: players stand at their bases and nothing happens until a human starts the match.</summary>
+    public enum MatchState { Serve, Rally, PointScored, MatchOver, Setup }
 
     /// <summary>
     /// Runs the match: Serve -> Rally -> PointScored -> (Serve again | MatchOver).
@@ -16,9 +17,8 @@ namespace Sandspike.Core
     {
         [Header("References")]
         [SerializeField] BallController ball;
-        [Tooltip("Index 0 = the human (team A), 1 = teammate bot (A), 2 and 3 = team B bots.")]
+        [Tooltip("Slots 0, 1 = team A, 2, 3 = team B. Any slot can be a human (LocalPlayers decides); the rest are bots.")]
         [SerializeField] PlayerController[] players = new PlayerController[4];
-        [SerializeField] HumanBrain humanBrain;
 
         [Header("Match")]
         [Tooltip("First to this many points (11, 21 or 25), and you must win by 2.")]
@@ -49,6 +49,12 @@ namespace Sandspike.Core
         public RulesEngine Rules { get; private set; }
         public MatchState State { get; private set; }
         public PlayerController[] Players => players;
+        /// <summary>The human brain of each slot, or null for a bot. LocalPlayers fills it, then calls ApplyBrains.</summary>
+        public HumanBrain[] Humans { get; } = new HumanBrain[4];
+        public bool IsHumanSlot(int slot) => Humans[slot] != null;
+        public int HumanCount { get { int n = 0; foreach (var h in Humans) if (h != null) n++; return n; } }
+        /// <summary>Asked at match over: true when somebody pressed "play again" (LocalPlayers: any human's Jump).</summary>
+        public Func<bool> PlayAgain;
         public float ServeStartTime { get; private set; }
         /// <summary>Seconds the server has left to toss (stops counting at the toss).</summary>
         public float ServeClockLeft { get; private set; }
@@ -66,7 +72,7 @@ namespace Sandspike.Core
         bool netTouched;
         bool autoPlayApplied;
         AIDifficulty difficultyApplied = (AIDifficulty)(-1);
-        SimpleBotBrain humanBot;
+        readonly SimpleBotBrain[] bots = new SimpleBotBrain[4];
 
         void Start()
         {
@@ -78,12 +84,13 @@ namespace Sandspike.Core
                 PlayerController owner = players[i];
                 owner.TeamTouchCount = () => Rules != null ? Rules.TouchesFor(owner.Team) : 0;   // touches before this one
                 var bot = players[i].GetComponent<SimpleBotBrain>();
-                if (bot != null) bot.Setup(this, players[i], ball);
+                if (bot != null) { bot.Setup(this, players[i], ball); bots[i] = bot; }
             }
             ball.OnGroundContact += OnLanded;
             ball.OnNetTouch += _ => netTouched = true;
 
             NewMatch();
+            if (LocalPlayers.Active) State = MatchState.Setup;     // wait on the join screen until a human starts the match
             ApplyAutoPlay();
             ApplyDifficulty();
         }
@@ -100,6 +107,14 @@ namespace Sandspike.Core
             Rules = new RulesEngine(targetScore, winBy, 3, halfWidth, halfLength, ball.Radius, firstServingTeam);
             PointCount = 0;
             BeginServe();
+        }
+
+        /// <summary>Back to 0-0 with everyone at their bases, but waiting for a human to start (the join screen).</summary>
+        public void EnterSetup()
+        {
+            NewMatch();
+            State = MatchState.Setup;
+            foreach (var p in players) p.ServeMode = false;
         }
 
         void Update()
@@ -126,8 +141,8 @@ namespace Sandspike.Core
                     }
                     break;
                 case MatchState.MatchOver:
-                    // "Press Jump to play again"
-                    if (humanBrain != null && humanBrain.isActiveAndEnabled && humanBrain.Jump.Down) NewMatch();
+                    // "Press Jump to play again": any human, same line-up
+                    if (PlayAgain != null && PlayAgain()) NewMatch();
                     break;
             }
         }
@@ -244,23 +259,37 @@ namespace Sandspike.Core
         void ApplyAutoPlay()
         {
             autoPlayApplied = autoPlayHuman;
-            PlayerController p = players[0];
-            if (autoPlayHuman)
+            ApplyBrains();
+        }
+
+        /// <summary>The bot brain of a slot (made on demand: only slots 1 to 3 have one in the scene).</summary>
+        public SimpleBotBrain BotFor(int slot)
+        {
+            if (bots[slot] == null)
             {
-                if (humanBot == null)
-                {
-                    humanBot = p.gameObject.AddComponent<SimpleBotBrain>();
-                    humanBot.Setup(this, p, ball);
-                    humanBot.SetDifficulty(difficulty);
-                }
-                humanBot.enabled = true;
-                if (humanBrain != null) humanBrain.enabled = false;
-                p.SetBrain(humanBot);
+                bots[slot] = players[slot].gameObject.AddComponent<SimpleBotBrain>();
+                bots[slot].Setup(this, players[slot], ball);
+                bots[slot].SetDifficulty(difficulty);
+                bots[slot].enabled = false;
             }
-            else
+            return bots[slot];
+        }
+
+        /// <summary>
+        /// Gives each slot the brain it should have: its human's HumanBrain, or a bot. autoPlayHuman puts a bot in slot 0 for watching a match.
+        /// A slot nobody has asked about (no human, no bot made yet) is left alone.
+        /// </summary>
+        public void ApplyBrains()
+        {
+            for (int i = 0; i < players.Length; i++)
             {
-                if (humanBot != null) humanBot.enabled = false;
-                if (humanBrain != null) { humanBrain.enabled = true; p.SetBrain(humanBrain); }
+                bool humanDrives = Humans[i] != null && !(i == 0 && autoPlayHuman);
+                SimpleBotBrain bot = (i == 0 && autoPlayHuman) ? BotFor(0) : bots[i];
+                IPlayerBrain want = humanDrives ? Humans[i] : bot;
+                if (want == null) continue;
+                if (Humans[i] != null) Humans[i].enabled = humanDrives;
+                if (bot != null) bot.enabled = !humanDrives;
+                players[i].SetBrain(want);
             }
         }
     }

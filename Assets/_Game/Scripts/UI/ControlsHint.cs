@@ -47,6 +47,9 @@ namespace Sandspike.UI
             }
         }
 
+        /// <summary>Whose hints these are (a clone made for one human).</summary>
+        public void Bind(HumanBrain b) { brain = b; Refresh(); }
+
         CanvasGroup group;
         PlayerController player;
         HintState state;
@@ -103,7 +106,7 @@ namespace Sandspike.UI
                 string name = action == PromptAction.Spike && stateKnown && state.blockAvailable ? "Block" : ControlPrompts.ActionName(action);
                 if (grey) sb.Append("<color=#").Append(muted).Append('>');
                 else sb.Append("<color=#").Append(keyColour).Append('>');
-                sb.Append("<b>").Append(ControlPrompts.Label(action, InputDevices.Style)).Append("</b></color>  ");
+                sb.Append("<b>").Append(ControlPrompts.Label(action, brain != null ? brain.Style : InputDevices.Style)).Append("</b></color>  ");
                 if (grey) sb.Append("<color=#").Append(muted).Append('>').Append(name).Append("</color>");
                 else sb.Append(name);
                 sb.AppendLine();

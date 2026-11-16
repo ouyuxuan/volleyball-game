@@ -19,7 +19,13 @@ namespace Sandspike.CameraRig
 
         static Sprite triangle;
 
-        void Awake()
+        /// <summary>Wires a clone made for one human (its rig, its camera and its own arrow).</summary>
+        public void Bind(BallController b, PlayerCameraRig r, Camera cam, RectTransform a) { ball = b; rig = r; viewCamera = cam; arrow = a; Setup(); }
+        public RectTransform Arrow => arrow;
+
+        void Awake() { Setup(); }
+
+        void Setup()
         {
             if (arrow == null) return;
             var image = arrow.GetComponent<Image>();

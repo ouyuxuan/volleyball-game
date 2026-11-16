@@ -21,6 +21,8 @@ namespace Sandspike.Players
         Mesh staminaMesh, chargeMesh;
         Material staminaMat, chargeMat;
 
+        public void Bind(PlayerController p) { player = p; }
+
         void Start()
         {
             var trackMat = MakeMaterial(Palette.UiBarEmpty);
@@ -33,6 +35,7 @@ namespace Sandspike.Players
             chargeMat = MakeMaterial(Palette.Accent);
             MakePart("Stamina Arc", staminaMesh, staminaMat, 0.004f);
             MakePart("Charge Arc", chargeMesh, chargeMat, 0.008f);
+            Sandspike.CameraRig.ViewLayers.ApplyToChildren(gameObject);   // shown only in the owner's viewport
         }
 
         /// <summary>An unlit URP material; 'transparent' lets the colour's alpha show (the burnout flicker, the serve preview).</summary>

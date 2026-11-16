@@ -14,6 +14,8 @@ namespace Sandspike.Players
         [SerializeField] float bobHz = 1.2f;
         [SerializeField] float spinDegreesPerSecond = 90f;
 
+        public void Bind(PlayerController p) { player = p; }
+
         void Start()
         {
             var mf = gameObject.GetComponent<MeshFilter>();

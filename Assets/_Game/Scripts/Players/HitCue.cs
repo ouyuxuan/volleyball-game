@@ -17,6 +17,13 @@ namespace Sandspike.Players
 
         public bool IsOn { get; private set; }
 
+        /// <summary>The human's own camera: the ring faces it, and only it shows the ring (layer).</summary>
+        public void Bind(Camera cam, int layer) { viewCamera = cam; ringLayer = layer; }
+        Camera viewCamera;
+        int ringLayer;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void ResetStatics() { glowing = 0; }
+        static int glowing;     // how many cues hold the ball's glow on: it is one shared ball, so the last cue to go off puts it out
+
         Renderer ballRenderer;
         Material ballMaterial;
         Color baseEmission;
@@ -48,6 +55,7 @@ namespace Sandspike.Players
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             r.receiveShadows = false;
             ring.transform.localScale = Vector3.one * player.ReachRadius;
+            ring.layer = ringLayer;
             ring.SetActive(false);
         }
 
@@ -59,22 +67,30 @@ namespace Sandspike.Players
             {
                 Vector3 p = player.ContactPointAt(type);
                 ring.transform.position = p;
-                Camera cam = Camera.main;
+                Camera cam = viewCamera != null ? viewCamera : Camera.main;
                 if (cam != null) ring.transform.up = (cam.transform.position - p).normalized;   // ring faces the viewer
             }
             if (on != IsOn)
             {
                 IsOn = on;
                 ring.SetActive(on);
-                if (ballMaterial != null) ballMaterial.SetColor("_EmissionColor", on ? Palette.HitCue * glowIntensity : baseEmission);
-                if (ballRenderer != null) ballRenderer.transform.localScale = baseScale * (on ? ballScaleWhenOn : 1f);
+                glowing += on ? 1 : -1;
+                if (on || glowing <= 0)
+                {
+                    if (ballMaterial != null) ballMaterial.SetColor("_EmissionColor", on ? Palette.HitCue * glowIntensity : baseEmission);
+                    if (ballRenderer != null) ballRenderer.transform.localScale = baseScale * (on ? ballScaleWhenOn : 1f);
+                }
             }
         }
 
         void OnDestroy()
         {
+            if (IsOn && --glowing <= 0)       // going away while lit: put the ball's glow out
+            {
+                if (ballMaterial != null) ballMaterial.SetColor("_EmissionColor", baseEmission);
+                if (ballRenderer != null) ballRenderer.transform.localScale = baseScale;
+            }
             if (ring != null) Destroy(ring);
-            if (ballMaterial != null) Destroy(ballMaterial);
         }
     }
 }

@@ -19,8 +19,6 @@ namespace Sandspike.UI
     {
         [Header("References")]
         [SerializeField] MatchManager match;
-        [SerializeField] PlayerCameraRig rig;
-        [SerializeField] GameObject crosshair;
 
         [Header("Score (top centre)")]
         [SerializeField] RectTransform scoreRoot;       // scaled for the score pop
@@ -68,7 +66,6 @@ namespace Sandspike.UI
             foreach (var pip in touchPips) if (pip != null) { pip.sprite = dot; pip.raycastTarget = false; }
             if (serveDotA != null) { serveDotA.sprite = dot; serveDotA.color = Palette.TeamA; }
             if (serveDotB != null) { serveDotB.sprite = dot; serveDotB.color = Palette.TeamB; }
-            MakeServePrompt();
         }
 
         // A soft-edged white-ish disc, drawn once, for the pips and the serving dot (tinted by Image.color).
@@ -90,6 +87,20 @@ namespace Sandspike.UI
             return circle;
         }
 
+        // The button name for every human's device, once each ("Space / A").
+        string Names(PromptAction action)
+        {
+            var names = new System.Collections.Generic.List<string>();
+            foreach (HumanBrain h in match.Humans)
+            {
+                if (h == null) continue;
+                string n = ControlPrompts.Label(action, h.Style);
+                if (!names.Contains(n)) names.Add(n);
+            }
+            if (names.Count == 0) names.Add(ControlPrompts.Label(action, InputDevices.Style));
+            return string.Join(" / ", names);
+        }
+
         static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c);
         static Color TeamColour(int team) => team == 0 ? Palette.TeamA : Palette.TeamB;
         static string TeamName(int team) => team == 0 ? "TEAM A" : "TEAM B";
@@ -107,61 +118,25 @@ namespace Sandspike.UI
             return wins ? lead : -1;
         }
 
-        // Who touched the ball last, in words (player 0 is the human).
-        static string ToucherName(int playerId) => playerId < 0 ? "" : playerId == 0 ? "You" : playerId == 1 ? "Teammate" : "Opponent";
+        // Who touched the ball last, in words. With one human (player 0) it is You / Teammate / Opponent; with more, Player N or Bot.
+        string ToucherName(int playerId)
+        {
+            if (playerId < 0) return "";
+            if (match.HumanCount > 1) return match.IsHumanSlot(playerId) ? $"Player {playerId + 1}" : "Bot";
+            return playerId == 0 ? "You" : playerId == 1 ? "Teammate" : "Opponent";
+        }
+
+        /// <summary>The font of the HUD's score text, for the other overlay texts built in code (join screen, serve prompts).</summary>
+        public TMP_FontAsset Font => scoreText != null ? scoreText.font : null;
 
         void Update()
         {
-            if (crosshair != null && rig != null && crosshair.activeSelf != rig.IsFirstPerson)
-                crosshair.SetActive(rig.IsFirstPerson);
             if (match == null || match.Rules == null) return;
 
             RulesEngine r = match.Rules;
             UpdateScore(r);
             UpdatePips(r);
             UpdateBanner(r);
-            UpdateServePrompt();
-        }
-
-        // ---- serve prompt (built in code, bottom centre): "Your serve: hold [Spike] to toss" / "Jump and hit!" ----
-
-        TMP_Text servePrompt;
-        string servePromptShown;
-
-        void MakeServePrompt()
-        {
-            Canvas canvas = GetComponentInParent<Canvas>();
-            if (canvas == null) return;
-            var go = new GameObject("Serve Prompt", typeof(RectTransform), typeof(TextMeshProUGUI));
-            go.transform.SetParent(canvas.transform, false);
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
-            rt.pivot = new Vector2(0.5f, 0f);
-            rt.anchoredPosition = new Vector2(0f, 150f);
-            rt.sizeDelta = new Vector2(1000f, 60f);
-            servePrompt = go.GetComponent<TextMeshProUGUI>();
-            if (scoreText != null) servePrompt.font = scoreText.font;
-            servePrompt.fontSize = 34f;
-            servePrompt.fontStyle = FontStyles.Bold;
-            servePrompt.characterSpacing = 2f;
-            servePrompt.outlineWidth = 0.2f;
-            servePrompt.outlineColor = (Color32)Palette.Shadow;
-            servePrompt.alignment = TextAlignmentOptions.Center;
-            servePrompt.color = Palette.CourtLines;
-            servePrompt.raycastTarget = false;
-            servePrompt.text = "";
-        }
-
-        void UpdateServePrompt()
-        {
-            if (servePrompt == null) return;
-            string text = "";
-            PlayerController server = match.State == MatchState.Serve ? match.Server : null;
-            if (server != null && server.Brain is HumanBrain)
-                text = server.Tossed
-                    ? "Jump and hit!"
-                    : $"Your serve: hold <color=#{Hex(Palette.Accent)}>{ControlPrompts.Label(PromptAction.Spike, InputDevices.Style)}</color> to toss   {Mathf.CeilToInt(match.ServeClockLeft)}";
-            if (text != servePromptShown) { servePromptShown = text; servePrompt.text = text; }
         }
 
         void UpdateScore(RulesEngine r)
@@ -222,7 +197,7 @@ namespace Sandspike.UI
                 int hi = Mathf.Max(r.Score[0], r.Score[1]), lo = Mathf.Min(r.Score[0], r.Score[1]);
                 overTitle.text = $"{TeamName(w)} wins {hi}{dash}{lo}";
                 overTitle.color = TeamColour(w);
-                overPrompt.text = $"Press <color=#{Hex(Palette.Accent)}>Jump</color> ({ControlPrompts.Label(PromptAction.Jump, InputDevices.Style)}) to play again";
+                overPrompt.text = $"Press <color=#{Hex(Palette.Accent)}>Jump</color> ({Names(PromptAction.Jump)}) to play again{'\n'}Hold <color=#{Hex(Palette.Accent)}>{Names(PromptAction.Pause)}</color> to change players";
             }
         }
     }
