@@ -416,6 +416,8 @@ banner says "match point" and never "set point"; there is no break point yet.
    drops slowly back on the attacker's side, 1–2 m from the net, and the attackers can save it. Pressing
    Spike while blocking, within about 0.15 s of the ball reaching the hands, is a stuff: fast and
    straight down toward the aim point. Today every block is the fast aimed kind, with no button.
+   If this is approved, two details go with it: a pressed block turns the blocker to face the aim
+   once, at the press; and the soft rebound scales with the attack's speed, not one fixed pop.
 5. **Show every player's spike charge on the ball,** opponents' included, so blockers can time their
    jump. Today only your own charge is shown, at your feet.
 
@@ -497,6 +499,10 @@ volume settings, scene transitions (craft floor: game-shell).
   player. Sets are new: a match is one set today.
 - **Pause menu:** resume, settings (audio, video, display), controllers (drop in or out), how to play,
   back to menu, exit game.
+- **Match options: feedback toggles.** Ball indicators (landing ring, trail, IN / OUT label) can be
+  turned off for players who want a harder read.
+- **Practice mode.** A solo court with the ball feeder (it already exists for testing): pick a drill
+  (receive, set, spike, block, serve) and the feeder sends that ball over and over. No score.
 - **How to Play** screen covering each touch, charging, the queue, dive and burnout, block, and
   the combo multiplier.
 
@@ -507,6 +513,12 @@ Windows, Web and macOS builds with `unity build`. Web-specific check via the `op
 **M8 — Done gate.** `craft-game-floors` visual scorecard: score six axes from captures, fix anything
 below 3, confirm zero console errors. Includes a **court clarity** check: lines, ball and players
 read clearly against the sand and props from both camera views.
+
+Also for M8, optional: **time-of-day variants** of the court (evening, night) made with lighting and
+sky colours only, picked on the match setup screen.
+
+Open test to add: a bot's dive target for a fast ball landing within 2 m of the net stays on its own
+side and within dive range.
 
 M0 through M3 is the core; I'd build those first and let you play before continuing.
 
