@@ -35,7 +35,8 @@ concept painting set the direction, and the game is still catching up to it.
 - **Floaty jump:** the jump launches fast and hangs near the top, so there's time to hit in the air.
 - **Bots:** Easy, Normal and Hard. Harder bots react faster, read your spikes, dive, block and aim
   for open sand.
-- **Scoring:** rally scoring to 11, 21 or 25, win by two.
+- **Scoring:** rally scoring to 11, 21 or 25, win by two. An optional point cap (15, 25 or 30) ends a deuce.
+- **Menus:** a title screen, a setup screen (choose players, difficulty, points and the point cap), pause (Esc, or Start / Options on a gamepad), a results screen, settings (music and effects volume, aim assist, fullscreen, saved between runs) and a How to Play screen. Every menu works with keyboard, gamepad or mouse.
 - **Two camera views:** in 3rd person you aim with the mouse cursor, and in 1st person with a crosshair.
 - **Controllers:** supported throughout. Button hints switch to PlayStation names on a DualShock or DualSense.
 
@@ -87,7 +88,7 @@ Inside the Unity Editor without that, it acts as a mouse and keyboard.
 1. Install [Git LFS](https://git-lfs.com) before cloning, because images and fonts are stored with LFS.
 2. Open the project folder in **Unity 6000.6.8f1**. It uses URP and the Input System, and both come
    with the project.
-3. Open `Assets/_Game/Scenes/Match.unity` and press **Play**.
+3. Open `Assets/_Game/Scenes/Match.unity` and press **Play**. The title screen comes first: Play opens the setup screen, where you choose players and match options.
 
 The EditMode tests run from **Window → General → Test Runner**.
 
@@ -104,5 +105,5 @@ The EditMode tests run from **Window → General → Test Runner**.
 
 Milestones 0 to 4 of the plan are done: court and cameras, hitting, rules and scoring, characters,
 movement, AI difficulties, blocking and local multiplayer (up to 4 humans, split-screen). The game also has sound effects (CC0 recordings plus a few synthesized in code) and a synthesized
-music loop. Next up are menus and polish.
-There is no difficulty menu yet: set `difficulty` on the Match Manager in the scene. Controllers (including the split-screen line-ups) have only been tested with virtual gamepads so far, not with a real DualSense or Steam Controller.
+music loop. Milestone 6 is half done: the title, setup, pause, settings, how to play and results screens are in. Still to come are rebinding, camera settings, practice mode and sets, then polish.
+Controllers (including the split-screen line-ups) and the menus have only been tested with virtual gamepads and queued keyboard events so far, not with a real DualSense, a Steam Controller or a real mouse.
