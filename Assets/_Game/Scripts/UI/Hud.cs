@@ -39,7 +39,7 @@ namespace Sandspike.UI
         [SerializeField] TMP_Text overPrompt;
 
         static Sprite circle;
-        int lastScoreA = -1, lastScoreB = -1;
+        int lastScoreA = -1, lastScoreB = -1, lastTarget = -1;
         float popLeft;
         string dash = "-";
 
@@ -87,20 +87,6 @@ namespace Sandspike.UI
             return circle;
         }
 
-        // The button name for every human's device, once each ("Space / A").
-        string Names(PromptAction action)
-        {
-            var names = new System.Collections.Generic.List<string>();
-            foreach (HumanBrain h in match.Humans)
-            {
-                if (h == null) continue;
-                string n = ControlPrompts.Label(action, h.Style);
-                if (!names.Contains(n)) names.Add(n);
-            }
-            if (names.Count == 0) names.Add(ControlPrompts.Label(action, InputDevices.Style));
-            return string.Join(" / ", names);
-        }
-
         static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c);
         static Color TeamColour(int team) => team == 0 ? Palette.TeamA : Palette.TeamB;
         static string TeamName(int team) => team == 0 ? "TEAM A" : "TEAM B";
@@ -142,10 +128,10 @@ namespace Sandspike.UI
         void UpdateScore(RulesEngine r)
         {
             int a = r.Score[0], b = r.Score[1];
-            if (a != lastScoreA || b != lastScoreB)
+            if (a != lastScoreA || b != lastScoreB || r.targetScore != lastTarget)   // a new match may have a different target
             {
                 if (a + b > 0 && a + b > lastScoreA + lastScoreB && lastScoreA >= 0) popLeft = popSeconds;   // a point was scored: pop
-                lastScoreA = a; lastScoreB = b;
+                lastScoreA = a; lastScoreB = b; lastTarget = r.targetScore;
                 scoreText.text = $"<color=#{Hex(Palette.TeamA)}>{a}</color> {dash} <color=#{Hex(Palette.TeamB)}>{b}</color>";
                 firstToText.text = $"First to {r.targetScore}";
             }
@@ -189,16 +175,8 @@ namespace Sandspike.UI
                 bannerReason.text = reason;
             }
 
-            bool over = match.State == MatchState.MatchOver;
-            if (overRoot != null && overRoot.activeSelf != over) overRoot.SetActive(over);
-            if (over)
-            {
-                int w = r.Winner;
-                int hi = Mathf.Max(r.Score[0], r.Score[1]), lo = Mathf.Min(r.Score[0], r.Score[1]);
-                overTitle.text = $"{TeamName(w)} wins {hi}{dash}{lo}";
-                overTitle.color = TeamColour(w);
-                overPrompt.text = $"Press <color=#{Hex(Palette.Accent)}>Jump</color> ({Names(PromptAction.Jump)}) to play again{'\n'}Hold <color=#{Hex(Palette.Accent)}>{Names(PromptAction.Pause)}</color> to change players";
-            }
+            // the match-over panel is gone: the Shell's Results screen shows the winner now
+            if (overRoot != null && overRoot.activeSelf) overRoot.SetActive(false);
         }
     }
 }

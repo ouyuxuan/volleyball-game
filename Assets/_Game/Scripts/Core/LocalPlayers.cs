@@ -21,8 +21,6 @@ namespace Sandspike.Core
     {
         public PlayerSlots Slots { get; } = new PlayerSlots();
 
-        const float HoldToLeave = 1f;      // seconds to hold Start / Esc at match over to return to the join screen
-
         MatchManager match;
         ViewTemplates templates;
         JoinScreen join;
@@ -30,8 +28,8 @@ namespace Sandspike.Core
         GameObject spareCamera;
         readonly Dictionary<int, int> stickDir = new Dictionary<int, int>();   // per gamepad: -1 / 0 / +1, so one stick push moves one slot
         Canvas hudCanvas;                  // the shared score HUD: hidden while the join screen is up
+        Shell shell;
         bool viewsBuilt, ready;
-        float holdTime;
 
         /// <summary>True while the scene has local-player support: the MatchManager then waits on the join screen before the first serve.</summary>
         public static bool Active { get; private set; }
@@ -71,29 +69,24 @@ namespace Sandspike.Core
             if (!ready)
             {
                 ready = true;
-                match.PlayAgain = AnyHumanPressedJump;
                 join = JoinScreen.Create(templates.font);
                 hudCanvas = FindFirstObjectByType<Hud>()?.GetComponent<Canvas>();
+                shell = Shell.Create(this, match, join, templates.font);
             }
 
-            if (hudCanvas != null) hudCanvas.enabled = match.State != MatchState.Setup;
+            ShellScreen now = shell.Flow.Current;
+            if (hudCanvas != null) hudCanvas.enabled = match.State != MatchState.Setup && now != ShellScreen.Settings && now != ShellScreen.HowTo && now != ShellScreen.Results;   // these screens show the score themselves or cover it
+            // Read before Tick, so the key that opened the Setup screen is not also read as a join / start press
+            bool joining = shell.Flow.Current == ShellScreen.Setup, slots = shell.SlotsFocused;
+            shell.Tick();
             if (match.State == MatchState.Setup)
             {
-                join.Show(true);
                 DropUnplugged();
-                TickJoin();
+                if (joining && shell.Flow.Current == ShellScreen.Setup) TickJoin(slots);
                 join.Refresh(Slots);
                 return;
             }
-            join.Show(false);
             if (!viewsBuilt) Apply();           // somebody started the match without the join screen (a test, a script)
-
-            if (match.State == MatchState.MatchOver)
-            {
-                holdTime = AnyHumanHoldingPause() ? holdTime + Time.unscaledDeltaTime : 0f;
-                if (holdTime >= HoldToLeave) ReturnToJoin();
-            }
-            else holdTime = 0f;
         }
 
         // ---------------- join screen input ----------------
@@ -107,11 +100,11 @@ namespace Sandspike.Core
             }
         }
 
-        void TickJoin()
+        void TickJoin(bool slotsFocused)
         {
             bool start = false;
             Keyboard kb = Keyboard.current;
-            if (kb != null)
+            if (kb != null && slotsFocused)
             {
                 int id = PlayerSlots.KeyboardId;
                 bool enter = kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame;
@@ -131,6 +124,7 @@ namespace Sandspike.Core
             foreach (Gamepad pad in Gamepad.all)
             {
                 int id = pad.deviceId;
+                if (!slotsFocused) { if (Slots.SlotOf(id) >= 0 && pad.startButton.wasPressedThisFrame) start = true; continue; }   // options row: only Start counts
                 if (Slots.SlotOf(id) < 0)
                 {
                     if (pad.buttonSouth.wasPressedThisFrame) Slots.Join(id);
@@ -151,11 +145,13 @@ namespace Sandspike.Core
 
         // ---------------- starting and leaving ----------------
 
-        /// <summary>Builds the views for the current line-up and starts the match.</summary>
+        /// <summary>Applies the Setup options, builds the views for the current line-up and starts the match.</summary>
         public void StartMatch()
         {
+            shell?.ApplyOptions();
             Apply();
             match.NewMatch();
+            shell?.MatchStarted();
         }
 
         // One brain and one view per human; every other slot is a bot.
@@ -218,27 +214,15 @@ namespace Sandspike.Core
             viewsBuilt = false;
         }
 
-        /// <summary>Match over, Start / Esc held for a second: back to the join screen with the same line-up.</summary>
-        void ReturnToJoin()
+        /// <summary>Back to the join screen with the same line-up (Results: Change Players or Title; Pause: Back to Title). The Shell picks the screen.</summary>
+        public void ReturnToJoin()
         {
-            holdTime = 0f;
             TearDown();
             match.ApplyBrains();
             match.EnterSetup();
         }
 
-        // ---------------- "press Jump to play again" and "hold Start" ----------------
-
-        bool AnyHumanPressedJump()
-        {
-            foreach (HumanBrain h in match.Humans) if (h != null && h.isActiveAndEnabled && h.Jump.Down) return true;
-            return false;
-        }
-
-        bool AnyHumanHoldingPause()
-        {
-            foreach (HumanBrain h in match.Humans) if (h != null && h.isActiveAndEnabled && h.Controls.Gameplay.Pause.IsPressed()) return true;
-            return false;
-        }
+        /// <summary>Results: Play Again with the same line-up and options.</summary>
+        public void PlayAgain() => match.NewMatch();
     }
 }

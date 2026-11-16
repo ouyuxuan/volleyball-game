@@ -34,28 +34,29 @@ namespace Sandspike.UI
 
             var s = go.AddComponent<JoinScreen>();
             s.root = go;
-            s.Box("Dim", go.transform, Palette.WithAlpha(Palette.Shadow, 0.6f), Vector2.zero, Vector2.zero, true);
-            s.Text("Title", go.transform, font, "CHOOSE PLAYERS", 72f, Palette.CourtLines, new Vector2(0f, 400f), new Vector2(1400f, 100f));
+            s.Group = go.AddComponent<CanvasGroup>();
+            Box("Dim", go.transform, Palette.WithAlpha(Palette.Shadow, 0.6f), Vector2.zero, Vector2.zero, true);
+            Text("Title", go.transform, font, "CHOOSE PLAYERS", 72f, Palette.CourtLines, new Vector2(0f, 400f), new Vector2(1400f, 100f));
 
             for (int team = 0; team < 2; team++)
             {
                 Color c = team == 0 ? Palette.TeamA : Palette.TeamB;
                 float x = team == 0 ? -450f : 450f;
-                s.Box($"Team {(char)('A' + team)} Panel", go.transform, Palette.WithAlpha(c, 0.35f), new Vector2(x, 40f), new Vector2(780f, 520f), false);
-                s.Text($"Team {(char)('A' + team)} Title", go.transform, font, $"TEAM {(char)('A' + team)}", 56f, Palette.CourtLines, new Vector2(x, 250f), new Vector2(700f, 80f));
+                Box($"Team {(char)('A' + team)} Panel", go.transform, Palette.WithAlpha(c, 0.35f), new Vector2(x, 90f), new Vector2(780f, 420f), false);
+                Text($"Team {(char)('A' + team)} Title", go.transform, font, $"TEAM {(char)('A' + team)}", 56f, Palette.CourtLines, new Vector2(x, 250f), new Vector2(700f, 80f));
                 for (int k = 0; k < 2; k++)
                 {
                     int slot = team * 2 + k;
-                    s.slotBack[slot] = s.Box($"Slot {slot}", go.transform, Palette.WithAlpha(Palette.Shadow, 0.7f), new Vector2(x, 100f - k * 150f), new Vector2(700f, 120f), false);
-                    s.slotText[slot] = s.Text($"Slot {slot} Text", go.transform, font, "Bot", 38f, Palette.UiMuted, new Vector2(x, 100f - k * 150f), new Vector2(660f, 100f));
+                    s.slotBack[slot] = Box($"Slot {slot}", go.transform, Palette.WithAlpha(Palette.Shadow, 0.7f), new Vector2(x, 100f - k * 150f), new Vector2(700f, 120f), false);
+                    s.slotText[slot] = Text($"Slot {slot} Text", go.transform, font, "Bot", 38f, Palette.UiMuted, new Vector2(x, 100f - k * 150f), new Vector2(660f, 100f));
                 }
             }
-            s.status = s.Text("Status", go.transform, font, "", 44f, Palette.Accent, new Vector2(0f, -300f), new Vector2(1600f, 70f));
-            s.hint = s.Text("Hint", go.transform, font, "", 30f, Palette.CourtLines, new Vector2(0f, -420f), new Vector2(1800f, 120f));
+            s.status = Text("Status", go.transform, font, "", 44f, Palette.Accent, new Vector2(0f, -300f), new Vector2(1600f, 70f));
+            s.hint = Text("Hint", go.transform, font, "", 30f, Palette.CourtLines, new Vector2(0f, -420f), new Vector2(1800f, 120f));
             return s;
         }
 
-        Image Box(string name, Transform parent, Color colour, Vector2 pos, Vector2 size, bool stretch)
+        public static Image Box(string name, Transform parent, Color colour, Vector2 pos, Vector2 size, bool stretch)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image));
             go.transform.SetParent(parent, false);
@@ -68,7 +69,7 @@ namespace Sandspike.UI
             return img;
         }
 
-        TMP_Text Text(string name, Transform parent, TMP_FontAsset font, string text, float size, Color colour, Vector2 pos, Vector2 box)
+        public static TMP_Text Text(string name, Transform parent, TMP_FontAsset font, string text, float size, Color colour, Vector2 pos, Vector2 box)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
             go.transform.SetParent(parent, false);
@@ -89,7 +90,9 @@ namespace Sandspike.UI
             return t;
         }
 
-        public void Show(bool on) { if (root.activeSelf != on) root.SetActive(on); }
+        /// <summary>The Shell fades this screen in and out through the group.</summary>
+        public GameObject Root => root;
+        public CanvasGroup Group { get; private set; }
 
         /// <summary>The device's name for the slot: "Keyboard + Mouse" or the gamepad's own name.</summary>
         public static string DeviceName(int deviceId)

@@ -14,7 +14,7 @@ namespace Sandspike.Audio
     /// </summary>
     public class AudioDirector : MonoBehaviour
     {
-        // shortcut: two volume fields instead of an AudioMixer; move to a mixer with MusicVol / SFXVol when the M6 settings screen is built
+        // The Settings screen (Shell) sliders drive these two fields; there is no AudioMixer.
         [Range(0f, 1f), Tooltip("Sound effects loudness, 0..1.")] public float sfxVolume = 0.8f;
         [Range(0f, 1f), Tooltip("Music loudness, 0..1.")] public float musicVolume = 0.25f;
 
