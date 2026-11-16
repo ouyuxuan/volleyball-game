@@ -62,7 +62,7 @@ namespace Sandspike.Ball
 
         void LateUpdate()
         {
-            bool show = ball != null && ball.IsInFlight;
+            bool show = ball != null && ball.IsInFlight && GameSettings.Current.LandingRing;
             meshRenderer.enabled = show;
             rimRenderer.enabled = show;
             if (!show) return;

@@ -145,5 +145,20 @@ namespace Sandspike.Tests
             Assert.AreEqual(80, a.EffectsPercent);
             Assert.IsTrue(a.AimAssist);
         }
+
+        [Test]
+        public void FeedbackToggles_DefaultOn_SaveLoadAndReset()
+        {
+            var s = new GameSettings();
+            Assert.IsTrue(s.LandingRing && s.BallTrail && s.InOutLabel);
+            s.LandingRing = false; s.InOutLabel = false;
+            var store = new MemoryStore();
+            s.Save(store);
+            var b = new GameSettings();
+            b.Load(store);
+            Assert.IsFalse(b.LandingRing); Assert.IsTrue(b.BallTrail); Assert.IsFalse(b.InOutLabel);
+            b.ResetToDefaults();
+            Assert.IsTrue(b.LandingRing && b.BallTrail && b.InOutLabel);
+        }
     }
 }

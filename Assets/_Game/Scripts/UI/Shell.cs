@@ -40,6 +40,7 @@ namespace Sandspike.UI
             public readonly List<Row> rows = new List<Row>();
             public int sel;
             public float nextY;
+            public float pitch = 100f, height = 84f;     // row spacing and row box height (the long Settings page packs them tighter)
         }
 
         const float FadePerSecond = 4f;      // alpha per second: a cross-fade takes 0.25 s
@@ -47,7 +48,7 @@ namespace Sandspike.UI
         static readonly int[] Points = { 11, 21, 25 };
 
         public ScreenFlow Flow { get; } = new ScreenFlow();
-        public GameSettings Settings { get; } = new GameSettings();
+        public GameSettings Settings => GameSettings.Current;
         /// <summary>True when the join slots (not the options row) have the focus on the Setup screen: LocalPlayers then reads the join buttons.</summary>
         public bool SlotsFocused => zone == 0;
 
@@ -107,11 +108,15 @@ namespace Sandspike.UI
             AddRow(confirm, ScreenFlow.ConfirmChoices[0], null, null, () => Flow.Back());                                 // No (the default)
             AddRow(confirm, ScreenFlow.ConfirmChoices[1], null, null, () => { Flow.Go(ShellScreen.Title); local.ReturnToJoin(); });   // Yes
 
-            var settings = NewPage(ShellScreen.Settings, "SETTINGS", 330f, 90f, Palette.CourtLines, 0.7f, 190f);
+            var settings = NewPage(ShellScreen.Settings, "SETTINGS", 420f, 80f, Palette.CourtLines, 0.7f, 320f);
+            settings.pitch = 72f; settings.height = 64f;
             AddRow(settings, "Music volume", () => Settings.MusicPercent + "%", d => { Settings.MusicPercent += d * GameSettings.Step; Save(); }, null, () => Settings.MusicPercent / 100f);
             AddRow(settings, "Effects volume", () => Settings.EffectsPercent + "%", d => { Settings.EffectsPercent += d * GameSettings.Step; Save(); }, null, () => Settings.EffectsPercent / 100f);
             AddRow(settings, "Aim assist for gamepads", () => OnOff(Settings.AimAssist), d => { Settings.AimAssist = !Settings.AimAssist; Save(); }, null);
             AddRow(settings, "Fullscreen", () => OnOff(Settings.Fullscreen), d => { Settings.Fullscreen = !Settings.Fullscreen; Save(); }, null);
+            AddRow(settings, "Landing ring", () => OnOff(Settings.LandingRing), d => { Settings.LandingRing = !Settings.LandingRing; Save(); }, null);
+            AddRow(settings, "Ball trail", () => OnOff(Settings.BallTrail), d => { Settings.BallTrail = !Settings.BallTrail; Save(); }, null);
+            AddRow(settings, "IN / OUT label", () => OnOff(Settings.InOutLabel), d => { Settings.InOutLabel = !Settings.InOutLabel; Save(); }, null);
             AddRow(settings, "Reset to defaults", null, null, () => { Settings.ResetToDefaults(); Save(); });
             AddRow(settings, "Back", null, null, () => Flow.Back());
 
@@ -170,20 +175,20 @@ namespace Sandspike.UI
         {
             var r = new Row { value = value, step = step, activate = activate, bar = bar };
             var pos = new Vector2(0f, p.nextY);
-            p.nextY -= 100f;
-            r.back = JoinScreen.Box("Row " + label, p.go.transform, Palette.Shadow, pos, new Vector2(900f, 84f), false);
+            p.nextY -= p.pitch;
+            r.back = JoinScreen.Box("Row " + label, p.go.transform, Palette.Shadow, pos, new Vector2(900f, p.height), false);
             r.rt = r.back.rectTransform;
             bool plain = value == null;
-            r.labelT = JoinScreen.Text("Label", r.back.transform, font, label, 38f, Palette.CourtLines, plain ? Vector2.zero : new Vector2(-150f, bar != null ? 8f : 0f), new Vector2(plain ? 860f : 540f, 70f));
+            r.labelT = JoinScreen.Text("Label", r.back.transform, font, label, 38f, Palette.CourtLines, plain ? Vector2.zero : new Vector2(-150f, bar != null ? p.height * 0.1f : 0f), new Vector2(plain ? 860f : 540f, p.height - 14f));
             r.labelT.alignment = plain ? TextAlignmentOptions.Center : TextAlignmentOptions.MidlineLeft;
             if (!plain)
             {
-                r.valueT = JoinScreen.Text("Value", r.back.transform, font, "", 38f, Palette.Accent, new Vector2(290f, bar != null ? 8f : 0f), new Vector2(260f, 70f));
+                r.valueT = JoinScreen.Text("Value", r.back.transform, font, "", 38f, Palette.Accent, new Vector2(290f, bar != null ? p.height * 0.1f : 0f), new Vector2(260f, p.height - 14f));
                 r.valueT.alignment = TextAlignmentOptions.MidlineRight;
             }
             if (bar != null)
             {
-                r.track = JoinScreen.Box("Track", r.back.transform, Palette.UiBarEmpty, new Vector2(0f, -32f), new Vector2(820f, 8f), false);
+                r.track = JoinScreen.Box("Track", r.back.transform, Palette.UiBarEmpty, new Vector2(0f, -(p.height / 2f - 10f)), new Vector2(820f, 8f), false);
                 r.fill = JoinScreen.Box("Fill", r.track.transform, Palette.Accent, new Vector2(-410f, 0f), new Vector2(0f, 8f), false);
                 r.fill.rectTransform.pivot = new Vector2(0f, 0.5f);
                 r.fill.rectTransform.anchoredPosition = new Vector2(-410f, 0f);

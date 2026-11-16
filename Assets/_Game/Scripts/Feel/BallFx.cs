@@ -65,7 +65,9 @@ namespace Sandspike.Feel
             // trail: only while flying; cleared at each new flight so it never draws a line across the court
             if (ball.LaunchCount != lastLaunch) { lastLaunch = ball.LaunchCount; trail.Clear(); }
             trailObject.transform.position = ball.Position;
-            trail.emitting = ball.IsInFlight;
+            bool trailOn = GameSettings.Current.BallTrail;
+            if (!trailOn && trail.emitting) trail.Clear();           // switched off mid-flight: drop what is drawn
+            trail.emitting = ball.IsInFlight && trailOn;
             trail.time = Mathf.Lerp(trailMinSeconds, trailMaxSeconds, Mathf.Clamp01(ball.Velocity.magnitude / fullSpeed));
             int team = match != null && match.Rules != null ? match.Rules.LastTouchTeam : -1;
             Color c = team == 0 ? Palette.TeamA : team == 1 ? Palette.TeamB : Palette.CourtLines;
@@ -83,7 +85,7 @@ namespace Sandspike.Feel
         // Rally balls only: a dropped toss is a serve fault, not a landing in play.
         void OnLanded(Vector3 spot)
         {
-            if (match == null || match.Rules == null || ball.LastHitType == HitType.Toss) return;
+            if (match == null || match.Rules == null || ball.LastHitType == HitType.Toss || !GameSettings.Current.InOutLabel) return;
             bool inside = match.Rules.IsInside(spot.x, spot.z);
             label.text = inside ? "IN" : "OUT";
             label.color = inside ? Palette.Sea : Palette.TeamA;
