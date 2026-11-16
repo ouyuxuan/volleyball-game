@@ -448,7 +448,23 @@ and start whistle play at the start of a match but do not hold up the first serv
 rustle is wired but never fired in the test matches. Volumes are two fields (`sfxVolume`, `musicVolume`) until the M6
 mixer replaces them.
 
-**M4 — Local multiplayer.** `PlayerJoinManager` (Input System `PlayerInputManager`) with split-screen,
+**M4 — Local multiplayer.**
+
+**M4 status: done.** Up to 4 humans, one device set each (keyboard + mouse is one set, each gamepad is one), bots in every other slot.
+Built: `LocalPlayers` (join screen, line-up, one `HumanBrain` and one `HumanView` per human), `PlayerSlots` (pure slot logic),
+`JoinScreen` (uGUI overlay, hints from `ControlPrompts`), `HumanView` (camera clone on its own Cinemachine channel, feedback objects on a
+layer per human so only that camera shows them, a screen-space-camera HUD canvas with hints, serve prompt, crosshair and ball arrow),
+`SplitScreen` (1 full, 2 halves, 3 or 4 quarters, spare quarter = wide view), `AimAssist` (pure; 60% pull within 1.5 m). A human on team B gets
+a turned-around 3rd person camera, controls and aim. 220 EditMode tests pass (206 before, 14 new, including two virtual gamepads driving two
+brains). In play mode with virtual gamepads: join, move between slots, leave, start, hold Start at match over to return to the join screen,
+stick and jump isolated per player, 1, 2 and 4 views, one AudioListener, 0 console errors. Single player (keyboard) is full screen and plays as before.
+**Not checked:** any real controller (DualSense, Steam Controller) or a real mouse in split-screen; frame rate (the unfocused Editor ran at
+about 2 fps in every layout, so only a CPU cost of about 3.7 ms per camera render could be measured: about 4, 7 and 15 ms for 1, 2 and 4 views); the
+20-point Normal all-bot match at timeScale 2 (at 2 fps the bots' serve timing breaks, every point became a serve fault, while a fine
+timestep showed serve, bump, set and spike all working; the 20-point run was not completed). Known limits: the ball glow of the hit cue and
+1st person hiding a player's model are shared by all views; a gamepad unplugged mid-match is not handled; no divider line between views.
+
+(Original plan text:) `PlayerJoinManager` (Input System `PlayerInputManager`) with split-screen,
 join-and-pick-side setup screen, AI fills empty slots; keyboard + mouse for one player, gamepads for
 the rest, right-stick aiming in both camera modes.
 - **Aim assist (gamepad option, on by default for gamepads).** The aim point eases toward sensible

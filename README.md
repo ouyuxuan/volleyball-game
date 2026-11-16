@@ -55,6 +55,33 @@ concept painting set the direction, and the game is still catching up to it.
 | Switch 1st / 3rd person | V | Right stick click |
 | Show / hide control hints | H | Select / Create |
 
+## Local multiplayer
+
+Up to four people can play, with bots filling the other slots. Press **Play** and a join screen shows two team
+panels with two slots each. Keyboard + mouse start in Team A's first slot.
+
+- **Join:** a gamepad presses A / Cross; the keyboard (if it left) presses Enter or Space.
+- **Move between free slots:** left stick, D-pad, or A / D. **Leave:** B / Circle or Backspace.
+- **Start:** any joined player presses Start / Options, or Enter on the keyboard. A match needs at least one human.
+- After a match, any human pressing Jump plays again with the same line-up. Hold Start / Esc for one second to return to the join screen.
+
+Keyboard + mouse count as one player; each gamepad is one player, and one person's input never moves another person's player.
+With exactly one human you can still switch between keyboard and gamepad mid-match.
+
+**Split-screen:** 1 human is full screen, 2 are side by side, 3 or 4 get a quarter each (with 3, the spare quarter shows a wide view
+of the court). Each person has their own 3rd / 1st person toggle, aim marker, foot ring, hit cue, charge ring, serve preview and control
+hints, shown only in their own view. The score, touch dots and point banner are drawn once across the whole screen.
+
+**Aim assist:** a gamepad player's aim is pulled 60% of the way to a sensible target when it is within 1.5 m of one: the deep corners
+or the middle of the two opponents for a spike or serve, and the spot near the net at your teammate's x for a set or a first-touch bump.
+It never applies to the mouse, and not while blocking. Turn it off per player with `aimAssist` on that player's `HumanBrain`.
+
+### Testing a Steam Controller
+
+The Steam Controller reaches the game through Steam Input, which presents it as a standard gamepad.
+Add the built game to Steam as a non-Steam game (or keep Steam running with a desktop gamepad layout) and it plays like any other pad.
+Inside the Unity Editor without that, it acts as a mouse and keyboard.
+
 ## Running it
 
 1. Install [Git LFS](https://git-lfs.com) before cloning, because images and fonts are stored with LFS.
@@ -75,8 +102,7 @@ The EditMode tests run from **Window → General → Test Runner**.
 
 ## Status
 
-Milestones 0 to 3 of the plan are done: court and cameras, hitting, rules and scoring, characters,
-movement, AI difficulties and blocking. The game also has sound effects (CC0 recordings plus a few synthesized in code) and a synthesized
-music loop. Next up are local multiplayer, then menus and polish.
-There is no difficulty menu yet: set `difficulty` on the Match Manager in the scene. Controllers are
-wired up but haven't been play-tested yet.
+Milestones 0 to 4 of the plan are done: court and cameras, hitting, rules and scoring, characters,
+movement, AI difficulties, blocking and local multiplayer (up to 4 humans, split-screen). The game also has sound effects (CC0 recordings plus a few synthesized in code) and a synthesized
+music loop. Next up are menus and polish.
+There is no difficulty menu yet: set `difficulty` on the Match Manager in the scene. Controllers (including the split-screen line-ups) have only been tested with virtual gamepads so far, not with a real DualSense or Steam Controller.
