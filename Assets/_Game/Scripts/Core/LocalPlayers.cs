@@ -61,6 +61,8 @@ namespace Sandspike.Core
             Slots.Join(PlayerSlots.KeyboardId);       // keyboard + mouse start in the first slot of team A
         }
 
+        void OnDestroy() { Active = false; }      // leaving play mode must not leave the next match waiting on a join screen
+
         void Update()
         {
             if (match == null) match = FindFirstObjectByType<MatchManager>();
