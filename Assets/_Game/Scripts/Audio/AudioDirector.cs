@@ -162,6 +162,7 @@ namespace Sandspike.Audio
 
         void OnPoint(int team, PointReason reason, bool viaNet)
         {
+            if (match.Practice) return;      // no whistle or crowd on the practice court
             bool fault = reason != PointReason.BallIn && reason != PointReason.BallOut;
             Later(0.4f, () =>
             {
@@ -184,9 +185,12 @@ namespace Sandspike.Audio
             if (match.State != MatchState.Setup && match.Rules != seenRules)       // a new match began: countdown, whistle, music
             {
                 seenRules = match.Rules;
-                for (int i = 0; i < 3; i++) Later(i, () => Play(countdown, 0.3f));
-                Later(2.5f, () => Play(whistleStart, 0.2f));
-                music.Play();
+                if (!match.Practice)       // practice makes new rules for every ball: no countdown (or music restart) for them
+                {
+                    for (int i = 0; i < 3; i++) Later(i, () => Play(countdown, 0.3f));
+                    Later(2.5f, () => Play(whistleStart, 0.2f));
+                    music.Play();
+                }
             }
 
             bool over = match.State == MatchState.MatchOver;

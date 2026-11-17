@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Sandspike.Controls;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,6 +14,7 @@ namespace Sandspike.UI
     {
         public int dx, dy;                     // -1 / 0 / +1: left-right and down-up (dy = -1 means down)
         public bool confirm, back, pause, esc;  // esc = the keyboard's Esc only
+        public int confirmDevice = PlayerSlots.KeyboardId;   // who pressed Confirm last: PlayerSlots.KeyboardId or a gamepad's device id (Practice starts for that device)
 
         readonly Dictionary<int, Vector2Int> stick = new Dictionary<int, Vector2Int>();   // last stick direction per gamepad
 
@@ -28,7 +30,7 @@ namespace Sandspike.UI
                 if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame) dx = 1;
                 if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame) dy = 1;
                 if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame) dy = -1;
-                if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame) confirm = true;
+                if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame) { confirm = true; confirmDevice = PlayerSlots.KeyboardId; }
                 if (kb.escapeKey.wasPressedThisFrame) esc = back = pause = true;
             }
 
@@ -42,7 +44,7 @@ namespace Sandspike.UI
                 if (pad.dpad.right.wasPressedThisFrame || (dir.x == 1 && before.x != 1)) dx = 1;
                 if (pad.dpad.up.wasPressedThisFrame || (dir.y == 1 && before.y != 1)) dy = 1;
                 if (pad.dpad.down.wasPressedThisFrame || (dir.y == -1 && before.y != -1)) dy = -1;
-                if (pad.buttonSouth.wasPressedThisFrame) confirm = true;
+                if (pad.buttonSouth.wasPressedThisFrame) { confirm = true; confirmDevice = pad.deviceId; }
                 if (pad.buttonEast.wasPressedThisFrame) back = true;
                 if (pad.startButton.wasPressedThisFrame) pause = true;
             }

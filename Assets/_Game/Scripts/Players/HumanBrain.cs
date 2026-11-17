@@ -99,7 +99,7 @@ namespace Sandspike.Players
             get
             {
                 Vector3 raw = RawAimPoint;
-                if (!aimAssist || !UsingGamepad || match == null || player == null || match.Rules == null) return raw;
+                if (!aimAssist || !UsingGamepad || match == null || player == null || match.Rules == null || match.Practice) return raw;   // no assist on an empty practice court
                 var c = new AssistCourt { halfWidth = match.HalfWidth, halfLength = match.HalfLength, side = player.CourtSide };
                 int other = player.Team == 0 ? 2 : 0;                      // the opponents are players 2, 3 (or 0, 1)
                 c.mate = match.Teammate(player).transform.position;

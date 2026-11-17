@@ -40,6 +40,7 @@ namespace Sandspike.Core
         [Header("Timing")]
         [SerializeField] float pointPauseSeconds = 1.5f;
         [SerializeField] float setBannerSeconds = 2f;    // the "Set 1: Team A" banner between sets
+        [SerializeField] float practiceFeedSeconds = 3f;   // practice: a new ball this long after the last one is dead
         [SerializeField] float serveBallLift = 0.15f; // the held ball floats this far above the server's hand
         [SerializeField] float serveClockSeconds = 15f; // the server must toss within this long, or it is a serve fault
 
@@ -141,7 +142,7 @@ namespace Sandspike.Core
             {
                 case MatchState.Serve:
                     HoldBall();
-                    if (!Server.Tossed)       // the serve clock runs until the toss
+                    if (!Practice && !Server.Tossed)       // the serve clock runs until the toss (not in practice)
                     {
                         ServeClockLeft = Mathf.Max(0f, ServeClockLeft - Time.deltaTime);
                         if (ServeClockLeft <= 0f) { Rules.ServeFault(); EndPoint(); }
@@ -151,7 +152,8 @@ namespace Sandspike.Core
                     stateTimer -= Time.deltaTime;
                     if (stateTimer <= 0f)
                     {
-                        if (!Rules.IsMatchOver) BeginServe();
+                        if (Practice) BeginPracticeBall();
+                        else if (!Rules.IsMatchOver) BeginServe();
                         else if (Sets.IsOver) State = MatchState.MatchOver;
                         else { StartSet(); BeginServe(); }     // the set ended but not the match: 0-0 again
                     }
@@ -161,6 +163,61 @@ namespace Sandspike.Core
                     if (PlayAgain != null && PlayAgain()) NewMatch();
                     break;
             }
+        }
+
+        // ---------------- practice ----------------
+        // A solo court: the one human, no bots, no score, no serve clock. State runs as usual (a fed ball is a Rally; a dead ball is PointScored, which only
+        // waits for the next ball). The Serve drill uses the normal Serve state and the toss serve.
+
+        public bool Practice { get; private set; }
+        public Drill PracticeDrill { get; private set; }
+
+        /// <summary>Starts practice (LocalPlayers has already built the one human's view): the other three players are put away.</summary>
+        public void StartPractice(Drill drill)
+        {
+            Practice = true;
+            Sets = new MatchSets(1, 0);
+            for (int i = 0; i < players.Length; i++) if (Humans[i] == null) players[i].gameObject.SetActive(false);
+            SetDrill(drill);
+        }
+
+        /// <summary>Practice is over (back to Title): everyone is brought back.</summary>
+        public void EndPractice()
+        {
+            Practice = false;
+            foreach (var p in players) p.gameObject.SetActive(true);
+        }
+
+        /// <summary>Switches drill: the player goes to the drill's spot and the first ball comes after a moment.</summary>
+        public void SetDrill(Drill drill)
+        {
+            PracticeDrill = drill;
+            Rules = new RulesEngine(targetScore, winBy, 3, halfWidth, halfLength, ball.Radius, 0, false);
+            foreach (var p in players) { p.ResetState(); p.ServeMode = false; }
+            if (!PracticeDrills.Feeds(drill)) { BeginServe(); return; }
+            for (int i = 0; i < players.Length; i++)
+            {
+                if (Humans[i] == null) continue;
+                players[i].TeleportTo(PracticeDrills.StartSpot(drill));
+                players[i].transform.rotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);   // face the net
+            }
+            ball.PlaceAt(new Vector3(0f, ball.Radius, 6f));
+            State = MatchState.PointScored;
+            stateTimer = 1.5f;
+        }
+
+        // The next practice ball: a fresh (scoreless) set of rules, then the serve toss or a fed ball aimed by where the player stands now.
+        void BeginPracticeBall()
+        {
+            Rules = new RulesEngine(targetScore, winBy, 3, halfWidth, halfLength, ball.Radius, 0, false);
+            if (!PracticeDrills.Feeds(PracticeDrill)) { BeginServe(); return; }
+            Rules.Serve(1);                          // the far side "hit" it
+            State = MatchState.Rally;
+            netTouched = false;
+            Vector3 me = Vector3.zero;
+            for (int i = 0; i < players.Length; i++) if (Humans[i] != null) me = players[i].transform.position;
+            DrillBall b = PracticeDrills.BallFor(PracticeDrill, me, UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f));
+            ball.Launch(b.start, b.target, b.flightTime, false, b.type);
         }
 
         // ---------------- serve ----------------
@@ -238,7 +295,7 @@ namespace Sandspike.Core
         void EndPoint()
         {
             State = MatchState.PointScored;
-            stateTimer = pointPauseSeconds;
+            stateTimer = Practice && PracticeDrill != Drill.Serve ? practiceFeedSeconds : pointPauseSeconds;
             if (Rules.IsMatchOver) { Sets.EndSet(Rules.Winner, Rules.Score[0], Rules.Score[1]); if (!Sets.IsOver) stateTimer = setBannerSeconds; }
             LastPointViaNet = netTouched && Rules.LastReason == PointReason.BallIn;
             PointCount++;

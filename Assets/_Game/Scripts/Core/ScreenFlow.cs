@@ -1,7 +1,7 @@
 namespace Sandspike.Core
 {
     /// <summary>The screens of the shell. Match = no menu is up (the match is on, or being set up behind a menu).</summary>
-    public enum ShellScreen { Title, Setup, Match, Pause, Confirm, Settings, HowTo, Results, Camera }
+    public enum ShellScreen { Title, Setup, Match, Pause, Confirm, Settings, HowTo, Results, Camera, PracticePause }
 
     /// <summary>
     /// Which menu screen is showing and where each one can go. Plain C# (no Unity objects), so it is easy to test.
@@ -23,11 +23,12 @@ namespace Sandspike.Core
         {
             switch (from)
             {
-                case ShellScreen.Title: return to == ShellScreen.Setup || to == ShellScreen.HowTo || to == ShellScreen.Settings;
+                case ShellScreen.Title: return to == ShellScreen.Setup || to == ShellScreen.HowTo || to == ShellScreen.Settings || to == ShellScreen.Match;   // Match: Practice starts straight from the Title
                 case ShellScreen.Setup: return to == ShellScreen.Title || to == ShellScreen.Match;
-                case ShellScreen.Match: return to == ShellScreen.Pause || to == ShellScreen.Results;   // Pause only during a match
+                case ShellScreen.Match: return to == ShellScreen.Pause || to == ShellScreen.PracticePause || to == ShellScreen.Results;   // Pause only during a match
                 case ShellScreen.Pause: return to == ShellScreen.Match || to == ShellScreen.Settings || to == ShellScreen.HowTo || to == ShellScreen.Confirm;
                 case ShellScreen.Confirm: return to == ShellScreen.Pause || to == ShellScreen.Title;
+                case ShellScreen.PracticePause: return to == ShellScreen.Match || to == ShellScreen.Settings || to == ShellScreen.HowTo || to == ShellScreen.Title;   // nothing to lose in practice: no "Are you sure?"
                 case ShellScreen.Results: return to == ShellScreen.Match || to == ShellScreen.Setup || to == ShellScreen.Title;
                 case ShellScreen.Settings: return to == ShellScreen.Camera;       // the Camera page opens from Settings
                 default: return false;      // Settings and How to Play only go Back
@@ -43,7 +44,7 @@ namespace Sandspike.Core
             return true;
         }
 
-        /// <summary>Esc / East: Setup -> Title, Pause -> Match (resume), Confirm -> Pause, Settings / How to Play -> where they were opened. False elsewhere.</summary>
+        /// <summary>Esc / East: Setup -> Title, Pause / PracticePause -> Match (resume), Confirm -> Pause, Settings / How to Play -> where they were opened. False elsewhere.</summary>
         public bool Back()
         {
             switch (Current)
@@ -53,6 +54,7 @@ namespace Sandspike.Core
                 case ShellScreen.Camera: Current = ShellScreen.Settings; return true;
                 case ShellScreen.Setup: return Go(ShellScreen.Title);
                 case ShellScreen.Pause: return Go(ShellScreen.Match);
+                case ShellScreen.PracticePause: return Go(ShellScreen.Match);
                 case ShellScreen.Confirm: return Go(ShellScreen.Pause);
                 default: return false;
             }

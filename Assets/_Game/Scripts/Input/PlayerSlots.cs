@@ -45,6 +45,14 @@ namespace Sandspike.Controls
         /// <summary>The difficulty the bot in this slot plays at: its own override, or the Setup option.</summary>
         public AIDifficulty DifficultyFor(int slot, AIDifficulty setupOption) => BotOverride(slot) ?? setupOption;
 
+        /// <summary>The owner of every slot, to put back later (practice borrows the slots for one player).</summary>
+        public int[] Snapshot() => (int[])owner.Clone();
+
+        public void Restore(int[] saved) { Array.Copy(saved, owner, Count); }
+
+        /// <summary>Empties every slot.</summary>
+        public void Clear() { for (int i = 0; i < Count; i++) owner[i] = Empty; }
+
         public bool Leave(int deviceId)
         {
             int s = SlotOf(deviceId);

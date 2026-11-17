@@ -215,5 +215,38 @@ namespace Sandspike.Tests
             Assert.IsTrue(f.Back()); Assert.AreEqual(ShellScreen.Title, f.Current, "Settings still returns to where it was opened");
             Assert.IsFalse(f.Go(ShellScreen.Camera), "only from Settings");
         }
+        // ---- practice ----
+
+        [Test]
+        public void Practice_StartsFromTheTitle_HasItsOwnPause_AndBackToTitleNeedsNoConfirm()
+        {
+            var f = new ScreenFlow();
+            Assert.IsTrue(f.Go(ShellScreen.Match), "Practice starts straight into the match screen");
+            Assert.IsFalse(f.Go(ShellScreen.Confirm), "no Are-you-sure on the way out");
+            Assert.IsTrue(f.Go(ShellScreen.PracticePause));
+            Assert.IsTrue(f.Back()); Assert.AreEqual(ShellScreen.Match, f.Current, "Back resumes");
+            f.Go(ShellScreen.PracticePause);
+            Assert.IsTrue(f.Go(ShellScreen.Settings));
+            Assert.IsTrue(f.Back()); Assert.AreEqual(ShellScreen.PracticePause, f.Current, "Settings returns to the practice pause");
+            Assert.IsTrue(f.Go(ShellScreen.HowTo));
+            Assert.IsTrue(f.Back()); Assert.AreEqual(ShellScreen.PracticePause, f.Current);
+            Assert.IsTrue(f.Go(ShellScreen.Title));
+        }
+
+        [Test]
+        public void SlotsCanBeBorrowedForPracticeAndPutBack()
+        {
+            var s = new Sandspike.Controls.PlayerSlots();
+            s.Join(Sandspike.Controls.PlayerSlots.KeyboardId); s.Join(7); s.Move(7, 1);
+            int[] saved = s.Snapshot();
+            s.Clear();
+            Assert.AreEqual(0, s.HumanCount);
+            s.Join(9);
+            Assert.AreEqual(0, s.SlotOf(9), "the practice player takes slot 0");
+            s.Restore(saved);
+            Assert.AreEqual(2, s.HumanCount);
+            Assert.AreEqual(0, s.SlotOf(Sandspike.Controls.PlayerSlots.KeyboardId));
+            Assert.AreEqual(2, s.SlotOf(7));
+        }
     }
 }

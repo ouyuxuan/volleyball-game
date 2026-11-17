@@ -96,6 +96,7 @@ namespace Sandspike.UI
 
             var title = NewPage(ShellScreen.Title, "SANDSPIKE", 300f, 190f, Palette.Accent, 0.35f, 80f);
             AddRow(title, "Play", null, null, () => Flow.Go(ShellScreen.Setup));
+            AddRow(title, "Practice", null, null, () => local.StartPractice(input.confirmDevice));     // a solo court for the device that pressed it
             AddRow(title, "How to Play", null, null, () => Flow.Go(ShellScreen.HowTo));
             AddRow(title, "Settings", null, null, () => Flow.Go(ShellScreen.Settings));
             AddRow(title, "Quit", null, null, Quit);
@@ -105,6 +106,14 @@ namespace Sandspike.UI
             AddRow(pause, "Settings", null, null, () => Flow.Go(ShellScreen.Settings));
             AddRow(pause, "How to Play", null, null, () => Flow.Go(ShellScreen.HowTo));
             AddRow(pause, "Back to Title", null, null, () => Flow.Go(ShellScreen.Confirm));
+
+            // Practice's pause menu: no "Are you sure?" (there is no match to lose)
+            var practice = NewPage(ShellScreen.PracticePause, "PRACTICE", 300f, 110f, Palette.CourtLines, 0.6f, 120f);
+            AddRow(practice, "Resume", null, null, () => Flow.Go(ShellScreen.Match));
+            AddRow(practice, "Drill", () => $"< {PracticeDrills.Names[(int)match.PracticeDrill]} >", d => match.SetDrill(PracticeDrills.Next(match.PracticeDrill, d)), null);
+            AddRow(practice, "Settings", null, null, () => Flow.Go(ShellScreen.Settings));
+            AddRow(practice, "How to Play", null, null, () => Flow.Go(ShellScreen.HowTo));
+            AddRow(practice, "Back to Title", null, null, () => { Flow.Go(ShellScreen.Title); local.ReturnToJoin(); });
 
             var confirm = NewPage(ShellScreen.Confirm, "BACK TO TITLE?", 280f, 100f, Palette.CourtLines, 0.7f, 20f);
             AddBody(confirm, "This ends the match. Are you sure?", 44f, 150f, 1200f, 80f, TextAlignmentOptions.Center);
@@ -250,7 +259,7 @@ namespace Sandspike.UI
             {
                 case ShellScreen.Match:
                     if (match.State == MatchState.MatchOver) Flow.Go(ShellScreen.Results);
-                    else if (input.pause && match.State != MatchState.Setup) Flow.Go(ShellScreen.Pause);
+                    else if (input.pause && match.State != MatchState.Setup) Flow.Go(match.Practice ? ShellScreen.PracticePause : ShellScreen.Pause);
                     break;
                 case ShellScreen.Setup: TickSetup(); break;
                 default: TickMenu(pages[cur]); break;
@@ -264,7 +273,7 @@ namespace Sandspike.UI
         void TickMenu(Page p)
         {
             ShellScreen cur = Flow.Current;
-            if (input.back || (cur == ShellScreen.Pause && input.pause)) { Flow.Back(); return; }
+            if (input.back || ((cur == ShellScreen.Pause || cur == ShellScreen.PracticePause) && input.pause)) { Flow.Back(); return; }
             if (cur == ShellScreen.HowTo) input.confirm &= p.sel == 1;     // only the Back line confirms; the page line turns with left / right
             int n = p.rows.Count;
             if (input.dy != 0) p.sel = (p.sel - input.dy + n) % n;
@@ -307,6 +316,7 @@ namespace Sandspike.UI
                 p.sel = i;
                 if (click)
                 {
+                    input.confirmDevice = PlayerSlots.KeyboardId;      // a mouse click counts as the keyboard + mouse
                     RectTransformUtility.ScreenPointToLocalPointInRectangle(r.rt, pos, null, out Vector2 lp);
                     float frac = (lp.x - r.rt.rect.xMin) / r.rt.rect.width;
                     if (r.activate != null) r.activate(); else r.step?.Invoke(frac < 0.5f ? -1 : 1);
@@ -326,7 +336,7 @@ namespace Sandspike.UI
             if (pages.TryGetValue(s, out Page p) && !fromSub) p.sel = 0;
             if (s == ShellScreen.Confirm) p.sel = ScreenFlow.ConfirmDefault;
             if (s == ShellScreen.Setup) { zone = 0; p.sel = 0; }
-            if (s == ShellScreen.Pause && prev == ShellScreen.Match) Freeze(true);
+            if ((s == ShellScreen.Pause || s == ShellScreen.PracticePause) && prev == ShellScreen.Match) Freeze(true);
             if (s == ShellScreen.Match || s == ShellScreen.Title || s == ShellScreen.Setup || s == ShellScreen.Results) Freeze(false);
             if (s == ShellScreen.HowTo) { howPage = 0; howStyle = InputDevices.Style; }
             if (s == ShellScreen.Results) ShowResults(p);

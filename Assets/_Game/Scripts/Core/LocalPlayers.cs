@@ -29,6 +29,7 @@ namespace Sandspike.Core
         readonly Dictionary<int, int> stickDir = new Dictionary<int, int>();   // per gamepad: -1 / 0 / +1, so one stick push moves one slot
         Canvas hudCanvas;                  // the shared score HUD: hidden while the join screen is up
         Shell shell;
+        int[] savedSlots;                  // the join line-up, kept while Practice borrows the slots
         bool viewsBuilt, ready;
 
         /// <summary>True while the scene has local-player support: the MatchManager then waits on the join screen before the first serve.</summary>
@@ -75,7 +76,7 @@ namespace Sandspike.Core
             }
 
             ShellScreen now = shell.Flow.Current;
-            if (hudCanvas != null) hudCanvas.enabled = match.State != MatchState.Setup && now != ShellScreen.Settings && now != ShellScreen.HowTo && now != ShellScreen.Camera && now != ShellScreen.Results;   // these screens show the score themselves or cover it
+            if (hudCanvas != null) hudCanvas.enabled = match.State != MatchState.Setup && now != ShellScreen.Settings && now != ShellScreen.HowTo && now != ShellScreen.Camera && now != ShellScreen.Results && !match.Practice;   // these screens show the score themselves or cover it
             // Read before Tick, so the key that opened the Setup screen is not also read as a join / start press
             bool joining = shell.Flow.Current == ShellScreen.Setup, slots = shell.SlotsFocused;
             shell.Tick();
@@ -155,6 +156,17 @@ namespace Sandspike.Core
             shell?.MatchStarted();
         }
 
+        /// <summary>Practice: a solo court for one device (the one that pressed Practice). The join line-up is kept and comes back at ReturnToJoin.</summary>
+        public void StartPractice(int deviceId)
+        {
+            savedSlots = Slots.Snapshot();
+            Slots.Clear();
+            Slots.Join(deviceId);                      // the first free slot: slot 0, team A
+            Apply();
+            match.StartPractice(Drill.Receive);
+            shell?.MatchStarted();
+        }
+
         // One brain and one view per human; every other slot is a bot.
         void Apply()
         {
@@ -218,6 +230,8 @@ namespace Sandspike.Core
         /// <summary>Back to the join screen with the same line-up (Results: Change Players or Title; Pause: Back to Title). The Shell picks the screen.</summary>
         public void ReturnToJoin()
         {
+            match.EndPractice();
+            if (savedSlots != null) { Slots.Restore(savedSlots); savedSlots = null; }
             TearDown();
             match.ApplyBrains();
             match.EnterSetup();
