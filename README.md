@@ -35,8 +35,11 @@ concept painting set the direction, and the game is still catching up to it.
 - **Floaty jump:** the jump launches fast and hangs near the top, so there's time to hit in the air.
 - **Bots:** Easy, Normal and Hard. Harder bots react faster, read your spikes, dive, block and aim
   for open sand.
-- **Scoring:** rally scoring to 11, 21 or 25, win by two. An optional point cap (15, 25 or 30) ends a deuce.
-- **Menus:** a title screen, a setup screen (choose players, difficulty, points and the point cap), pause (Esc, or Start / Options on a gamepad), a results screen, settings (music and effects volume, aim assist, fullscreen, saved between runs) and a How to Play screen. Every menu works with keyboard, gamepad or mouse.
+- **Scoring:** rally scoring to 11, 21 or 25, win by two. An optional point cap (15, 25 or 30) ends a deuce. A match is one set or best of 3 (the loser of a set serves first in the next).
+- **Menus:** a title screen (Play, Practice, How to Play, Settings, Quit), a setup screen (choose players, then difficulty, points, point cap and sets, plus a difficulty override for each bot), pause (Esc, or Start / Options on a gamepad), a results screen, settings (music and effects volume, aim assist, fullscreen, the landing ring, ball trail and IN / OUT label, camera, controls; saved between runs) and a How to Play screen. Every menu works with keyboard, gamepad or mouse.
+- **Practice:** a solo court with no score. Pause to pick a drill: Receive, Set, Spike, Block or Serve.
+- **Camera settings:** 3rd-person height, distance, field of view and shoulder (left, centre or right), in Settings.
+- **Rebinding:** Settings, Controls: pick a line, press the new key or button (Esc or Start cancels). A key already in use swaps with it. Keyboard and gamepad are saved separately, with a reset for each.
 - **Two camera views:** in 3rd person you aim with the mouse cursor, and in 1st person with a crosshair.
 - **Controllers:** supported throughout. Button hints switch to PlayStation names on a DualShock or DualSense.
 
@@ -55,6 +58,8 @@ concept painting set the direction, and the game is still catching up to it.
 | Block | Jump at the net | Jump at the net |
 | Switch 1st / 3rd person | V | Right stick click |
 | Show / hide control hints | H | Select / Create |
+
+This is the default layout; the Controls screen in Settings changes any of these (not Aim, the Move stick, or Pause).
 
 ## Local multiplayer
 
@@ -105,5 +110,5 @@ The EditMode tests run from **Window → General → Test Runner**.
 
 Milestones 0 to 4 of the plan are done: court and cameras, hitting, rules and scoring, characters,
 movement, AI difficulties, blocking and local multiplayer (up to 4 humans, split-screen). The game also has sound effects (CC0 recordings plus a few synthesized in code) and a synthesized
-music loop. Milestone 6 is half done: the title, setup, pause, settings, how to play and results screens are in. Still to come are rebinding, camera settings, practice mode and sets, then polish.
+music loop. Milestone 6 (the shell) is built apart from the AudioMixer and time-of-day variants: title, setup, pause, settings, camera, controls, how to play, results, practice, sets and per-bot difficulty are in.
 Controllers (including the split-screen line-ups) and the menus have only been tested with virtual gamepads and queued keyboard events so far, not with a real DualSense, a Steam Controller or a real mouse.

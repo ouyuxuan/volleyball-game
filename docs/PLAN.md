@@ -506,15 +506,28 @@ volume settings, scene transitions (craft floor: game-shell).
 - **How to Play** screen covering each touch, charging, the queue, dive and burnout, block, and
   the combo multiplier.
 
-**M6 status: first half done.** Built (all in the Match scene, in `UI/Shell.cs`, with `Core/ScreenFlow.cs` and `Core/GameSettings.cs`
+**M6 status: built, waiting for the owner's play check.** Built (all in the Match scene, in `UI/Shell.cs`, with `Core/ScreenFlow.cs` and `Core/GameSettings.cs`
 as plain tested code): title screen, setup screen (the join screen plus a row of difficulty, points and point cap), pause (Esc or
 Start / Options; Resume, Settings, How to Play, Back to Title with an "Are you sure?" that starts on No), results screen (Play Again,
 Change Players, Title), settings (music and effects volume, aim assist for gamepads, fullscreen, reset; saved with PlayerPrefs) and a
 three-page How to Play with button names for the device that opened it. The optional point cap is in `RulesEngine`. Screens cross-fade
 in 0.25 s and work with keyboard, gamepad and mouse. The Jump = play again and hold-Start shortcuts at match over were replaced by the
-Results buttons. The setup options row moves between boxes with Left / Right and changes the value with Confirm. **Remaining in M6:**
-rebinding, camera settings, practice mode, feedback toggles, sets, per-bot difficulty, time-of-day variants, an AudioMixer, and music on
-the title screen (the music still starts with the first match). **Not checked:** a real controller or a real mouse (virtual gamepads and
+Results buttons. The setup options row moves between boxes with Left / Right and changes the value with Confirm.
+**Second half, built:** feedback toggles (landing ring, ball trail, IN / OUT label; Settings); camera settings (height 3 to 7, distance 5 to 10,
+FOV 50 to 75, shoulder Left / Centre / Right; a Camera page under Settings, applied live to every human's rig, and the defaults are exactly the old
+view; the only bound that can bite is z = +-19.5 m, because the sand ends at 20 and a deep player with a long distance would go past it, so the offset
+shortens there); sets (Setup option "1 set" / "Best of 3", `Core/MatchSets.cs`; the loser of a set serves first in the next; the HUD shows sets won
+beside each score only for best of 3, the set banner runs 2 s, Results lists every set score); per-bot difficulty (four small BOT 1 to 4 boxes in a
+second options row on Setup, because the join slots have no cursor and Enter / A already join and start; Match / Easy / Normal / Hard, saved
+in `PlayerSlots`); practice (Title > Practice, one human on the pressing device, the other three players put away, no score or serve clock, HUD hidden;
+drills in `Core/PracticeDrills.cs`, picked from the practice pause menu; it runs on the normal MatchState values and a new `ShellScreen.PracticePause`;
+`BallFeeder` was left alone, `MatchManager` feeds the balls); rebindable controls (Settings > Controls, per device that opened it; the Input
+System's interactive rebinding, swap on conflict, reset with an "Are you sure?", one JSON of overrides saved through `ISettingsStore`, global per scheme;
+`Input/ControlBindings.cs`; hints and How to Play read the rebound names, while the menus and join screen keep the fixed buttons they read); music now plays
+from the title screen; the title's hint no longer says "Esc back".
+**Remaining in M6:** time-of-day variants (M8), an AudioMixer, stage select, team size and the deuce toggle (not asked for yet). **Not checked:**
+rebinding with a real gamepad (only queued keyboard events), PlayerPrefs saves across a restart of the built game, drills played by hand (they were stepped through and
+the geometry is tested, but the Block ball was not blocked by a real jump), practice with a gamepad, three or four humans with different bindings, a real controller or a real mouse (virtual gamepads and
 queued keyboard events only), the fullscreen setting outside the Editor, how the menus look at other resolutions or aspect ratios, and a whole all-bot match through the menus to the Results screen (the unfocused Editor runs at 3 fps, so a stepped run at a fixed 1/60 s ran 16 points, 9-7, with 0 console errors; the Results screen itself was reached by forcing the last point).
 
 **M7 — Saves and builds.** Cloud Save for settings and win/loss stats with a local fallback, one
