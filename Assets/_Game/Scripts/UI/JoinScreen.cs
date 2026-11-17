@@ -132,8 +132,8 @@ namespace Sandspike.UI
             string key = ColorUtility.ToHtmlStringRGB(Palette.Accent);
             string K(string s) => $"<color=#{key}>{s}</color>";
             hint.text =
-                $"Gamepad:  {K(ControlPrompts.Label(PromptAction.Jump, ps))} join   {K(ControlPrompts.Label(PromptAction.Move, ps))} / D-pad move   " +
-                $"{K(ControlPrompts.Label(PromptAction.Dive, ps))} leave   {K(ControlPrompts.Label(PromptAction.Pause, ps))} start\n" +
+                $"Gamepad:  {K(ControlPrompts.DefaultLabel(PromptAction.Jump, ps))} join   {K(ControlPrompts.DefaultLabel(PromptAction.Move, ps))} / D-pad move   " +
+                $"{K(ControlPrompts.DefaultLabel(PromptAction.Dive, ps))} leave   {K(ControlPrompts.DefaultLabel(PromptAction.Pause, ps))} start\n" +
                 $"Keyboard:  {K("Enter")} / {K("Space")} join   {K("A")} {K("D")} move   {K("Backspace")} leave   {K("Enter")} start";
         }
     }

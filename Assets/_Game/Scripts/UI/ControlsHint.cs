@@ -66,10 +66,11 @@ namespace Sandspike.UI
         void OnEnable()
         {
             InputDevices.Changed += Refresh;
+            ControlBindings.Changed += Refresh;      // a rebinding changes the button names
             Refresh();
         }
 
-        void OnDisable() { InputDevices.Changed -= Refresh; }
+        void OnDisable() { InputDevices.Changed -= Refresh; ControlBindings.Changed -= Refresh; }
 
         void Update()
         {

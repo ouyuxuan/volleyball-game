@@ -37,12 +37,16 @@ namespace Sandspike.Players
         void Awake()
         {
             Controls = new VolleyballControls();
+            ControlBindings.Apply(Controls);                 // the player's rebinding (global per scheme)
+            ControlBindings.Changed += Reapply;
             player = GetComponent<PlayerController>();
         }
 
         void OnEnable() { Controls.Gameplay.Enable(); }
         void OnDisable() { Controls.Gameplay.Disable(); }
-        void OnDestroy() { Controls?.Dispose(); }
+        void Reapply() => ControlBindings.Apply(Controls);
+
+        void OnDestroy() { ControlBindings.Changed -= Reapply; Controls?.Dispose(); }
 
         /// <summary>Connects the brain to its match and camera rig, and restricts it to the devices of 'scope' (pad = the gamepad for Scope.Pad).</summary>
         public void Bind(MatchManager m, PlayerCameraRig rig, DeviceScope scope, Gamepad pad)

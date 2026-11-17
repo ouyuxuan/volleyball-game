@@ -76,7 +76,7 @@ namespace Sandspike.Core
             }
 
             ShellScreen now = shell.Flow.Current;
-            if (hudCanvas != null) hudCanvas.enabled = match.State != MatchState.Setup && now != ShellScreen.Settings && now != ShellScreen.HowTo && now != ShellScreen.Camera && now != ShellScreen.Results && !match.Practice;   // these screens show the score themselves or cover it
+            if (hudCanvas != null) hudCanvas.enabled = match.State != MatchState.Setup && now != ShellScreen.Settings && now != ShellScreen.HowTo && now != ShellScreen.Camera && now != ShellScreen.Controls && now != ShellScreen.ConfirmReset && now != ShellScreen.Results && !match.Practice;   // these screens show the score themselves or cover it
             // Read before Tick, so the key that opened the Setup screen is not also read as a join / start press
             bool joining = shell.Flow.Current == ShellScreen.Setup, slots = shell.SlotsFocused;
             shell.Tick();

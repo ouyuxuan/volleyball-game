@@ -8,6 +8,7 @@ using Sandspike.Players;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.DualShock;
 using UnityEngine.UI;
 
 namespace Sandspike.UI
@@ -68,6 +69,12 @@ namespace Sandspike.UI
         int diff = 1, pts, sets, zone, howPage;
         bool cap, frozen;
         float savedScale = 1f;
+        // Controls screen: which scheme it edits, and the rebinding in progress (if any)
+        bool controlsPad;
+        PromptStyle controlsStyle;
+        InputActionRebindingExtensions.RebindingOperation rebind;
+        string listeningLabel;
+        int listenEndedFrame = -1;
 
         public static Shell Create(LocalPlayers local, MatchManager match, JoinScreen join, TMP_FontAsset font)
         {
@@ -90,6 +97,7 @@ namespace Sandspike.UI
         void Build()
         {
             Settings.Load(store);
+            ControlBindings.Load(store);
             ApplyFullscreen();
             diff = Mathf.Clamp((int)match.difficulty, 0, 2);
             pts = Mathf.Max(0, Array.IndexOf(Points, match.TargetScore));
@@ -130,6 +138,7 @@ namespace Sandspike.UI
             AddRow(settings, "Ball trail", () => OnOff(Settings.BallTrail), d => { Settings.BallTrail = !Settings.BallTrail; Save(); }, null);
             AddRow(settings, "IN / OUT label", () => OnOff(Settings.InOutLabel), d => { Settings.InOutLabel = !Settings.InOutLabel; Save(); }, null);
             AddRow(settings, "Camera", null, null, () => Flow.Go(ShellScreen.Camera));
+            AddRow(settings, "Controls", null, null, OpenControls);
             AddRow(settings, "Reset to defaults", null, null, () => { Settings.ResetToDefaults(); Save(); });
             AddRow(settings, "Back", null, null, () => Flow.Back());
 
@@ -139,6 +148,16 @@ namespace Sandspike.UI
             AddRow(camera, "Field of view", () => $"< {Settings.CameraFov:0} >", d => { Settings.CameraFov += d * 5f; Save(); }, null);
             AddRow(camera, "Shoulder", () => $"< {Shoulders[Settings.CameraShoulder + 1]} >", d => { Settings.CameraShoulder = (Settings.CameraShoulder + 1 + d + 3) % 3 - 1; Save(); }, null);
             AddRow(camera, "Back", null, null, () => Flow.Back());
+
+            // Controls: the lines are made when it opens (they depend on the device that opened it: keyboard + mouse, or a gamepad)
+            var controls = NewPage(ShellScreen.Controls, "CONTROLS", 440f, 70f, Palette.CourtLines, 0.8f, 330f);
+            controls.pitch = 52f; controls.height = 46f;
+            AddBody(controls, "Confirm on a line, then press the new key or button.   Esc / Start cancels.   A key already in use swaps places.", 26f, -420f, 1800f, 40f, TextAlignmentOptions.Center);
+
+            var reset = NewPage(ShellScreen.ConfirmReset, "RESET CONTROLS?", 280f, 100f, Palette.CourtLines, 0.8f, 20f);
+            AddBody(reset, "Every control of this device goes back to its default. Are you sure?", 44f, 150f, 1400f, 120f, TextAlignmentOptions.Center);
+            AddRow(reset, ScreenFlow.ConfirmChoices[0], null, null, () => Flow.Back());                                 // No (the default)
+            AddRow(reset, ScreenFlow.ConfirmChoices[1], null, null, () => { ControlBindings.ResetScheme(ControlScheme); ControlBindings.Save(store); Flow.Back(); });   // Yes
 
             var how = NewPage(ShellScreen.HowTo, HowToPlay.Titles[0], 410f, 64f, Palette.CourtLines, 0.8f, -300f);
             AddBody(how, "", 34f, 40f, 1500f, 620f, TextAlignmentOptions.TopLeft);
@@ -272,6 +291,7 @@ namespace Sandspike.UI
 
         void TickMenu(Page p)
         {
+            if (rebind != null || Time.frameCount == listenEndedFrame) return;     // listening for a new key: the menu waits (and the key that ends it is not also a menu press)
             ShellScreen cur = Flow.Current;
             if (input.back || ((cur == ShellScreen.Pause || cur == ShellScreen.PracticePause) && input.pause)) { Flow.Back(); return; }
             if (cur == ShellScreen.HowTo) input.confirm &= p.sel == 1;     // only the Back line confirms; the page line turns with left / right
@@ -332,9 +352,10 @@ namespace Sandspike.UI
         {
             ShellScreen prev = shown;
             shown = s;
-            bool fromSub = prev == ShellScreen.Settings || prev == ShellScreen.HowTo || prev == ShellScreen.Confirm || prev == ShellScreen.Camera;   // coming back: keep the highlighted line
+            bool fromSub = prev == ShellScreen.Settings || prev == ShellScreen.HowTo || prev == ShellScreen.Confirm || prev == ShellScreen.Camera || prev == ShellScreen.Controls || prev == ShellScreen.ConfirmReset;   // coming back: keep the highlighted line
             if (pages.TryGetValue(s, out Page p) && !fromSub) p.sel = 0;
-            if (s == ShellScreen.Confirm) p.sel = ScreenFlow.ConfirmDefault;
+            if (s == ShellScreen.Confirm || s == ShellScreen.ConfirmReset) p.sel = ScreenFlow.ConfirmDefault;
+            if (s == ShellScreen.Controls && prev != ShellScreen.ConfirmReset) RebuildControlRows();      // fresh lines each time it opens (not when coming back from the reset question)
             if (s == ShellScreen.Setup) { zone = 0; p.sel = 0; }
             if ((s == ShellScreen.Pause || s == ShellScreen.PracticePause) && prev == ShellScreen.Match) Freeze(true);
             if (s == ShellScreen.Match || s == ShellScreen.Title || s == ShellScreen.Setup || s == ShellScreen.Results) Freeze(false);
@@ -398,6 +419,68 @@ namespace Sandspike.UI
 #endif
         }
 
+        // ---------------- controls screen ----------------
+
+        string ControlScheme => controlsPad ? ControlBindings.Pad : ControlBindings.Keyboard;
+
+        // Opens the Controls screen for the device that pressed Confirm on the Settings line.
+        void OpenControls()
+        {
+            controlsPad = input.confirmDevice != PlayerSlots.KeyboardId;
+            controlsStyle = !controlsPad ? PromptStyle.KeyboardMouse : InputSystem.GetDeviceById(input.confirmDevice) is DualShockGamepad ? PromptStyle.PlayStation : PromptStyle.Xbox;
+            Flow.Go(ShellScreen.Controls);
+        }
+
+        // One line per rebindable action of the scheme, then Reset and Back.
+        void RebuildControlRows()
+        {
+            Page p = pages[ShellScreen.Controls];
+            foreach (Row r in p.rows) Destroy(r.back.gameObject);
+            p.rows.Clear();
+            p.nextY = 330f; p.sel = 0;
+            string scheme = ControlScheme;
+            p.titleT.text = controlsPad ? "CONTROLS: GAMEPAD" : "CONTROLS: KEYBOARD + MOUSE";
+            foreach (ControlBindings.Entry e in ControlBindings.EntriesFor(scheme))
+            {
+                ControlBindings.Entry entry = e;
+                AddRow(p, entry.label, () => listeningLabel == entry.label ? (controlsPad ? "Press button..." : "Press key...") : ControlBindings.PathName(ControlBindings.PathOf(entry, scheme), controlsStyle),
+                    null, () => StartListening(entry, scheme));
+            }
+            AddRow(p, "Reset to defaults", null, null, () => Flow.Go(ShellScreen.ConfirmReset));
+            AddRow(p, "Back", null, null, () => Flow.Back());
+        }
+
+        // The next key or button pressed becomes the binding (the Input System listens). Esc (keyboard) or Start (gamepad) cancels.
+        void StartListening(ControlBindings.Entry e, string scheme)
+        {
+            if (rebind != null) return;
+            InputAction action = ControlBindings.Shared.asset.FindAction(e.action);
+            int index = ControlBindings.IndexOf(action, scheme, e.part);
+            if (index < 0) return;
+            listeningLabel = e.label;
+            bool pad = scheme == ControlBindings.Pad;
+            var op = action.PerformInteractiveRebinding(index)
+                .WithControlsHavingToMatchPath(pad ? "<Gamepad>" : "<Keyboard>")
+                .WithControlsExcluding("<Keyboard>/anyKey").WithControlsExcluding("<Keyboard>/imeSelected")
+                .WithControlsExcluding("<Pointer>/press").WithControlsExcluding("<Mouse>/scroll/*")
+                .WithControlsExcluding("<Gamepad>/leftStick/*").WithControlsExcluding("<Gamepad>/rightStick/*")
+                .WithCancelingThrough(pad ? "<Gamepad>/start" : "<Keyboard>/escape")
+                .WithMagnitudeHavingToBeGreaterThan(0.5f)
+                .OnApplyBinding((o, path) => ControlBindings.Assign(e, scheme, path))      // sets it, and swaps with whoever had that key
+                .OnComplete(o => { StopListening(); ControlBindings.Save(store); })
+                .OnCancel(o => StopListening());
+            if (!pad) op.WithControlsHavingToMatchPath("<Mouse>");           // a mouse button can be a keyboard-scheme binding too
+            rebind = op.Start();
+        }
+
+        void StopListening()
+        {
+            rebind?.Dispose();
+            rebind = null;
+            listeningLabel = null;
+            listenEndedFrame = Time.frameCount;
+        }
+
         // ---------------- settings ----------------
 
         void Save() { Settings.Save(store); ApplyFullscreen(); }
@@ -421,7 +504,7 @@ namespace Sandspike.UI
             string K(string s) => $"<color=#{key}>{s}</color>";
             string text = hintStyle == PromptStyle.KeyboardMouse
                 ? $"{K("Arrows")} / {K("WASD")} choose      {K("Enter")} / {K("Space")} select      {K("Esc")} back"
-                : $"{K("D-pad")} / {K(ControlPrompts.Label(PromptAction.Move, hintStyle))} choose      {K(ControlPrompts.Label(PromptAction.Jump, hintStyle))} select      {K(ControlPrompts.Label(PromptAction.Dive, hintStyle))} back";
+                : $"{K("D-pad")} / {K(ControlPrompts.DefaultLabel(PromptAction.Move, hintStyle))} choose      {K(ControlPrompts.DefaultLabel(PromptAction.Jump, hintStyle))} select      {K(ControlPrompts.DefaultLabel(PromptAction.Dive, hintStyle))} back";
             foreach (Page p in pages.Values) if (p.hintT != null) p.hintT.text = text;
         }
 

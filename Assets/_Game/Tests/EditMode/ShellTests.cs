@@ -11,6 +11,9 @@ namespace Sandspike.Tests
         class MemoryStore : ISettingsStore
         {
             public readonly Dictionary<string, int> data = new Dictionary<string, int>();
+            public readonly Dictionary<string, string> text = new Dictionary<string, string>();
+            public string GetString(string key, string fallback) => text.TryGetValue(key, out string v) ? v : fallback;
+            public void SetString(string key, string value) => text[key] = value;
             public int Get(string key, int fallback) => data.TryGetValue(key, out int v) ? v : fallback;
             public void Set(string key, int value) => data[key] = value;
         }

@@ -8,12 +8,16 @@ namespace Sandspike.Core
     {
         int Get(string key, int fallback);
         void Set(string key, int value);
+        string GetString(string key, string fallback);
+        void SetString(string key, string value);
     }
 
     public class PlayerPrefsStore : ISettingsStore
     {
         public int Get(string key, int fallback) => PlayerPrefs.GetInt(key, fallback);
         public void Set(string key, int value) { PlayerPrefs.SetInt(key, value); PlayerPrefs.Save(); }
+        public string GetString(string key, string fallback) => PlayerPrefs.GetString(key, fallback);
+        public void SetString(string key, string value) { PlayerPrefs.SetString(key, value); PlayerPrefs.Save(); }
     }
 
     /// <summary>The player's settings: two volumes (0 to 100 %, steps of 5), aim assist and fullscreen. Plain C#, saved through an ISettingsStore.</summary>
