@@ -100,7 +100,7 @@ namespace Sandspike.Players
         [SerializeField] float tossDistanceMax = 2.5f;    // ...and at full charge
         [SerializeField] float jumpServeMaxSpeed = 22f;   // a jump serve is flattened (shorter flight) but never faster than this sideways-plus-forward speed (m/s)
 
-        [Header("Block (jump at the net with no hit button held)")]
+        [Header("Block (jump at the net and hold Bump while the other team has the ball)")]
         [SerializeField] BlockTuning block = new BlockTuning();
 
         [Header("Charge, stamina, hit numbers")]
@@ -205,20 +205,33 @@ namespace Sandspike.Players
 
         // ---------------- block state (read by the AI, the visual and the tests) ----------------
 
-        bool HoldingHit => spikeCharge.IsCharging || brain.Spike.Held || brain.Bump.Held || brain.Set.Held;
+        /// <summary>Which team touched the ball last (-1: nobody). The MatchManager fills it from the RulesEngine; tests set it by hand.</summary>
+        public Func<int> LastTouchTeam;
+
+        // Spike or Set held or winding up (a bump wind-up does not count: Bump is the block button, so it is dropped when the block begins).
+        bool HoldingSpikeOrSet => (spikeCharge.IsCharging && chargingType != HitType.Bump) || brain.Spike.Held || brain.Set.Held;
+
+        // The ball is flying and the other team touched it last (a teammate's set is never blocked).
+        bool OpponentsBall
+        {
+            get
+            {
+                int last = LastTouchTeam != null ? LastTouchTeam() : -1;
+                return ball != null && ball.IsInFlight && last >= 0 && last != Team;
+            }
+        }
 
         /// <summary>
-        /// Blocking = in the air within block.netDistance of the net, not diving, no hit button held and no hit queued.
-        /// (A server in serve mode is not blocking.)
+        /// Blocking = in the air within block.netDistance of the net, not diving, Bump held, Spike and Set not held, no hit queued,
+        /// and the other team has the ball. (A server in serve mode is not blocking.)
         /// </summary>
-        public bool IsBlocking => brain != null && !grounded && !diving && !ServeMode && !pending.active && !HoldingHit
-                                  && Mathf.Abs(transform.position.z) <= block.netDistance;
+        public bool IsBlocking => BlockAvailable && !grounded && brain.Bump.Held;
 
         /// <summary>
-        /// Would a jump (or the jump in progress) block right now? Same conditions as IsBlocking but ignoring whether the player is
-        /// on the ground: near the net, not diving, not serving, no hit held or queued. The control hints use it.
+        /// Would holding Bump block right now? Same conditions as IsBlocking but ignoring the Bump button and whether the player is
+        /// on the ground: near the net, the other team's ball, not diving, not serving, no Spike / Set held or queued. The control hints use it.
         /// </summary>
-        public bool BlockAvailable => brain != null && !diving && !ServeMode && !pending.active && !HoldingHit
+        public bool BlockAvailable => brain != null && !diving && !ServeMode && !pending.active && !HoldingSpikeOrSet && OpponentsBall
                                       && Mathf.Abs(transform.position.z) <= block.netDistance;
 
         /// <summary>Stamina needed to start a sprint (the control hints grey Sprint below it).</summary>
@@ -623,10 +636,12 @@ namespace Sandspike.Players
         void UpdateHits(float dt)
         {
             ButtonState spike = brain.Spike, bump = brain.Bump, set = brain.Set;
+            bool blocking = IsBlocking;   // Bump is the block button now: no bump charge starts, and one already running is dropped
+            if (blocking && spikeCharge.IsCharging && chargingType == HitType.Bump) spikeCharge.Cancel();
             if (!spikeCharge.IsCharging)
             {
                 if (spike.Down) { spikeCharge.Begin(); chargingType = HitType.Spike; }
-                else if (!ServeMode && bump.Down) { spikeCharge.Begin(); chargingType = HitType.Bump; }   // a server only has Spike
+                else if (!ServeMode && !blocking && bump.Down) { spikeCharge.Begin(); chargingType = HitType.Bump; }   // a server only has Spike
                 else if (!ServeMode && set.Down) { spikeCharge.Begin(); chargingType = HitType.Set; }
             }
             if (spikeCharge.IsCharging)

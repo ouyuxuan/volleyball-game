@@ -244,6 +244,9 @@ namespace Sandspike.Tests
             brain = new FakeBrain();
             Set(player, "brain", brain);
             player.TeleportTo(new Vector3(0f, 1f, -0.8f));   // 1 m up, 0.8 m from the net, on the -z side facing +z
+            player.LastTouchTeam = () => 1;                  // the other team has the ball...
+            brain.bump = new ButtonState(false, true, false);   // ...and Bump (the block button) is held
+            ball.Launch(new Vector3(0f, 3.5f, 4f), new Vector3(0f, 0f, -3f), 0.8f, false, HitType.Spike);
             player.Tick(Dt);
         }
 
@@ -255,11 +258,20 @@ namespace Sandspike.Tests
         }
 
         [Test]
-        public void IsBlocking_AirborneNearTheNet_NoHitHeld()
+        public void IsBlocking_AirborneNearTheNet_BumpHeld_OtherTeamHasTheBall()
         {
             MakePlayer();
             Assert.IsFalse(player.IsGrounded);
             Assert.IsTrue(player.IsBlocking);
+        }
+
+        [Test]
+        public void IsBlocking_FalseForAPlainJump_BumpNotHeld()
+        {
+            MakePlayer();
+            brain.bump = default;
+            Assert.IsFalse(player.IsBlocking);
+            Assert.IsTrue(player.BlockAvailable, "a block would be possible if Bump were held");
         }
 
         [Test]
@@ -285,13 +297,62 @@ namespace Sandspike.Tests
         }
 
         [Test]
-        public void IsBlocking_FalseWhileAHitButtonIsHeld()
+        public void IsBlocking_SpikeHeldNeverBlocks_EvenWithBumpHeld()
         {
             MakePlayer();
             brain.spike = new ButtonState(false, true, false);
             Assert.IsFalse(player.IsBlocking);
+            Assert.IsFalse(player.BlockAvailable);
             brain.spike = default;
             Assert.IsTrue(player.IsBlocking);
+        }
+
+        [Test]
+        public void IsBlocking_FalseForYourOwnTeamsBall_AndBumpThereStartsANormalBump()
+        {
+            MakePlayer();
+            player.LastTouchTeam = () => 0;                       // a teammate set it: this player is jumping to spike
+            Assert.IsFalse(player.IsBlocking);
+            Assert.IsFalse(player.BlockAvailable);
+            brain.bump = new ButtonState(true, true, false);
+            player.Tick(Dt);
+            Assert.IsTrue(player.SpikeCharge.IsCharging);
+            Assert.AreEqual(HitType.Bump, player.WindUpType);
+        }
+
+        [Test]
+        public void BumpHeldWhileBlocking_StartsNoCharge_AndReleasingItFiresNoHit()
+        {
+            MakePlayer();
+            ball.Launch(player.ContactPointAt(HitType.Bump), new Vector3(0f, 0f, -3f), 1f, false, HitType.Spike);   // right at the forearms
+            int launches = ball.LaunchCount, attempts = 0;
+            player.OnHitAttempt += _ => attempts++;
+            brain.bump = new ButtonState(true, true, false); player.Tick(Dt);
+            Assert.IsTrue(player.IsBlocking);
+            Assert.IsFalse(player.SpikeCharge.IsCharging, "Bump is the block button: no bump charge");
+            brain.bump = new ButtonState(false, false, true); player.Tick(Dt);
+            Assert.IsFalse(player.HasQueuedHit);
+            Assert.AreEqual(0, attempts);
+            Assert.AreEqual(launches, ball.LaunchCount);
+        }
+
+        [Test]
+        public void ABumpChargeStartedOnTheGround_IsDroppedWhenTheBlockBegins_AndFiresNothing()
+        {
+            MakePlayer();
+            ball.Launch(player.ContactPointAt(HitType.Bump), new Vector3(0f, 0f, -3f), 1f, false, HitType.Spike);
+            int launches = ball.LaunchCount, attempts = 0;
+            player.OnHitAttempt += _ => attempts++;
+            player.LastTouchTeam = () => 0;                       // own ball first: the bump wind-up starts
+            brain.bump = new ButtonState(true, true, false); player.Tick(Dt);
+            Assert.IsTrue(player.SpikeCharge.IsCharging);
+            player.LastTouchTeam = () => 1;                       // then the other team has it: the block begins
+            brain.bump = new ButtonState(false, true, false); player.Tick(Dt);
+            Assert.IsTrue(player.IsBlocking);
+            Assert.IsFalse(player.SpikeCharge.IsCharging);
+            brain.bump = new ButtonState(false, false, true); player.Tick(Dt);
+            Assert.AreEqual(0, attempts);
+            Assert.AreEqual(launches, ball.LaunchCount);
         }
 
         [Test]

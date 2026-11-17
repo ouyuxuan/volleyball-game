@@ -196,6 +196,7 @@ namespace Sandspike.Players
 
         // block (the net-side bot of the defending team jumps at an incoming spike)
         bool blockMode, blockJumped, blockRoll;
+        bool blockHold, blockAir;      // Bump (the block button) stays held from the block jump until the landing, even after blockMode ends
         int blockRollLaunch = -99;
 
         // serve
@@ -252,6 +253,13 @@ namespace Sandspike.Players
                 case MatchState.Serve: ServeLogic(); break;
                 case MatchState.Rally: RallyLogic(); break;
                 default: GoHome(); ClearPlan(); blockMode = false; break;
+            }
+            if (blockHold)
+            {
+                if (!me.IsGrounded) blockAir = true;
+                else if (blockAir) blockHold = blockAir = false;          // landed
+                if (match.State != MatchState.Rally || !ball.IsInFlight) blockHold = blockAir = false;
+                if (blockHold && blockAir) bump.want = true;
             }
             move *= profile.moveSpeedMultiplier;       // Easy runs slower
             jump.Step(); spike.Step(); bump.Step(); set.Step(); dive.Step();
@@ -645,11 +653,11 @@ namespace Sandspike.Players
                 // feet are low, so the jump starts right when the set ball reaches the attacker's hand height (the moment of contact).
                 float tContact = TimeAtHeight(spikeHandHeight - 0.2f);   // a moment after the attacker meets the ball (the hands start low)
                 if (!blockJumped && attacker != null && !float.IsNaN(tContact) && tContact <= 0.03f && d.magnitude < 1.2f)
-                { jump.want = true; blockJumped = true; Debug.Log($"[BlockPlan] p{me.PlayerId} jumps at x={me.transform.position.x:F1} z={me.transform.position.z:F1}"); }
+                { jump.want = true; blockJumped = blockHold = true; Debug.Log($"[BlockPlan] p{me.PlayerId} jumps at x={me.transform.position.x:F1} z={me.transform.position.z:F1}"); }
                 else if (tCross > 0f && !blockJumped)
                 {
                     float jumpIn = BotPlanner.BlockJumpIn(tCross, crossY, me.Block.handHeight, me.TapJumpHeight, me.Arc);
-                    if (jumpIn <= 0.02f) { jump.want = true; blockJumped = true; }
+                    if (jumpIn <= 0.02f) { jump.want = true; blockJumped = blockHold = true; }
                 }
             }
             else move = new Vector2(Mathf.Clamp((crossX - me.transform.position.x) / me.Block.strafe, -1f, 1f), 0f);   // strafe the hands

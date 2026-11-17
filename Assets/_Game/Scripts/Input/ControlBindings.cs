@@ -26,13 +26,13 @@ namespace Sandspike.Controls
         public static readonly Entry[] KeyboardEntries =
         {
             new Entry("Move up", "Move", "Up"), new Entry("Move down", "Move", "Down"), new Entry("Move left", "Move", "Left"), new Entry("Move right", "Move", "Right"),
-            new Entry("Jump", "Jump"), new Entry("Spike / toss serve", "Spike"), new Entry("Bump", "Bump"), new Entry("Set", "Set"),
+            new Entry("Jump", "Jump"), new Entry("Spike / toss serve", "Spike"), new Entry("Bump / block", "Bump"), new Entry("Set", "Set"),
             new Entry("Dive", "Dive"), new Entry("Sprint", "Sprint"), new Entry("1st / 3rd person", "ToggleView"), new Entry("Show / hide controls", "ToggleHints"),
         };
 
         public static readonly Entry[] PadEntries =
         {
-            new Entry("Jump", "Jump"), new Entry("Spike / toss serve", "Spike"), new Entry("Bump", "Bump"), new Entry("Set", "Set"),
+            new Entry("Jump", "Jump"), new Entry("Spike / toss serve", "Spike"), new Entry("Bump / block", "Bump"), new Entry("Set", "Set"),
             new Entry("Dive", "Dive"), new Entry("Sprint", "Sprint"), new Entry("1st / 3rd person", "ToggleView"), new Entry("Show / hide controls", "ToggleHints"),
         };
 

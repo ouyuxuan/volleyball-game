@@ -23,7 +23,7 @@ namespace Sandspike.UI
 
                 $"Move with {K(PromptAction.Move)}. Hold {K(PromptAction.Sprint)} to sprint. Sprinting uses stamina.\n\n" +
                 $"Dive with {K(PromptAction.Dive)} to reach a ball you cannot get to on foot. If you dive with too little stamina you burn out and move slowly for two seconds.\n\n" +
-                $"Block: jump with {K(PromptAction.Jump)} at the net while you are not holding a hit. The ball bounces back toward where you aim. A block counts as one of your three touches.\n\n" +
+                $"Block: jump at the net and hold {K(PromptAction.Bump)} while the other team has the ball. The ball bounces back toward where you aim. A block counts as one of your three touches.\n\n" +
                 $"Serve: hold {K(PromptAction.Spike)} to toss the ball up, then jump with {K(PromptAction.Jump)} and hit it. Toss within 15 seconds, and do not let the ball hit the sand.",
 
                 "Every rally scores a point, whoever served. The team that wins a rally from the other side serves next.\n\n" +

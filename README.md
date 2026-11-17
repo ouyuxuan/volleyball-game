@@ -9,7 +9,7 @@ scoring, three difficulty levels and blocking at the net.
 | | |
 |---|---|
 | ![A spike at the net, seen from the side](docs/captures/chars-closeup.png) | ![Blocking at the net](docs/captures/m3-block-pose.png) |
-| A bot goes up for a spike | Jump at the net with no hit held to block |
+| A bot goes up for a spike | Jump at the net and hold Bump to block |
 
 ## The look
 
@@ -29,7 +29,7 @@ concept painting set the direction, and the game is still catching up to it.
 - **Stamina:** charged jumps, hits, sprinting and dives use it up, and it refills over time.
 - **Sprint and dive:** sprint to cover the court, and dive for a ball you can't reach. A dive with too
   little stamina still happens, but leaves you slow and weak for two seconds.
-- **Blocking:** jump close to the net without holding a hit button and your arms go up as a block.
+- **Blocking:** jump close to the net and hold Bump while the other team has the ball, and your arms go up as a block (never against your own team's ball).
   Move left or right in the air to slide it.
 - **Toss serve:** hold Spike to toss the ball (a dotted arc and ring show where the toss will come down), then run under it, jump and hit it with Spike. Let the toss drop, or take longer than 15 seconds to toss, and it's a fault. A jump serve is flatter and faster the harder you charge the hit.
 - **Floaty jump:** the jump launches fast and hangs near the top, so there's time to hit in the air.
@@ -55,7 +55,7 @@ concept painting set the direction, and the game is still catching up to it.
 | Set (hold to wind up) | E | Y / Triangle |
 | Sprint | Left Ctrl | Left stick click |
 | Dive | Left Shift | B / Circle |
-| Block | Jump at the net | Jump at the net |
+| Block | Jump at the net, hold Bump (right click) | Jump at the net, hold Bump (X / Square) |
 | Switch 1st / 3rd person | V | Right stick click |
 | Show / hide control hints | H | Select / Create |
 

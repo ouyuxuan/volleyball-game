@@ -21,7 +21,7 @@ namespace Sandspike.UI
         static readonly PromptAction[] Lines =
         {
             PromptAction.Move, PromptAction.Aim, PromptAction.Jump, PromptAction.Spike,
-            PromptAction.Bump, PromptAction.Set, PromptAction.Dive, PromptAction.Sprint, PromptAction.Block, PromptAction.ToggleView, PromptAction.ToggleHints,
+            PromptAction.Bump, PromptAction.Set, PromptAction.Dive, PromptAction.Sprint, PromptAction.ToggleView, PromptAction.ToggleHints,
         };
 
         /// <summary>What the greying needs to know about the player (a plain struct, so the rules can be tested).</summary>
@@ -42,7 +42,6 @@ namespace Sandspike.UI
                 case PromptAction.Set: return s.serving || s.busy;
                 case PromptAction.Dive: return !s.grounded || s.serving || s.busy;
                 case PromptAction.Sprint: return !s.canSprint;
-                case PromptAction.Block: return !s.blockAvailable;
                 default: return false;
             }
         }
@@ -103,8 +102,8 @@ namespace Sandspike.UI
             foreach (var action in Lines)
             {
                 bool grey = stateKnown && Greyed(action, state);
-                // the Spike line reads "Block" while a jump at the net would block
-                string name = action == PromptAction.Spike && stateKnown && state.blockAvailable ? "Block" : ControlPrompts.ActionName(action);
+                // the Bump line reads "Block" while holding Bump would block
+                string name = action == PromptAction.Bump && stateKnown && state.blockAvailable ? "Block" : ControlPrompts.ActionName(action);
                 if (grey) sb.Append("<color=#").Append(muted).Append('>');
                 else sb.Append("<color=#").Append(keyColour).Append('>');
                 sb.Append("<b>").Append(ControlPrompts.Label(action, brain != null ? brain.Style : InputDevices.Style)).Append("</b></color>  ");

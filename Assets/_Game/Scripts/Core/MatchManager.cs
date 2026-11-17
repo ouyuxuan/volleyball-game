@@ -92,6 +92,7 @@ namespace Sandspike.Core
                 players[i].OnBlocked += OnBlocked;
                 PlayerController owner = players[i];
                 owner.TeamTouchCount = () => Rules != null ? Rules.TouchesFor(owner.Team) : 0;   // touches before this one
+                owner.LastTouchTeam = () => Rules != null ? Rules.LastTouchTeam : -1;            // who has the ball (only the other team's ball is blocked)
                 var bot = players[i].GetComponent<SimpleBotBrain>();
                 if (bot != null) { bot.Setup(this, players[i], ball); bots[i] = bot; }
             }

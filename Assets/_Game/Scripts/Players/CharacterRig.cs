@@ -143,7 +143,7 @@ namespace Sandspike.Players
             bool queued = player.HasQueuedHit;               // released early: hold the wind-up until the ball arrives
             bool hitPose = swinging || queued || player.WindingUp;
             bool diving = player.DiveAmount > 0.1f;
-            bool blocking = !hitPose && !diving && player.IsBlocking;   // in the air at the net with no hit held
+            bool blocking = !hitPose && !diving && player.IsBlocking;   // in the air at the net, Bump held, the other team's ball
             poseWeight = Mathf.MoveTowards(poseWeight, hitPose || diving || blocking ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, poseBlendSeconds));
 
             // Jump charge: the legs load up as the jump is held, and spring back in a tenth of a second on release.

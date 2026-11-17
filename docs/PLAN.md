@@ -40,7 +40,7 @@ Working title: **"Sandspike"** (easy to change).
 | Switch 3rd / 1st person | V | Right stick click |
 | Dive (M2) | Left Shift | B / Circle |
 | Sprint (hold, movement pass) | Left Ctrl | Left stick click |
-| Block (M3) | Jump near the net, no hit button held | same |
+| Block (M3) | Jump near the net, hold Bump (right click) | Jump near the net, hold Bump (X / Square) |
 | Pause | Esc | Start |
 
 **Aiming, two camera modes (toggle any time)**
@@ -286,8 +286,8 @@ feedback). EditMode tests for rules (touch limits, in/out, win by 2 at each matc
 **M3 — AI.** `AIBrain` for teammate and both opponents, using the same stamina/charge/timing rules;
 three difficulties. Result: a complete, winnable 2v2 match vs AI. This is the first fully playable
 build.
-- **Blocking (new, missing from the plan so far).** Jumping within about 1 m of the net with no
-  hit button held raises the hands into a block. A ball that hits the block rebounds off it. As in
+- **Blocking (new, missing from the plan so far).** Jumping within about 1 m of the net and holding Bump
+  while the other team has the ball raises the hands into a block. A ball that hits the block rebounds off it. As in
   beach volleyball, a block counts as one of the team's three touches. AI blocks on harder
   difficulties.
   - **The block zone is a shield, not a ball.** It's a flat, hand-wide zone in front of the raised
@@ -308,6 +308,7 @@ build.
 **M3 status: done.** The block has its own arm pose (both arms up in a V, leaning with the strafe; `CharacterRig`). `SimpleBotBrain` is now the real AI (`AIDifficulty`, `AIProfile.Table`,
 `MatchManager.difficulty`), with reaction delay, sprint, dives, aimed attacks, tips and bot blocking. Blocking works for humans and bots
 (`BlockShield`, `PlayerController.IsBlocking / BlockCenter / BlockNormal`, `HitType.Block`, a block is a touch but not a double-touch).
+After playtest: block moved to the Bump button (jump + Spike must never block), and your own team's ball never blocks (for example a teammate's set, where you jump to spike).
 The 1st-person crosshair was already a fixed screen size (nothing scales it), so no change was needed. 173 EditMode tests pass.
 Final profile table:
 
@@ -373,7 +374,7 @@ stay our own. The block and sound rows are the least certain and should be tuned
   serve view and the rally view.
 - **Jump cue for blockers:** the attacker's streak and a short rising sound mark the moment to jump.
 - **Context control hints:** grey out actions that can't be used now, and show "Block" in place of
-  "Spike" when a jump at the net would block.
+  "Spike" when a jump at the net would block (after the block move, the Bump line reads "Block").
 - **Landing ring shows urgency.** The ball's landing ring shifts from white through yellow and orange
   to red as the ball nears the sand, so the ring alone tells you how long you have.
 - **Touch counter.** Three small dots under the score fill as the team with the ball uses its touches.

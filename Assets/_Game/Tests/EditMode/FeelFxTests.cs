@@ -37,7 +37,7 @@ namespace Sandspike.Tests
         public void Hints_NothingIsGreyedOnTheGroundWithNothingGoingOn()
         {
             foreach (PromptAction a in System.Enum.GetValues(typeof(PromptAction)))
-                if (a != PromptAction.Block) Assert.IsFalse(ControlsHint.Greyed(a, Idle()), a.ToString());
+                Assert.IsFalse(ControlsHint.Greyed(a, Idle()), a.ToString());
         }
 
         [Test]
@@ -55,13 +55,10 @@ namespace Sandspike.Tests
         }
 
         [Test]
-        public void Hints_SprintIsGreyedWithoutStamina_BlockOnlyWhereABlockIsPossible()
+        public void Hints_SprintIsGreyedWithoutStamina()
         {
             var tired = Idle(); tired.canSprint = false;
             Assert.IsTrue(ControlsHint.Greyed(PromptAction.Sprint, tired));
-            Assert.IsTrue(ControlsHint.Greyed(PromptAction.Block, Idle()));
-            var net = Idle(); net.blockAvailable = true;
-            Assert.IsFalse(ControlsHint.Greyed(PromptAction.Block, net));
         }
 
         [Test]
