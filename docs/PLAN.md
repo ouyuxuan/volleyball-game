@@ -533,6 +533,7 @@ queued keyboard events only), the fullscreen setting outside the Editor, how the
 **M7 — Saves and builds.** Cloud Save for settings and win/loss stats with a local fallback, one
 Remote Config kill switch. No leaderboard for now (a vs-AI match has no score worth ranking). Then
 Windows, Web and macOS builds with `unity build`. Web-specific check via the `optimize-web` skill.
+*Status: built: local win/loss stats (played, won, lost; shown on Title and Results, reset in Settings; kept in PlayerPrefs), product name Sandspike, Match as the only build scene, and a Windows build from the menu Sandspike > Build Windows (Build/Windows). Remaining: Cloud Save, the Remote Config kill switch, Web and macOS builds (they need a build-target switch in the Editor). Not checked: the new menu lines by eye or with a real controller, Windows build on another PC or GPU.*
 
 **M8 — Done gate.** `craft-game-floors` visual scorecard: score six axes from captures, fix anything
 below 3, confirm zero console errors. Includes a **court clarity** check: lines, ball and players

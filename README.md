@@ -97,6 +97,12 @@ Inside the Unity Editor without that, it acts as a mouse and keyboard.
 
 The EditMode tests run from **Window → General → Test Runner**.
 
+## Build
+
+In the Editor choose **Sandspike → Build Windows**. It builds the scene ticked in Build Settings to
+`Build/Windows/Sandspike.exe` (the `Build/` folder is not committed) and logs the result and size in the Console.
+It takes about 3 minutes.
+
 ## Project layout
 
 - `Assets/_Game/`: all game code, scenes, prefabs and materials
