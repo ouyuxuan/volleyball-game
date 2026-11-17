@@ -27,6 +27,8 @@ namespace Sandspike.Core
         [Tooltip("On: the first to the cap (11 -> 15, 21 -> 25, 25 -> 30) wins even without a 2 point lead.")]
         [SerializeField] bool pointCap;
         [SerializeField] int firstServingTeam = 0;
+        [Tooltip("1 = a single set, 2 = best of 3 (first to 2 sets).")]
+        [SerializeField] int setsToWin = 1;
 
         [Header("Court (metres)")]
         [SerializeField] float halfWidth = 4f;
@@ -37,6 +39,7 @@ namespace Sandspike.Core
 
         [Header("Timing")]
         [SerializeField] float pointPauseSeconds = 1.5f;
+        [SerializeField] float setBannerSeconds = 2f;    // the "Set 1: Team A" banner between sets
         [SerializeField] float serveBallLift = 0.15f; // the held ball floats this far above the server's hand
         [SerializeField] float serveClockSeconds = 15f; // the server must toss within this long, or it is a serve fault
 
@@ -49,6 +52,8 @@ namespace Sandspike.Core
         public bool autoPlayHuman;
 
         public RulesEngine Rules { get; private set; }
+        /// <summary>The sets of this match (one set unless Best of 3 is on). Rules is the set being played.</summary>
+        public MatchSets Sets { get; private set; }
         public MatchState State { get; private set; }
         public PlayerController[] Players => players;
         /// <summary>The human brain of each slot, or null for a bot. LocalPlayers fills it, then calls ApplyBrains.</summary>
@@ -104,15 +109,19 @@ namespace Sandspike.Core
         }
 
         /// <summary>Match options from the setup screen; they take effect at the next NewMatch.</summary>
-        public void SetOptions(int target, bool cap) { targetScore = target; pointCap = cap; }
+        public void SetOptions(int target, bool cap, int setsToWin = 1) { targetScore = target; pointCap = cap; this.setsToWin = setsToWin; }
 
         /// <summary>Scores back to 0-0 and starts the first serve.</summary>
         public void NewMatch()
         {
-            Rules = new RulesEngine(targetScore, winBy, 3, halfWidth, halfLength, ball.Radius, firstServingTeam, pointCap);
+            Sets = new MatchSets(setsToWin, firstServingTeam);
+            StartSet();
             PointCount = 0;
             BeginServe();
         }
+
+        // A fresh score for the next set: same options, and the team that lost the last set serves first.
+        void StartSet() => Rules = new RulesEngine(targetScore, winBy, 3, halfWidth, halfLength, ball.Radius, Sets.NextServingTeam, pointCap);
 
         /// <summary>Back to 0-0 with everyone at their bases, but waiting for a human to start (the join screen).</summary>
         public void EnterSetup()
@@ -141,8 +150,9 @@ namespace Sandspike.Core
                     stateTimer -= Time.deltaTime;
                     if (stateTimer <= 0f)
                     {
-                        if (Rules.IsMatchOver) { State = MatchState.MatchOver; }
-                        else BeginServe();
+                        if (!Rules.IsMatchOver) BeginServe();
+                        else if (Sets.IsOver) State = MatchState.MatchOver;
+                        else { StartSet(); BeginServe(); }     // the set ended but not the match: 0-0 again
                     }
                     break;
                 case MatchState.MatchOver:
@@ -228,6 +238,7 @@ namespace Sandspike.Core
         {
             State = MatchState.PointScored;
             stateTimer = pointPauseSeconds;
+            if (Rules.IsMatchOver) { Sets.EndSet(Rules.Winner, Rules.Score[0], Rules.Score[1]); if (!Sets.IsOver) stateTimer = setBannerSeconds; }
             LastPointViaNet = netTouched && Rules.LastReason == PointReason.BallIn;
             PointCount++;
             foreach (var p in players) p.ServeMode = false;

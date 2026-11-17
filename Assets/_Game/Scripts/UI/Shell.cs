@@ -46,6 +46,7 @@ namespace Sandspike.UI
         const float FadePerSecond = 4f;      // alpha per second: a cross-fade takes 0.25 s
         static readonly string[] Levels = { "Easy", "Normal", "Hard" };
         static readonly int[] Points = { 11, 21, 25 };
+        static readonly string[] SetsChoices = { "1 set", "Best of 3" };
         static readonly string[] Shoulders = { "Left", "Centre", "Right" };
 
         public ScreenFlow Flow { get; } = new ScreenFlow();
@@ -63,7 +64,7 @@ namespace Sandspike.UI
         AudioDirector audio;
         ShellScreen shown = ShellScreen.Title;
         PromptStyle hintStyle = (PromptStyle)(-1), howStyle;
-        int diff = 1, pts, zone, howPage;
+        int diff = 1, pts, sets, zone, howPage;
         bool cap, frozen;
         float savedScale = 1f;
 
@@ -144,10 +145,11 @@ namespace Sandspike.UI
             // Setup: the join screen is its own canvas; this page only adds the row of match options under the team panels.
             var setup = NewPage(ShellScreen.Setup, "", 0f, 10f, Palette.CourtLines, 0f, 0f);
             AddBody(setup, "Down: match options    Left / Right: pick    Confirm: change    Up: back to the players    Esc: title", 26f, -250f, 1800f, 40f, TextAlignmentOptions.Center);
-            AddCell(setup, -660f, "DIFFICULTY", () => $"< {Levels[diff]} >", d => diff = (diff + d + Levels.Length) % Levels.Length);
-            AddCell(setup, -220f, "POINTS", () => $"< {Points[pts]} >", d => pts = (pts + d + Points.Length) % Points.Length);
-            AddCell(setup, 220f, "POINT CAP", () => $"< {(cap ? "On" : "Off")} >", d => cap = !cap);
-            AddCell(setup, 660f, "", null, null, () => Flow.Go(ShellScreen.Title)).labelT.text = "Back";
+            AddCell(setup, -760f, "DIFFICULTY", () => $"< {Levels[diff]} >", d => diff = (diff + d + Levels.Length) % Levels.Length);
+            AddCell(setup, -380f, "POINTS", () => $"< {Points[pts]} >", d => pts = (pts + d + Points.Length) % Points.Length);
+            AddCell(setup, 0f, "POINT CAP", () => $"< {(cap ? "On" : "Off")} >", d => cap = !cap);
+            AddCell(setup, 380f, "SETS", () => $"< {SetsChoices[sets]} >", d => sets = (sets + d + SetsChoices.Length) % SetsChoices.Length);
+            AddCell(setup, 760f, "", null, null, () => Flow.Go(ShellScreen.Title)).labelT.text = "Back";
 
             // the join screen fades like a page
             pages[ShellScreen.Setup].go.transform.SetAsLastSibling();
@@ -209,11 +211,11 @@ namespace Sandspike.UI
         Row AddCell(Page p, float x, string label, Func<string> value, Action<int> step, Action activate = null)
         {
             var r = new Row { value = value, step = step, activate = activate };
-            r.back = JoinScreen.Box("Cell " + label, p.go.transform, Palette.Shadow, new Vector2(x, -180f), new Vector2(420f, 80f), false);
+            r.back = JoinScreen.Box("Cell " + label, p.go.transform, Palette.Shadow, new Vector2(x, -180f), new Vector2(360f, 80f), false);
             r.rt = r.back.rectTransform;
             bool plain = value == null;
-            r.labelT = JoinScreen.Text("Label", r.back.transform, font, label, plain ? 38f : 24f, Palette.CourtLines, new Vector2(0f, plain ? 0f : 22f), new Vector2(400f, plain ? 70f : 34f));
-            if (!plain) r.valueT = JoinScreen.Text("Value", r.back.transform, font, "", 38f, Palette.Accent, new Vector2(0f, -12f), new Vector2(400f, 50f));
+            r.labelT = JoinScreen.Text("Label", r.back.transform, font, label, plain ? 38f : 24f, Palette.CourtLines, new Vector2(0f, plain ? 0f : 22f), new Vector2(340f, plain ? 70f : 34f));
+            if (!plain) r.valueT = JoinScreen.Text("Value", r.back.transform, font, "", 36f, Palette.Accent, new Vector2(0f, -12f), new Vector2(340f, 50f));
             p.rows.Add(r);
             return r;
         }
@@ -337,18 +339,25 @@ namespace Sandspike.UI
         void ShowResults(Page p)
         {
             RulesEngine r = match.Rules;
-            int w = r.Winner >= 0 ? r.Winner : r.LastPointWinner;
+            MatchSets ms = match.Sets;
+            int w = ms.IsBestOfThree ? ms.Winner : r.Winner >= 0 ? r.Winner : r.LastPointWinner;
             p.titleT.text = $"TEAM {(char)('A' + w)} WINS";
             p.titleT.color = w == 0 ? Palette.TeamA : Palette.TeamB;
             string a = ColorUtility.ToHtmlStringRGB(Palette.TeamA), b = ColorUtility.ToHtmlStringRGB(Palette.TeamB);
             p.bodyT.text = $"<color=#{a}>{r.Score[0]}</color>  -  <color=#{b}>{r.Score[1]}</color>";
+            if (ms.IsBestOfThree)      // sets won, then every set's score
+            {
+                var all = new System.Text.StringBuilder();
+                foreach (int[] s in ms.Scores) all.Append(all.Length > 0 ? "    " : "").Append($"{s[0]} - {s[1]}");
+                p.bodyT.text = $"<color=#{a}>{ms.SetsWon[0]}</color>  -  <color=#{b}>{ms.SetsWon[1]}</color>\n<size=45%>Sets: {all}</size>";
+            }
         }
 
         // Options reach the match when it starts (LocalPlayers.StartMatch).
         public void ApplyOptions()
         {
             match.difficulty = (AIDifficulty)diff;
-            match.SetOptions(Points[pts], cap);
+            match.SetOptions(Points[pts], cap, sets == 1 ? 2 : 1);
         }
 
         /// <summary>A match began (from the Setup screen, or from a script): the menus step aside.</summary>

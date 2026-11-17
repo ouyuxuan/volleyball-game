@@ -39,7 +39,7 @@ namespace Sandspike.UI
         [SerializeField] TMP_Text overPrompt;
 
         static Sprite circle;
-        int lastScoreA = -1, lastScoreB = -1, lastTarget = -1;
+        int lastScoreA = -1, lastScoreB = -1, lastTarget = -1, lastSetsKey = -1;
         float popLeft;
         string dash = "-";
 
@@ -128,12 +128,16 @@ namespace Sandspike.UI
         void UpdateScore(RulesEngine r)
         {
             int a = r.Score[0], b = r.Score[1];
-            if (a != lastScoreA || b != lastScoreB || r.targetScore != lastTarget)   // a new match may have a different target
+            MatchSets sets = match.Sets;
+            int setsKey = sets == null ? 0 : sets.setsToWin * 100 + sets.SetsWon[0] * 10 + sets.SetsWon[1];
+            if (a != lastScoreA || b != lastScoreB || r.targetScore != lastTarget || setsKey != lastSetsKey)   // a new match may have a different target
             {
                 if (a + b > 0 && a + b > lastScoreA + lastScoreB && lastScoreA >= 0) popLeft = popSeconds;   // a point was scored: pop
-                lastScoreA = a; lastScoreB = b; lastTarget = r.targetScore;
-                scoreText.text = $"<color=#{Hex(Palette.TeamA)}>{a}</color> {dash} <color=#{Hex(Palette.TeamB)}>{b}</color>";
-                firstToText.text = $"First to {r.targetScore}";
+                lastScoreA = a; lastScoreB = b; lastTarget = r.targetScore; lastSetsKey = setsKey;
+                bool bo3 = sets != null && sets.IsBestOfThree;     // best of 3: sets won are shown small beside each score
+                string wonA = bo3 ? $"<size=50%>({sets.SetsWon[0]})</size> " : "", wonB = bo3 ? $" <size=50%>({sets.SetsWon[1]})</size>" : "";
+                scoreText.text = $"<color=#{Hex(Palette.TeamA)}>{wonA}{a}</color> {dash} <color=#{Hex(Palette.TeamB)}>{b}{wonB}</color>";
+                firstToText.text = (bo3 ? $"Set {sets.Scores.Count + 1}  ·  " : "") + $"First to {r.targetScore}";
             }
             popLeft = Mathf.Max(0f, popLeft - Time.unscaledDeltaTime);
             float k = popSeconds > 0f ? 1f - popLeft / popSeconds : 1f;     // 0 at the start of the pop, 1 at its end
@@ -165,13 +169,14 @@ namespace Sandspike.UI
             if (point)
             {
                 int w = r.LastPointWinner;
-                bannerText.text = $"Point: {TeamName(w)}";
+                bool setOver = r.IsMatchOver && !match.Sets.IsOver;       // a set ended but not the match: "Set 1: TEAM A" for a moment
+                bannerText.text = setOver ? $"Set {match.Sets.Scores.Count}: {TeamName(w)}" : $"Point: {TeamName(w)}";
                 bannerText.color = TeamColour(w);
                 string reason = MatchManager.ReasonText(r.LastReason, match.LastPointViaNet);
                 string who = ToucherName(r.LastToucherId);
                 int mp = r.IsMatchOver ? -1 : MatchPointTeam(r.Score[0], r.Score[1], r.targetScore, r.winBy);
                 if (who != "") reason += (reason != "" ? "  ·  " : "") + "last touch: " + who;
-                if (mp >= 0) reason += (reason != "" ? "  ·  " : "") + $"{TeamName(mp)} match point";
+                if (mp >= 0) reason += (reason != "" ? "  ·  " : "") + $"{TeamName(mp)} {(match.Sets.IsBestOfThree && match.Sets.SetsWon[mp] + 1 < match.Sets.setsToWin ? "set point" : "match point")}";
                 bannerReason.text = reason;
             }
 
