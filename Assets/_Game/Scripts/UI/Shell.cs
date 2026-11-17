@@ -505,7 +505,11 @@ namespace Sandspike.UI
             string text = hintStyle == PromptStyle.KeyboardMouse
                 ? $"{K("Arrows")} / {K("WASD")} choose      {K("Enter")} / {K("Space")} select      {K("Esc")} back"
                 : $"{K("D-pad")} / {K(ControlPrompts.DefaultLabel(PromptAction.Move, hintStyle))} choose      {K(ControlPrompts.DefaultLabel(PromptAction.Jump, hintStyle))} select      {K(ControlPrompts.DefaultLabel(PromptAction.Dive, hintStyle))} back";
-            foreach (Page p in pages.Values) if (p.hintT != null) p.hintT.text = text;
+            // the Title has nothing to go back to, so its line leaves out "back"
+            string titleText = hintStyle == PromptStyle.KeyboardMouse
+                ? $"{K("Arrows")} / {K("WASD")} choose      {K("Enter")} / {K("Space")} select"
+                : $"{K("D-pad")} / {K(ControlPrompts.DefaultLabel(PromptAction.Move, hintStyle))} choose      {K(ControlPrompts.DefaultLabel(PromptAction.Jump, hintStyle))} select";
+            foreach (var kv in pages) if (kv.Value.hintT != null) kv.Value.hintT.text = kv.Key == ShellScreen.Title ? titleText : text;
         }
 
         void Draw()

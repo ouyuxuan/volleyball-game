@@ -133,6 +133,7 @@ namespace Sandspike.Audio
             ball = FindFirstObjectByType<BallController>();
             if (match == null || ball == null) { match = null; return; }
             match.OnPoint += OnPoint;
+            if (!music.isPlaying) music.Play();          // the music starts with the game (the title screen), not with the first match
             ball.OnGroundContact += _ => Play(sand, 0.14f);
             ball.OnNetTouch += _ => Play(net, 0.06f);
             foreach (PlayerController p in match.Players)
@@ -182,14 +183,13 @@ namespace Sandspike.Audio
 
             music.volume = musicVolume;
 
-            if (match.State != MatchState.Setup && match.Rules != seenRules)       // a new match began: countdown, whistle, music
+            if (match.State != MatchState.Setup && match.Rules != seenRules)       // a new match began: countdown, whistle
             {
                 seenRules = match.Rules;
                 if (!match.Practice)       // practice makes new rules for every ball: no countdown (or music restart) for them
                 {
                     for (int i = 0; i < 3; i++) Later(i, () => Play(countdown, 0.3f));
                     Later(2.5f, () => Play(whistleStart, 0.2f));
-                    music.Play();
                 }
             }
 
