@@ -1,5 +1,6 @@
 using Sandspike.Aim;
 using Sandspike.Controls;
+using Sandspike.Core;
 using Sandspike.Players;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -50,6 +51,7 @@ namespace Sandspike.CameraRig
         PlayerController player;
         bool jumped;                  // airborne after a real jump
         float tiltT;                  // 0..1, how far into the tilt (smooth-stepped when applied)
+        CinemachineFollow follow;     // the 3rd-person camera's offset, set from the camera settings
         Quaternion restRotation;      // the approved 3rd-person rotation, put back exactly when the tilt is over
 
         public ViewMode Mode { get; private set; }
@@ -81,6 +83,7 @@ namespace Sandspike.CameraRig
             SetMode(startMode, true);
 
             restRotation = thirdPersonCamera.transform.rotation;
+            follow = thirdPersonCamera.GetComponent<CinemachineFollow>();
             player = brain != null ? brain.GetComponent<PlayerController>() : null;
             if (player != null)
             {
@@ -92,6 +95,7 @@ namespace Sandspike.CameraRig
         void Update()
         {
             if (brain == null) return;
+            ApplyCameraSettings();
 
             if (brain.Controls.Gameplay.ToggleView.WasPressedThisFrame())
                 SetMode(IsFirstPerson ? ViewMode.ThirdPerson : ViewMode.FirstPerson, false);
@@ -119,6 +123,29 @@ namespace Sandspike.CameraRig
 
             UpdateCursor();
             UpdateJumpTilt(dt);
+        }
+
+        // The sand ends at z = +-20; the camera stays this far inside it (a camera past the edge would show the void).
+        // Camera bounds: within the slider ranges the only way out is a deep player (the back limit is 11 m) with a long distance (over 8.5 m); the offset shortens then.
+        // The side limit (9 m) plus the shoulder (1 m) stays far inside the sand's 30 m, and the height (7 m) clears everything, so only z needs a clamp.
+        public const float CameraLimitZ = 19.5f;
+
+        /// <summary>The 3rd-person camera's offset from the player: shoulder sideways (Left -1 / Centre 0 / Right +1, as seen from the camera), height, and distance behind (turned round on the far side), shortened so the camera stays inside the sand.</summary>
+        public static Vector3 FollowOffset(float height, float distance, int shoulder, float courtSide, float playerZ)
+        {
+            float behind = Mathf.Min(distance, CameraLimitZ - Mathf.Abs(playerZ));
+            return new Vector3(-courtSide * shoulder, height, courtSide * behind);
+        }
+
+        // Applies the camera settings (they may change from the menus at any time). Defaults give offset (0, 5, -7.5) and FOV 60, the approved view.
+        void ApplyCameraSettings()
+        {
+            if (follow == null) return;
+            GameSettings s = GameSettings.Current;
+            Vector3 o = FollowOffset(s.CameraHeight, s.CameraDistance, s.CameraShoulder, side, brain.transform.position.z);
+            if (follow.FollowOffset != o) follow.FollowOffset = o;
+            LensSettings lens = thirdPersonCamera.Lens;
+            if (!Mathf.Approximately(lens.FieldOfView, s.CameraFov)) { lens.FieldOfView = s.CameraFov; thirdPersonCamera.Lens = lens; }
         }
 
         // 3rd person only: while the human is airborne after a jump the camera tips up (and so looks higher), easing in and out,

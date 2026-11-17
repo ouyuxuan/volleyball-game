@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using Sandspike.CameraRig;
 using Sandspike.Core;
+using UnityEngine;
 
 namespace Sandspike.Tests
 {
@@ -159,6 +161,59 @@ namespace Sandspike.Tests
             Assert.IsFalse(b.LandingRing); Assert.IsTrue(b.BallTrail); Assert.IsFalse(b.InOutLabel);
             b.ResetToDefaults();
             Assert.IsTrue(b.LandingRing && b.BallTrail && b.InOutLabel);
+        }
+
+        // ---- camera settings ----
+
+        [Test]
+        public void CameraDefaults_GiveTodaysView_OnBothSides()
+        {
+            var s = new GameSettings();
+            Assert.AreEqual(new Vector3(0f, 5f, -7.5f), PlayerCameraRig.FollowOffset(s.CameraHeight, s.CameraDistance, s.CameraShoulder, -1f, -9f));
+            Assert.AreEqual(new Vector3(0f, 5f, 7.5f), PlayerCameraRig.FollowOffset(s.CameraHeight, s.CameraDistance, s.CameraShoulder, 1f, 9f));
+            Assert.AreEqual(60f, s.CameraFov);
+            Assert.AreEqual(new Vector3(0f, 5f, -7.5f), PlayerCameraRig.FollowOffset(5f, 7.5f, 0, -1f, -11f), "the deepest a player can stand still keeps the default view");
+        }
+
+        [Test]
+        public void CameraShoulder_IsLeftOrRightAsSeenFromTheCamera_OnBothSides()
+        {
+            Assert.AreEqual(-1f, PlayerCameraRig.FollowOffset(5f, 7.5f, -1, -1f, 0f).x);   // near side: left is -x
+            Assert.AreEqual(-1f, PlayerCameraRig.FollowOffset(5f, 7.5f, 1, 1f, 0f).x);     // far side: the view is turned round, so right is -x
+        }
+
+        [Test]
+        public void CameraBounds_ShortenTheDistanceNearTheBackOfTheSand()
+        {
+            Vector3 o = PlayerCameraRig.FollowOffset(5f, 10f, 0, -1f, -11f);
+            Assert.AreEqual(-11f + o.z, -PlayerCameraRig.CameraLimitZ, 0.001f);
+            Assert.AreEqual(10f, -PlayerCameraRig.FollowOffset(5f, 10f, 0, -1f, -4f).z, "no change when there is room");
+        }
+
+        [Test]
+        public void CameraSettings_ClampSnapSaveAndReset()
+        {
+            var s = new GameSettings { CameraHeight = 99f, CameraDistance = 1f, CameraFov = 62f, CameraShoulder = 5 };
+            Assert.AreEqual(7f, s.CameraHeight); Assert.AreEqual(5f, s.CameraDistance); Assert.AreEqual(60f, s.CameraFov); Assert.AreEqual(1, s.CameraShoulder);
+            s.CameraDistance = 8.5f; s.CameraShoulder = -1;
+            var store = new MemoryStore();
+            s.Save(store);
+            var b = new GameSettings();
+            b.Load(store);
+            Assert.AreEqual(7f, b.CameraHeight); Assert.AreEqual(8.5f, b.CameraDistance); Assert.AreEqual(-1, b.CameraShoulder);
+            b.ResetToDefaults();
+            Assert.AreEqual(5f, b.CameraHeight); Assert.AreEqual(7.5f, b.CameraDistance); Assert.AreEqual(0, b.CameraShoulder);
+        }
+
+        [Test]
+        public void CameraPage_OpensFromSettingsAndBacksOutToIt()
+        {
+            var f = new ScreenFlow();
+            f.Go(ShellScreen.Settings);
+            Assert.IsTrue(f.Go(ShellScreen.Camera));
+            Assert.IsTrue(f.Back()); Assert.AreEqual(ShellScreen.Settings, f.Current);
+            Assert.IsTrue(f.Back()); Assert.AreEqual(ShellScreen.Title, f.Current, "Settings still returns to where it was opened");
+            Assert.IsFalse(f.Go(ShellScreen.Camera), "only from Settings");
         }
     }
 }

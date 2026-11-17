@@ -46,6 +46,7 @@ namespace Sandspike.UI
         const float FadePerSecond = 4f;      // alpha per second: a cross-fade takes 0.25 s
         static readonly string[] Levels = { "Easy", "Normal", "Hard" };
         static readonly int[] Points = { 11, 21, 25 };
+        static readonly string[] Shoulders = { "Left", "Centre", "Right" };
 
         public ScreenFlow Flow { get; } = new ScreenFlow();
         public GameSettings Settings => GameSettings.Current;
@@ -117,8 +118,16 @@ namespace Sandspike.UI
             AddRow(settings, "Landing ring", () => OnOff(Settings.LandingRing), d => { Settings.LandingRing = !Settings.LandingRing; Save(); }, null);
             AddRow(settings, "Ball trail", () => OnOff(Settings.BallTrail), d => { Settings.BallTrail = !Settings.BallTrail; Save(); }, null);
             AddRow(settings, "IN / OUT label", () => OnOff(Settings.InOutLabel), d => { Settings.InOutLabel = !Settings.InOutLabel; Save(); }, null);
+            AddRow(settings, "Camera", null, null, () => Flow.Go(ShellScreen.Camera));
             AddRow(settings, "Reset to defaults", null, null, () => { Settings.ResetToDefaults(); Save(); });
             AddRow(settings, "Back", null, null, () => Flow.Back());
+
+            var camera = NewPage(ShellScreen.Camera, "CAMERA", 400f, 80f, Palette.CourtLines, 0.7f, 280f);
+            AddRow(camera, "Height", () => $"< {Settings.CameraHeight:0.0} m >", d => { Settings.CameraHeight += d * 0.5f; Save(); }, null);
+            AddRow(camera, "Distance", () => $"< {Settings.CameraDistance:0.0} m >", d => { Settings.CameraDistance += d * 0.5f; Save(); }, null);
+            AddRow(camera, "Field of view", () => $"< {Settings.CameraFov:0} >", d => { Settings.CameraFov += d * 5f; Save(); }, null);
+            AddRow(camera, "Shoulder", () => $"< {Shoulders[Settings.CameraShoulder + 1]} >", d => { Settings.CameraShoulder = (Settings.CameraShoulder + 1 + d + 3) % 3 - 1; Save(); }, null);
+            AddRow(camera, "Back", null, null, () => Flow.Back());
 
             var how = NewPage(ShellScreen.HowTo, HowToPlay.Titles[0], 410f, 64f, Palette.CourtLines, 0.8f, -300f);
             AddBody(how, "", 34f, 40f, 1500f, 620f, TextAlignmentOptions.TopLeft);
@@ -295,7 +304,7 @@ namespace Sandspike.UI
         {
             ShellScreen prev = shown;
             shown = s;
-            bool fromSub = prev == ShellScreen.Settings || prev == ShellScreen.HowTo || prev == ShellScreen.Confirm;   // coming back: keep the highlighted line
+            bool fromSub = prev == ShellScreen.Settings || prev == ShellScreen.HowTo || prev == ShellScreen.Confirm || prev == ShellScreen.Camera;   // coming back: keep the highlighted line
             if (pages.TryGetValue(s, out Page p) && !fromSub) p.sel = 0;
             if (s == ShellScreen.Confirm) p.sel = ScreenFlow.ConfirmDefault;
             if (s == ShellScreen.Setup) { zone = 0; p.sel = 0; }

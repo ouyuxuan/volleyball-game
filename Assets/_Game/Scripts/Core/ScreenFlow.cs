@@ -1,11 +1,11 @@
 namespace Sandspike.Core
 {
     /// <summary>The screens of the shell. Match = no menu is up (the match is on, or being set up behind a menu).</summary>
-    public enum ShellScreen { Title, Setup, Match, Pause, Confirm, Settings, HowTo, Results }
+    public enum ShellScreen { Title, Setup, Match, Pause, Confirm, Settings, HowTo, Results, Camera }
 
     /// <summary>
     /// Which menu screen is showing and where each one can go. Plain C# (no Unity objects), so it is easy to test.
-    /// Title -> Setup -> Match -> Results, Pause during a match, Settings and How to Play from Title or Pause.
+    /// Title -> Setup -> Match -> Results, Pause during a match, Settings and How to Play from Title or Pause (Camera from Settings).
     /// </summary>
     public class ScreenFlow
     {
@@ -29,6 +29,7 @@ namespace Sandspike.Core
                 case ShellScreen.Pause: return to == ShellScreen.Match || to == ShellScreen.Settings || to == ShellScreen.HowTo || to == ShellScreen.Confirm;
                 case ShellScreen.Confirm: return to == ShellScreen.Pause || to == ShellScreen.Title;
                 case ShellScreen.Results: return to == ShellScreen.Match || to == ShellScreen.Setup || to == ShellScreen.Title;
+                case ShellScreen.Settings: return to == ShellScreen.Camera;       // the Camera page opens from Settings
                 default: return false;      // Settings and How to Play only go Back
             }
         }
@@ -49,6 +50,7 @@ namespace Sandspike.Core
             {
                 case ShellScreen.Settings:
                 case ShellScreen.HowTo: Current = opener; return true;
+                case ShellScreen.Camera: Current = ShellScreen.Settings; return true;
                 case ShellScreen.Setup: return Go(ShellScreen.Title);
                 case ShellScreen.Pause: return Go(ShellScreen.Match);
                 case ShellScreen.Confirm: return Go(ShellScreen.Pause);
