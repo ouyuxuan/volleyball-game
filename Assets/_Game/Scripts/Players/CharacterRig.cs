@@ -225,7 +225,8 @@ namespace Sandspike.Players
         static Material Flat(Color c)
         {
             if (materialCache.TryGetValue(c, out var m) && m != null) return m;
-            m = new Material(GraphicsSettings.currentRenderPipeline.defaultMaterial) { name = "Character " + ColorUtility.ToHtmlStringRGB(c) };
+            // Shader.Find, not the pipeline's defaultMaterial: that one is null in a built player (Lit is in Always Included Shaders).
+            m = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name ="Character " + ColorUtility.ToHtmlStringRGB(c) };
             m.SetColor("_BaseColor", c);
             m.SetFloat("_Smoothness", 0.15f);
             materialCache[c] = m;
