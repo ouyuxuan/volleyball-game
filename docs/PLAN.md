@@ -315,13 +315,13 @@ Final profile table:
 | | Easy | Normal | Hard |
 |---|---|---|---|
 | Reaction delay (s, +-8% per ball) | 0.45 | 0.26 | 0.145 |
-| Spike read chance | 0.25 | 0.3 | 0.5 |
+| Spike read chance | 0.25 | 0.3 | 0.3 |
 | Move speed x | 0.85 | 1.0 | 1.0 |
 | Mistake chance (1.5 m off) | 0.25 | 0.12 | 0.05 |
 | Attack aim spread (m) | 1.2 | 0.7 | 0.3 |
 | Spike charge | 0.2-0.6 | 0.4-0.8 | 0.6-1.0 |
 | Sprint / dive | no / no | yes / if stamina >= 15 | yes / always |
-| Blocks | never | 40% | always |
+| Blocks | never | 32% | 65% |
 
 **Dig model (after M3).** A spike is in the air for only 0.3-0.45 s, so reaction delay alone made digging close to all-or-nothing.
 Each bot now rolls a *spike read chance* per ball. On a read, the back defender walks to where the hitter is aiming while the set is
@@ -337,7 +337,9 @@ Measure with the dig rate (spikes dug / spikes landing in court), not the rally 
 | Median hits per rally | 4 | 7 | 13 |
 | Target median | 3-6 | 5-9 | 7-14 |
 
-Still open: bot blocks are rare and seldom end a rally. Mistakes seldom go out (the targets sit 1 m inside the lines), so rallies
+Block pass: blockers aim the rebound at the spot farthest from both defenders, 1 to 1.5 m past the net, and misread where a spike crosses (`AIProfile.blockReadError` Normal 1.5 m, Hard 1.0 m); a bot covers a block rebound that comes back to its side only after `blockCoverDelay` (Easy 0.8, Normal 0.3, Hard 0.69 s). Measured in all-bot matches (about 45 points each): Normal blocks 13% of spikes in court, 57% of blocks end the rally (8 of 14), median 7 hits, longest 17, dig rate 57%. Hard blocks 41%, 30% of blocks end the rally (21 of 69), median 11, longest 40, dig rate 81% (Hard spike read chance lowered 0.5 to 0.3). Easy never blocks and is unchanged (median 4, longest 10, dig rate 21%).
+
+Still open: Mistakes seldom go out (the targets sit 1 m inside the lines), so rallies
 mostly end on an undug spike. These numbers are bot against bot at the same level, not against a human.
 
 **Feel pass (target feel set by the user, 2026-11-12; next pass, before M4).**

@@ -83,8 +83,9 @@ namespace Sandspike.Players
         /// readDelay; everything else gets the normal delay times this ball's jitter. A spike is in the air for only ~0.3-0.45 s, so
         /// the read chance decides how many spikes get dug, in a smooth, tunable way.
         /// </summary>
-        public static float ReactionFor(AIProfile p, bool isSpike, float readRoll, float jitter)
+        public static float ReactionFor(AIProfile p, bool isSpike, float readRoll, float jitter, bool blockRebound = false)
         {
+            if (blockRebound) return p.blockCoverDelay;   // a stuffed ball coming back at the blocked team: slow to pick up
             return isSpike && readRoll < p.spikeReadChance ? p.readDelay : p.reactionDelay * jitter;
         }
 
@@ -108,6 +109,28 @@ namespace Sandspike.Players
         {
             float h = Mathf.Clamp(ballHeight - handHeight, 0.05f, tapApex);       // how high the feet must be
             return timeToCross - arc.TimeToHeight(tapApex, h);   // minus the time the feet need to rise that high
+        }
+
+        /// <summary>How far off (sideways, metres) a blocker's guess of the crossing point is: 'roll' (0..1) maps to -maxError..+maxError.</summary>
+        public static float BlockReadError(float maxError, float roll) => (roll * 2f - 1f) * maxError;
+
+        /// <summary>
+        /// Where a blocker sends the rebound: 1 to 1.5 m past the net on the attackers' side ('blockerSide' is the blocker's z sign), in the
+        /// spot (along the line 1 m from the net, inside 3.5 m of the middle) farthest from both opposing players, so the dig is long.
+        /// 'jitter' (a point in the unit circle) times 'spread' is the aim error; the result stays inside the 3.5 m lanes.
+        /// </summary>
+        public static Vector3 BlockAim(float blockerSide, Vector3 opp1, Vector3 opp2, float spread, Vector2 jitter)
+        {
+            float depth0 = 1f * -blockerSide, bestX = 0f, best = -1f;
+            for (float cx = -3.5f; cx <= 3.5f; cx += 0.5f)
+            {
+                var c = new Vector2(cx, depth0);
+                float score = Mathf.Min((c - new Vector2(opp1.x, opp1.z)).magnitude, (c - new Vector2(opp2.x, opp2.z)).magnitude);
+                if (score > best) { best = score; bestX = cx; }
+            }
+            float x = Mathf.Clamp(bestX + jitter.x * spread, -3.5f, 3.5f);
+            float depth = Mathf.Clamp(1.1f + jitter.y * spread, 1f, 1.5f);
+            return new Vector3(x, 0f, -blockerSide * depth);
         }
     }
 
@@ -192,12 +215,15 @@ namespace Sandspike.Players
         int jitterLaunch = -1;
         float reactionJitter = 1f;     // this ball's reaction delay is the profile's times 0.92..1.08
         float readRoll = 1f;           // this ball's dice roll for reading a spike early
+        bool blockCover;                // the ball is a block rebound coming to my side
         bool covering;                 // standing where the hitter aims (see CoverAttack)
 
         // block (the net-side bot of the defending team jumps at an incoming spike)
         bool blockMode, blockJumped, blockRoll;
         bool blockHold, blockAir;      // Bump (the block button) stays held from the block jump until the landing, even after blockMode ends
         int blockRollLaunch = -99;
+        float blockReadOffset;         // this attack's sideways misread of the crossing point (metres)
+        Vector2 blockAimJitter;        // this attack's aim error for the rebound (a point in the unit circle)
 
         // serve
         float lastServeStart = -1f, serveHoldUntil;
@@ -259,7 +285,7 @@ namespace Sandspike.Players
                 if (!me.IsGrounded) blockAir = true;
                 else if (blockAir) blockHold = blockAir = false;          // landed
                 if (match.State != MatchState.Rally || !ball.IsInFlight) blockHold = blockAir = false;
-                if (blockHold && blockAir) bump.want = true;
+                if (blockHold && blockAir) { bump.want = true; aim = BlockAimSpot(); }   // keep steering the rebound until the landing
             }
             move *= profile.moveSpeedMultiplier;       // Easy runs slower
             jump.Step(); spike.Step(); bump.Step(); set.Step(); dive.Step();
@@ -332,7 +358,9 @@ namespace Sandspike.Players
             if (servePlan) ClearPlan();    // the serve was hit: forget its plan
             if (!ball.IsInFlight) { GoHome(); ClearPlan(); blockMode = false; return; }
             if (ball.LaunchCount != jitterLaunch) { jitterLaunch = ball.LaunchCount; reactionJitter = Random.Range(0.92f, 1.08f); readRoll = Random.value; }   // people are not clockwork
-            bool ready = gate.Ready(ball.LaunchCount, Time.time, BotPlanner.ReactionFor(profile, ball.LastHitType == HitType.Spike, readRoll, reactionJitter));   // false for the delay after a new hit
+            // a block that came back to my side (a soft block that stays on the blocker's side is a normal ball)
+            blockCover = ball.LastHitType == HitType.Block && ball.LandingPoint.z * me.CourtSide > 0f;
+            bool ready = gate.Ready(ball.LaunchCount, Time.time, BotPlanner.ReactionFor(profile, ball.LastHitType == HitType.Spike, readRoll, reactionJitter, blockCover));   // false for the delay after a new hit
             if (BlockLogic(ready)) return;
             if (!ready) { if (planValid) Execute(); else if (covering) move = Vector2.zero; else GoHome(); return; }   // (a covering defender holds its spot)              // still reacting: carry on with the old plan
             if (planLaunch != ball.LaunchCount && planLaunch >= 0) ClearPlan();   // someone hit the ball: start over
@@ -615,6 +643,8 @@ namespace Sandspike.Players
                 {
                     blockRollLaunch = ball.LaunchCount;
                     blockRoll = Random.value < profile.blockChance;
+                    blockReadOffset = BotPlanner.BlockReadError(profile.blockReadError, Random.value);
+                    blockAimJitter = Random.insideUnitCircle;
                 }
                 if (!blockRoll) return false;
                 blockMode = true; blockJumped = false;
@@ -637,13 +667,13 @@ namespace Sandspike.Players
                 else
                 {
                     float k = Mathf.Abs(a.transform.position.z) / (Mathf.Abs(a.transform.position.z) + Mathf.Abs(a.Brain.AimPoint.z) + 0.01f);
-                    crossX = Mathf.Lerp(a.transform.position.x, a.Brain.AimPoint.x, k);   // the line from the attacker to their aim, at the net
+                    crossX = Mathf.Lerp(a.transform.position.x, a.Brain.AimPoint.x, k) + blockReadOffset;   // the line from the attacker to their aim, at the net, misread a bit
                 }
             }
             crossX = Mathf.Clamp(crossX, -match.HalfWidth, match.HalfWidth);
 
             Vector3 stand = new Vector3(crossX, 0f, side * blockStandDistance);
-            aim = new Vector3(crossX, 0f, -side * 4f);                      // face the net
+            aim = BlockAimSpot();                                           // face the net and steer the rebound
             if (me.IsGrounded)
             {
                 move = Toward(stand);
@@ -662,6 +692,16 @@ namespace Sandspike.Players
             }
             else move = new Vector2(Mathf.Clamp((crossX - me.transform.position.x) / me.Block.strafe, -1f, 1f), 0f);   // strafe the hands
             return true;
+        }
+
+        // Where this blocker's rebound should land (see BotPlanner.BlockAim); the opponents are the players on the other team.
+        Vector3 BlockAimSpot()
+        {
+            Vector3 o1 = Vector3.zero, o2 = Vector3.zero;
+            int n = 0;
+            foreach (PlayerController p in match.Players)
+                if (p.Team != me.Team) { if (n++ == 0) o1 = p.transform.position; else o2 = p.transform.position; }
+            return BotPlanner.BlockAim(me.CourtSide, o1, o2, profile.aimSpread, blockAimJitter);
         }
 
         // ---------------- helpers ----------------

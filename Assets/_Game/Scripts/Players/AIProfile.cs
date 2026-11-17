@@ -23,18 +23,20 @@ namespace Sandspike.Players
         public bool usesSprint;
         public AIDiveMode diveMode;
         public float blockChance;          // chance it blocks when it could (0 never, 1 always)
-        public float tipChance;            // chance to dink a spike chance short instead of hitting it
+        public float blockReadError;       // a blocker's guess of where the spike crosses the net is off sideways by up to this (m), drawn once per attack
+        public float blockCoverDelay;      // seconds a bot waits before going for a block rebound that comes back to its side
+        public float tipChance;           // chance to dink a spike chance short instead of hitting it
         public AIDifficulty attackStyle;   // how it picks where to attack (see BotPlanner.PickAttack)
 
         /// <summary>The pinned table (M3). Easy / Normal / Hard.</summary>
         public static readonly AIProfile[] Table =
         {
             new AIProfile { reactionDelay = 0.45f, spikeReadChance = 0.25f, moveSpeedMultiplier = 0.85f, mistakeChance = 0.25f, aimSpread = 1.2f, spikeChargeMin = 0.2f, spikeChargeMax = 0.6f,
-                            usesSprint = false, diveMode = AIDiveMode.Never, blockChance = 0f, tipChance = 0f, attackStyle = AIDifficulty.Easy },
+                            usesSprint = false, diveMode = AIDiveMode.Never, blockChance = 0f, blockCoverDelay = 0.8f, tipChance = 0f, attackStyle = AIDifficulty.Easy },
             new AIProfile { reactionDelay = 0.26f, spikeReadChance = 0.3f, moveSpeedMultiplier = 1f, mistakeChance = 0.12f, aimSpread = 0.7f, spikeChargeMin = 0.4f, spikeChargeMax = 0.8f,
-                            usesSprint = true, diveMode = AIDiveMode.IfStaminaAllows, blockChance = 0.4f, tipChance = 0f, attackStyle = AIDifficulty.Normal },
-            new AIProfile { reactionDelay = 0.145f, spikeReadChance = 0.5f, moveSpeedMultiplier = 1f, mistakeChance = 0.05f, aimSpread = 0.3f, spikeChargeMin = 0.6f, spikeChargeMax = 1.0f,
-                            usesSprint = true, diveMode = AIDiveMode.Always, blockChance = 1f, tipChance = 0.15f, attackStyle = AIDifficulty.Hard },
+                            usesSprint = true, diveMode = AIDiveMode.IfStaminaAllows, blockChance = 0.32f, blockCoverDelay = 0.3f, blockReadError = 1.5f, tipChance = 0f, attackStyle = AIDifficulty.Normal },
+            new AIProfile { reactionDelay = 0.145f, spikeReadChance = 0.3f, moveSpeedMultiplier = 1f, mistakeChance = 0.05f, aimSpread = 0.3f, spikeChargeMin = 0.6f, spikeChargeMax = 1.0f,
+                            usesSprint = true, diveMode = AIDiveMode.Always, blockChance = 0.65f, blockCoverDelay = 0.69f, blockReadError = 1f, tipChance = 0.15f, attackStyle = AIDifficulty.Hard },
         };
 
         public static AIProfile For(AIDifficulty d) => Table[(int)d];

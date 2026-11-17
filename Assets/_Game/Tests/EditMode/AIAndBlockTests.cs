@@ -23,6 +23,8 @@ namespace Sandspike.Tests
             Assert.AreEqual(n.readDelay, BotPlanner.ReactionFor(n, true, n.spikeReadChance - 0.01f, 1f));          // read
             Assert.AreEqual(n.reactionDelay, BotPlanner.ReactionFor(n, true, n.spikeReadChance + 0.01f, 1f));     // not read
             Assert.AreEqual(n.reactionDelay * 1.05f, BotPlanner.ReactionFor(n, false, 0f, 1.05f));                // a set is never "read"
+            Assert.AreEqual(n.blockCoverDelay, BotPlanner.ReactionFor(n, false, 0f, 1.05f, true));                // a block rebound uses the cover delay
+            Assert.Greater(n.blockCoverDelay, n.reactionDelay, "slower than a normal ball");
         }
 
         [Test]
@@ -30,7 +32,7 @@ namespace Sandspike.Tests
         {
             AIProfile e = AIProfile.For(AIDifficulty.Easy), n = AIProfile.For(AIDifficulty.Normal), h = AIProfile.For(AIDifficulty.Hard);
             Assert.AreEqual(new[] { 0.45f, 0.26f, 0.145f }, new[] { e.reactionDelay, n.reactionDelay, h.reactionDelay });
-            Assert.AreEqual(new[] { 0.25f, 0.3f, 0.5f }, new[] { e.spikeReadChance, n.spikeReadChance, h.spikeReadChance });
+            Assert.AreEqual(new[] { 0.25f, 0.3f, 0.3f }, new[] { e.spikeReadChance, n.spikeReadChance, h.spikeReadChance });
             Assert.AreEqual(new[] { 0.85f, 1f, 1f }, new[] { e.moveSpeedMultiplier, n.moveSpeedMultiplier, h.moveSpeedMultiplier });
             Assert.AreEqual(new[] { 0.25f, 0.12f, 0.05f }, new[] { e.mistakeChance, n.mistakeChance, h.mistakeChance });
             Assert.AreEqual(1.5f, e.mistakeMetres);
@@ -38,7 +40,7 @@ namespace Sandspike.Tests
             Assert.AreEqual(new[] { 0.2f, 0.4f, 0.6f }, new[] { e.spikeChargeMin, n.spikeChargeMin, h.spikeChargeMin });
             Assert.AreEqual(new[] { 0.6f, 0.8f, 1.0f }, new[] { e.spikeChargeMax, n.spikeChargeMax, h.spikeChargeMax });
             Assert.AreEqual(new[] { false, true, true }, new[] { e.usesSprint, n.usesSprint, h.usesSprint });
-            Assert.AreEqual(new[] { 0f, 0.4f, 1f }, new[] { e.blockChance, n.blockChance, h.blockChance });
+            Assert.AreEqual(new[] { 0f, 0.32f, 0.65f }, new[] { e.blockChance, n.blockChance, h.blockChance });
             Assert.AreEqual(0.15f, h.tipChance);
             Assert.AreEqual(0f, n.tipChance);
         }
@@ -52,7 +54,7 @@ namespace Sandspike.Tests
             Assert.AreEqual(0f, e.blockChance);
             Assert.IsTrue(BotPlanner.DiveAllowed(h, 0f, 15f), "Hard dives even if it burns out");
             Assert.IsTrue(h.usesSprint);
-            Assert.AreEqual(1f, h.blockChance);
+            Assert.AreEqual(0.65f, h.blockChance);
         }
 
         [Test]
@@ -145,6 +147,35 @@ namespace Sandspike.Tests
             float high = BotPlanner.BlockJumpIn(0.5f, 3.2f, 2.45f, 0.9f, new JumpArc(30f, 2.2f, 0.35f));
             Assert.Less(low, 0.5f);
             Assert.Less(high, low, "a higher ball needs the hands higher, which takes longer to rise to: jump earlier");
+        }
+
+        [Test]
+        public void BlockAim_LandsShortOnTheAttackersSide_InsideTheLines_AwayFromTheNearerOpponent()
+        {
+            foreach (float side in new[] { -1f, 1f })
+                foreach (float oppX in new[] { -2.5f, 0.5f, 3f })
+                    for (int i = 0; i < 50; i++)
+                    {
+                        // the near opponent is at the net (|z| 2), the other deep; the jitter is any point of the unit circle
+                        Vector3 near = new Vector3(oppX, 0f, -side * 2f), deep = new Vector3(-oppX, 0f, -side * 6f);
+                        Vector3 a = BotPlanner.BlockAim(side, deep, near, 1.2f, Random.insideUnitCircle);
+                        Assert.Less(a.z * side, 0f, "on the attackers' side");
+                        Assert.That(Mathf.Abs(a.z), Is.InRange(1f, 1.5f), "1 to 1.5 m past the net");
+                        Assert.LessOrEqual(Mathf.Abs(a.x), 3.5f, "inside the side lines");
+                    }
+            Vector3 right = BotPlanner.BlockAim(1f, new Vector3(2f, 0f, -2f), new Vector3(-1f, 0f, -6f), 0f, Vector2.zero);
+            Assert.Less(right.x, 0f, "the near opponent stands on the right: aim left");
+            Vector3 left = BotPlanner.BlockAim(1f, new Vector3(-2f, 0f, -2f), new Vector3(1f, 0f, -6f), 0f, Vector2.zero);
+            Assert.Greater(left.x, 0f, "the near opponent stands on the left: aim right");
+        }
+
+        [Test]
+        public void BlockReadError_IsBoundedByTheProfile_AndZeroForNoError()
+        {
+            Assert.AreEqual(-0.6f, BotPlanner.BlockReadError(0.6f, 0f), 1e-5f);
+            Assert.AreEqual(0.6f, BotPlanner.BlockReadError(0.6f, 1f), 1e-5f);
+            Assert.AreEqual(0f, BotPlanner.BlockReadError(0f, 0.7f), 1e-5f);
+            Assert.Greater(AIProfile.For(AIDifficulty.Normal).blockReadError, AIProfile.For(AIDifficulty.Hard).blockReadError, "Normal misreads more than Hard");
         }
 
         // ---------------- block: shield maths ----------------
