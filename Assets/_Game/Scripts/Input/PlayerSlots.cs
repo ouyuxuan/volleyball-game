@@ -1,4 +1,5 @@
 using System;
+using Sandspike.Players;
 
 namespace Sandspike.Controls
 {
@@ -30,6 +31,19 @@ namespace Sandspike.Controls
             owner[free] = deviceId;
             return true;
         }
+
+        // ---- per-bot difficulty: each slot can override the Setup option. 0 = Match (follow the option), 1..3 = Easy, Normal, Hard ----
+        public static readonly string[] BotLevelNames = { "Match", "Easy", "Normal", "Hard" };
+        readonly int[] botLevel = new int[Count];
+
+        public int BotLevel(int slot) => botLevel[slot];
+        public void CycleBotLevel(int slot, int dir = 1) => botLevel[slot] = (botLevel[slot] + dir + BotLevelNames.Length) % BotLevelNames.Length;
+
+        /// <summary>The override for this slot's bot, or null to follow the Setup option.</summary>
+        public AIDifficulty? BotOverride(int slot) => botLevel[slot] == 0 ? (AIDifficulty?)null : (AIDifficulty)(botLevel[slot] - 1);
+
+        /// <summary>The difficulty the bot in this slot plays at: its own override, or the Setup option.</summary>
+        public AIDifficulty DifficultyFor(int slot, AIDifficulty setupOption) => BotOverride(slot) ?? setupOption;
 
         public bool Leave(int deviceId)
         {

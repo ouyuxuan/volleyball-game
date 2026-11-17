@@ -149,6 +149,7 @@ namespace Sandspike.Core
         public void StartMatch()
         {
             shell?.ApplyOptions();
+            for (int s = 0; s < PlayerSlots.Count; s++) match.SetSlotDifficulty(s, Slots.BotOverride(s));   // each bot's own level, if the Setup screen set one
             Apply();
             match.NewMatch();
             shell?.MatchStarted();

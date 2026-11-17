@@ -51,8 +51,8 @@ namespace Sandspike.UI
                     s.slotText[slot] = Text($"Slot {slot} Text", go.transform, font, "Bot", 38f, Palette.UiMuted, new Vector2(x, 100f - k * 150f), new Vector2(660f, 100f));
                 }
             }
-            s.status = Text("Status", go.transform, font, "", 44f, Palette.Accent, new Vector2(0f, -300f), new Vector2(1600f, 70f));
-            s.hint = Text("Hint", go.transform, font, "", 30f, Palette.CourtLines, new Vector2(0f, -420f), new Vector2(1800f, 120f));
+            s.status = Text("Status", go.transform, font, "", 44f, Palette.Accent, new Vector2(0f, -355f), new Vector2(1600f, 70f));
+            s.hint = Text("Hint", go.transform, font, "", 30f, Palette.CourtLines, new Vector2(0f, -455f), new Vector2(1800f, 120f));
             return s;
         }
 
@@ -112,7 +112,7 @@ namespace Sandspike.UI
         public void Refresh(PlayerSlots slots)
         {
             var sb = new StringBuilder();
-            for (int i = 0; i < PlayerSlots.Count; i++) sb.Append(slots.Owner(i)).Append(',');
+            for (int i = 0; i < PlayerSlots.Count; i++) sb.Append(slots.Owner(i)).Append(',').Append(slots.BotLevel(i)).Append(',');
             PromptStyle ps = PadStyle();
             sb.Append(ps);
             string sig = sb.ToString();
@@ -123,7 +123,7 @@ namespace Sandspike.UI
             for (int i = 0; i < PlayerSlots.Count; i++)
             {
                 bool human = slots.IsHuman(i);
-                slotText[i].text = human ? $"Player {++number}  -  {DeviceName(slots.Owner(i))}" : "Bot";
+                slotText[i].text = human ? $"Player {++number}  -  {DeviceName(slots.Owner(i))}" : slots.BotLevel(i) == 0 ? "Bot" : $"Bot  -  {PlayerSlots.BotLevelNames[slots.BotLevel(i)]}";
                 slotText[i].color = human ? Palette.CourtLines : Palette.UiMuted;
                 slotBack[i].color = human ? Palette.WithAlpha(i < 2 ? Palette.TeamA : Palette.TeamB, 0.85f) : Palette.WithAlpha(Palette.Shadow, 0.7f);
             }

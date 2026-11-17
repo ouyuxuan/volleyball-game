@@ -80,6 +80,7 @@ namespace Sandspike.Core
         bool autoPlayApplied;
         AIDifficulty difficultyApplied = (AIDifficulty)(-1);
         readonly SimpleBotBrain[] bots = new SimpleBotBrain[4];
+        readonly AIDifficulty?[] slotDifficulty = new AIDifficulty?[4];   // per-bot overrides of 'difficulty' (null = follow it)
 
         void Start()
         {
@@ -262,12 +263,17 @@ namespace Sandspike.Core
 
         // ---------------- AI difficulty ----------------
 
-        /// <summary>Gives every bot (including the auto-play one) the current difficulty.</summary>
+        AIDifficulty LevelOf(int slot) => slotDifficulty[slot] ?? difficulty;
+
+        /// <summary>One bot's own difficulty (null = follow the global one). Takes effect at once.</summary>
+        public void SetSlotDifficulty(int slot, AIDifficulty? level) { slotDifficulty[slot] = level; difficultyApplied = (AIDifficulty)(-1); }
+
+        /// <summary>Gives every bot (including the auto-play one) its difficulty: the slot's own override, else the global one.</summary>
         void ApplyDifficulty()
         {
             difficultyApplied = difficulty;
-            foreach (var p in players)
-                foreach (var bot in p.GetComponents<SimpleBotBrain>()) bot.SetDifficulty(difficulty);
+            for (int i = 0; i < players.Length; i++)
+                foreach (var bot in players[i].GetComponents<SimpleBotBrain>()) bot.SetDifficulty(LevelOf(i));
         }
 
         // ---------------- debug auto-play ----------------
@@ -285,7 +291,7 @@ namespace Sandspike.Core
             {
                 bots[slot] = players[slot].gameObject.AddComponent<SimpleBotBrain>();
                 bots[slot].Setup(this, players[slot], ball);
-                bots[slot].SetDifficulty(difficulty);
+                bots[slot].SetDifficulty(LevelOf(slot));
                 bots[slot].enabled = false;
             }
             return bots[slot];
