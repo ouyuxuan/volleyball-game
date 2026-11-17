@@ -1,7 +1,7 @@
 namespace Sandspike.Core
 {
     /// <summary>The screens of the shell. Match = no menu is up (the match is on, or being set up behind a menu).</summary>
-    public enum ShellScreen { Title, Setup, Match, Pause, Confirm, Settings, HowTo, Results, Camera, PracticePause, Controls, ConfirmReset }
+    public enum ShellScreen { Title, Setup, Match, Pause, Confirm, Settings, HowTo, Results, Camera, PracticePause, Controls, ConfirmReset, ConfirmStats }
 
     /// <summary>
     /// Which menu screen is showing and where each one can go. Plain C# (no Unity objects), so it is easy to test.
@@ -30,7 +30,8 @@ namespace Sandspike.Core
                 case ShellScreen.Confirm: return to == ShellScreen.Pause || to == ShellScreen.Title;
                 case ShellScreen.PracticePause: return to == ShellScreen.Match || to == ShellScreen.Settings || to == ShellScreen.HowTo || to == ShellScreen.Title;   // nothing to lose in practice: no "Are you sure?"
                 case ShellScreen.Results: return to == ShellScreen.Match || to == ShellScreen.Setup || to == ShellScreen.Title;
-                case ShellScreen.Settings: return to == ShellScreen.Camera || to == ShellScreen.Controls;       // the Camera and Controls pages open from Settings
+                case ShellScreen.Settings: return to == ShellScreen.Camera || to == ShellScreen.Controls || to == ShellScreen.ConfirmStats;       // the Camera and Controls pages open from Settings; so does "Reset stats" (asks first)
+                case ShellScreen.ConfirmStats: return to == ShellScreen.Settings;
                 case ShellScreen.Controls: return to == ShellScreen.ConfirmReset;       // "Reset to defaults" asks first
                 case ShellScreen.ConfirmReset: return to == ShellScreen.Controls;
                 default: return false;      // Settings and How to Play only go Back
@@ -54,6 +55,7 @@ namespace Sandspike.Core
                 case ShellScreen.Settings:
                 case ShellScreen.HowTo: Current = opener; return true;
                 case ShellScreen.Camera:
+                case ShellScreen.ConfirmStats:      // Back answers No
                 case ShellScreen.Controls: Current = ShellScreen.Settings; return true;
                 case ShellScreen.ConfirmReset: Current = ShellScreen.Controls; return true;     // Back answers No
                 case ShellScreen.Setup: return Go(ShellScreen.Title);

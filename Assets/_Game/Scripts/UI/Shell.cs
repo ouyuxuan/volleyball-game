@@ -75,6 +75,7 @@ namespace Sandspike.UI
         InputActionRebindingExtensions.RebindingOperation rebind;
         string listeningLabel;
         int listenEndedFrame = -1;
+        TMP_Text titleStatsT, resultsStatsT;
 
         public static Shell Create(LocalPlayers local, MatchManager match, JoinScreen join, TMP_FontAsset font)
         {
@@ -98,6 +99,7 @@ namespace Sandspike.UI
         {
             Settings.Load(store);
             ControlBindings.Load(store);
+            MatchStats.Current.Load(store);
             ApplyFullscreen();
             diff = Mathf.Clamp((int)match.difficulty, 0, 2);
             pts = Mathf.Max(0, Array.IndexOf(Points, match.TargetScore));
@@ -108,6 +110,7 @@ namespace Sandspike.UI
             AddRow(title, "How to Play", null, null, () => Flow.Go(ShellScreen.HowTo));
             AddRow(title, "Settings", null, null, () => Flow.Go(ShellScreen.Settings));
             AddRow(title, "Quit", null, null, Quit);
+            titleStatsT = StatsLine(title, -420f);
 
             var pause = NewPage(ShellScreen.Pause, "PAUSED", 300f, 110f, Palette.CourtLines, 0.6f, 120f);
             AddRow(pause, "Resume", null, null, () => Flow.Go(ShellScreen.Match));
@@ -129,7 +132,7 @@ namespace Sandspike.UI
             AddRow(confirm, ScreenFlow.ConfirmChoices[1], null, null, () => { Flow.Go(ShellScreen.Title); local.ReturnToJoin(); });   // Yes
 
             var settings = NewPage(ShellScreen.Settings, "SETTINGS", 420f, 80f, Palette.CourtLines, 0.7f, 320f);
-            settings.pitch = 72f; settings.height = 64f;
+            settings.pitch = 66f; settings.height = 58f;
             AddRow(settings, "Music volume", () => Settings.MusicPercent + "%", d => { Settings.MusicPercent += d * GameSettings.Step; Save(); }, null, () => Settings.MusicPercent / 100f);
             AddRow(settings, "Effects volume", () => Settings.EffectsPercent + "%", d => { Settings.EffectsPercent += d * GameSettings.Step; Save(); }, null, () => Settings.EffectsPercent / 100f);
             AddRow(settings, "Aim assist for gamepads", () => OnOff(Settings.AimAssist), d => { Settings.AimAssist = !Settings.AimAssist; Save(); }, null);
@@ -140,7 +143,13 @@ namespace Sandspike.UI
             AddRow(settings, "Camera", null, null, () => Flow.Go(ShellScreen.Camera));
             AddRow(settings, "Controls", null, null, OpenControls);
             AddRow(settings, "Reset to defaults", null, null, () => { Settings.ResetToDefaults(); Save(); });
+            AddRow(settings, "Reset stats", null, null, () => Flow.Go(ShellScreen.ConfirmStats));
             AddRow(settings, "Back", null, null, () => Flow.Back());
+
+            var resetStats = NewPage(ShellScreen.ConfirmStats, "RESET STATS?", 280f, 100f, Palette.CourtLines, 0.8f, 20f);
+            AddBody(resetStats, "Your played, won and lost counts go back to zero. Are you sure?", 44f, 150f, 1400f, 120f, TextAlignmentOptions.Center);
+            AddRow(resetStats, ScreenFlow.ConfirmChoices[0], null, null, () => Flow.Back());                                 // No (the default)
+            AddRow(resetStats, ScreenFlow.ConfirmChoices[1], null, null, () => { MatchStats.Current.Reset(); MatchStats.Current.Save(store); Flow.Back(); });   // Yes
 
             var camera = NewPage(ShellScreen.Camera, "CAMERA", 400f, 80f, Palette.CourtLines, 0.7f, 280f);
             AddRow(camera, "Height", () => $"< {Settings.CameraHeight:0.0} m >", d => { Settings.CameraHeight += d * 0.5f; Save(); }, null);
@@ -170,6 +179,7 @@ namespace Sandspike.UI
             AddRow(results, "Play Again", null, null, () => { local.PlayAgain(); Flow.Go(ShellScreen.Match); });
             AddRow(results, "Change Players", null, null, () => { local.ReturnToJoin(); Flow.Go(ShellScreen.Setup); });
             AddRow(results, "Title", null, null, () => { local.ReturnToJoin(); Flow.Go(ShellScreen.Title); });
+            resultsStatsT = StatsLine(results, -320f);
 
             // Setup: the join screen is its own canvas; this page only adds the row of match options under the team panels.
             var setup = NewPage(ShellScreen.Setup, "", 0f, 10f, Palette.CourtLines, 0f, 0f);
@@ -195,6 +205,14 @@ namespace Sandspike.UI
         }
 
         static string OnOff(bool on) => on ? "On" : "Off";
+
+        // A small line of text for the "Played · Won · Lost" stats; Tick keeps its text current.
+        TMP_Text StatsLine(Page p, float y)
+        {
+            var t = JoinScreen.Text("Stats", p.go.transform, font, "", 30f, Palette.CourtLines, new Vector2(0f, y), new Vector2(1200f, 44f));
+            t.raycastTarget = false;
+            return t;
+        }
 
         Page NewPage(ShellScreen screen, string title, float titleY, float titleSize, Color titleColour, float dim, float firstRowY)
         {
@@ -286,6 +304,7 @@ namespace Sandspike.UI
 
             if (Flow.Current != shown) Entered(Flow.Current);
             if (hintStyle != InputDevices.Style) RefreshHints();
+            titleStatsT.text = resultsStatsT.text = MatchStats.Current.Line;     // empty (hidden) until a match was played
             Draw();
         }
 
@@ -352,9 +371,9 @@ namespace Sandspike.UI
         {
             ShellScreen prev = shown;
             shown = s;
-            bool fromSub = prev == ShellScreen.Settings || prev == ShellScreen.HowTo || prev == ShellScreen.Confirm || prev == ShellScreen.Camera || prev == ShellScreen.Controls || prev == ShellScreen.ConfirmReset;   // coming back: keep the highlighted line
+            bool fromSub = prev == ShellScreen.Settings || prev == ShellScreen.HowTo || prev == ShellScreen.Confirm || prev == ShellScreen.Camera || prev == ShellScreen.Controls || prev == ShellScreen.ConfirmReset || prev == ShellScreen.ConfirmStats;   // coming back: keep the highlighted line
             if (pages.TryGetValue(s, out Page p) && !fromSub) p.sel = 0;
-            if (s == ShellScreen.Confirm || s == ShellScreen.ConfirmReset) p.sel = ScreenFlow.ConfirmDefault;
+            if (s == ShellScreen.Confirm || s == ShellScreen.ConfirmReset || s == ShellScreen.ConfirmStats) p.sel = ScreenFlow.ConfirmDefault;
             if (s == ShellScreen.Controls && prev != ShellScreen.ConfirmReset) RebuildControlRows();      // fresh lines each time it opens (not when coming back from the reset question)
             if (s == ShellScreen.Setup) { zone = 0; p.sel = 0; }
             if ((s == ShellScreen.Pause || s == ShellScreen.PracticePause) && prev == ShellScreen.Match) Freeze(true);
@@ -388,6 +407,12 @@ namespace Sandspike.UI
             RulesEngine r = match.Rules;
             MatchSets ms = match.Sets;
             int w = ms.IsBestOfThree ? ms.Winner : r.Winner >= 0 ? r.Winner : r.LastPointWinner;
+            if (!match.Practice)      // one match over = one count (Results is entered once per match)
+            {
+                bool humansA = match.Humans[0] != null || match.Humans[1] != null, humansB = match.Humans[2] != null || match.Humans[3] != null;
+                MatchStats.Current.Record(humansA, humansB, w);
+                MatchStats.Current.Save(store);
+            }
             p.titleT.text = $"TEAM {(char)('A' + w)} WINS";
             p.titleT.color = w == 0 ? Palette.TeamA : Palette.TeamB;
             string a = ColorUtility.ToHtmlStringRGB(Palette.TeamA), b = ColorUtility.ToHtmlStringRGB(Palette.TeamB);
