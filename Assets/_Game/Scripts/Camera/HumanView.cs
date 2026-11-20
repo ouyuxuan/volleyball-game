@@ -156,6 +156,13 @@ namespace Sandspike.CameraRig
 
             GameObject hint = Instantiate(t.controlsHint, hud.transform, false);
             hint.GetComponent<ControlsHint>().Bind(brain);
+            if (rect.x >= 0.5f)     // a view on the right half: its top-left corner is under the centred score, so use its top-right
+            {
+                var hr = (RectTransform)hint.transform;
+                hr.anchorMin = new Vector2(1f, hr.anchorMin.y); hr.anchorMax = new Vector2(1f, hr.anchorMax.y);
+                hr.pivot = new Vector2(1f, hr.pivot.y);
+                hr.anchoredPosition = new Vector2(-hr.anchoredPosition.x, hr.anchoredPosition.y);
+            }
             hint.SetActive(true);
             v.crosshair = Instantiate(t.crosshair, hud.transform, false);
             GameObject arrow = Instantiate(t.arrow, hud.transform, false);
