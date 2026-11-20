@@ -549,6 +549,15 @@ Remote Config kill switch. No leaderboard for now (a vs-AI match has no score wo
 Windows, Web and macOS builds with `unity build`. Web-specific check via the `optimize-web` skill.
 *Status: built: local win/loss stats (played, won, lost; shown on Title and Results, reset in Settings; kept in PlayerPrefs), product name Sandspike, Match as the only build scene, and a Windows build from the menu Sandspike > Build Windows (Build/Windows). Remaining: Cloud Save, the Remote Config kill switch, Web and macOS builds (they need a build-target switch in the Editor). Not checked: the new menu lines by eye or with a real controller, Windows build on another PC or GPU.*
 
+*Web and macOS builds done 2026-11-19 (menu Sandspike > Build Web / Build macOS, in `Assets/_Game/Editor/BuildGame.cs`). Web: about
+11 MB to download (wasm 6.7 MB, data 4.3 MB), with Unity's recommended release settings applied on every Web build (Brotli with a
+decompression fallback for hosts without Content-Encoding, data caching, WebAssembly 2023, no exception support, High managed
+stripping, size-optimised IL2CPP, .NET Standard, disk-size LTO). `Assets/_Game/link.xml` keeps the three colliders that
+CreatePrimitive adds, which stripping otherwise removes. Checked in the built-in browser served from localhost: title, Setup and a
+match with points scored, no console errors. macOS: `Sandspike.app`, 95 MB, Mono, built on Windows. Not checked: the macOS app on a
+Mac (it is unsigned, so macOS will ask to allow it), the Web build in Safari or Firefox or on a phone, and the Web build on a real
+host. Remaining in M7: Cloud Save and the Remote Config kill switch.*
+
 **M8 — Done gate.** `craft-game-floors` visual scorecard: score six axes from captures, fix anything
 below 3, confirm zero console errors. Includes a **court clarity** check: lines, ball and players
 read clearly against the sand and props from both camera views.

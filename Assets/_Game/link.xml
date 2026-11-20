@@ -1,0 +1,10 @@
+<!-- Keeps engine types that only code creates, so build stripping (Web) does not remove them.
+     GameObject.CreatePrimitive adds a collider (Sphere, Quad = MeshCollider, Cube = BoxCollider) that the effects delete
+     at once; without these lines the stripped build logs "Can't add component" errors. -->
+<linker>
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.SphereCollider" preserve="all"/>
+    <type fullname="UnityEngine.MeshCollider" preserve="all"/>
+    <type fullname="UnityEngine.BoxCollider" preserve="all"/>
+  </assembly>
+</linker>

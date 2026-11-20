@@ -99,9 +99,18 @@ The EditMode tests run from **Window → General → Test Runner**.
 
 ## Build
 
-In the Editor choose **Sandspike → Build Windows**. It builds the scene ticked in Build Settings to
-`Build/Windows/Sandspike.exe` (the `Build/` folder is not committed) and logs the result and size in the Console.
-It takes about 3 minutes.
+In the Editor choose one of the **Sandspike** menu items. Each builds the scene ticked in Build Settings into
+`Build/` (not committed) and logs the result and size in the Console.
+
+| Menu item | Output | Notes |
+|---|---|---|
+| Sandspike → Build Windows | `Build/Windows/Sandspike.exe` (about 130 MB) | about 3 minutes |
+| Sandspike → Build macOS | `Build/macOS/Sandspike.app` (about 95 MB) | built on Windows, not yet run on a Mac |
+| Sandspike → Build Web | `Build/Web/` (about 11 MB download) | Brotli with a decompression fallback, so it runs on hosts such as itch.io or GitHub Pages |
+
+Building for another platform first switches the Editor to it, which re-imports assets for several minutes. After a
+switch, if the first build logs an ambient occlusion error when it starts, build once more: the second build is clean.
+To try the Web build locally, serve `Build/Web/` from any static web server (opening `index.html` as a file does not work).
 
 ## Project layout
 
