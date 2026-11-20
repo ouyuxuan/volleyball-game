@@ -44,11 +44,12 @@ namespace Sandspike.UI
             public float pitch = 100f, height = 84f;     // row spacing and row box height (the long Settings page packs them tighter)
         }
 
-        const int BotRow = 5;        // index of the first small "BOT 1" box in the Setup options (the five big boxes come first)
+        const int BotRow = 5;        // index of the first box of the second Setup row (COURT, then the BOT boxes; the five big boxes come first)
         const float FadePerSecond = 4f;      // alpha per second: a cross-fade takes 0.25 s
         static readonly string[] Levels = { "Easy", "Normal", "Hard" };
         static readonly int[] Points = { 11, 21, 25 };
         static readonly string[] SetsChoices = { "1 set", "Best of 3" };
+        static readonly string[] CourtNames = { "Day", "Evening", "Night" };
         static readonly string[] Shoulders = { "Left", "Centre", "Right" };
 
         public ScreenFlow Flow { get; } = new ScreenFlow();
@@ -66,7 +67,7 @@ namespace Sandspike.UI
         AudioDirector audio;
         ShellScreen shown = ShellScreen.Title;
         PromptStyle hintStyle = (PromptStyle)(-1), howStyle;
-        int diff = 1, pts, sets, zone, howPage;
+        int diff = 1, pts, sets, court, zone, howPage;     // court = CourtTime (not saved: like the other Setup options, it starts at Day each run)
         bool cap, frozen;
         float savedScale = 1f;
         // Controls screen: which scheme it edits, and the rebinding in progress (if any)
@@ -189,11 +190,12 @@ namespace Sandspike.UI
             AddCell(setup, 0f, "POINT CAP", () => $"< {(cap ? "On" : "Off")} >", d => cap = !cap);
             AddCell(setup, 380f, "SETS", () => $"< {SetsChoices[sets]} >", d => sets = (sets + d + SetsChoices.Length) % SetsChoices.Length);
             AddCell(setup, 760f, "", null, null, () => Flow.Go(ShellScreen.Title)).labelT.text = "Back";
-            // second row: one small box per bot slot (Match = follow the Difficulty option above)
+            // second row: the court time, then one small box per bot slot (Match = follow the Difficulty option above)
+            AddCell(setup, -760f, "COURT", () => $"< {CourtNames[court]} >", d => court = (court + d + CourtNames.Length) % CourtNames.Length, null, true);
             for (int i = 0; i < PlayerSlots.Count; i++)
             {
                 int slot = i;
-                AddCell(setup, -570f + i * 380f, $"BOT {i + 1}", () => local.Slots.IsHuman(slot) ? "Player" : $"< {PlayerSlots.BotLevelNames[local.Slots.BotLevel(slot)]} >",
+                AddCell(setup, -380f + i * 380f, $"BOT {i + 1}", () => local.Slots.IsHuman(slot) ? "Player" : $"< {PlayerSlots.BotLevelNames[local.Slots.BotLevel(slot)]} >",
                     d => { if (!local.Slots.IsHuman(slot)) local.Slots.CycleBotLevel(slot, d); }, null, true);
             }
 
@@ -332,7 +334,7 @@ namespace Sandspike.UI
                 return;
             }
             if (input.dy == 1) { if (p.sel >= BotRow) p.sel = Mathf.Min(p.sel - BotRow, BotRow - 1); else zone = 0; return; }
-            if (input.dy == -1 && p.sel < BotRow) { p.sel = BotRow + Mathf.Min(p.sel, PlayerSlots.Count - 1); return; }
+            if (input.dy == -1 && p.sel < BotRow) { p.sel = BotRow + p.sel; return; }
             if (input.dx != 0) p.sel = p.sel < BotRow ? Mathf.Clamp(p.sel + input.dx, 0, BotRow - 1) : Mathf.Clamp(p.sel + input.dx, BotRow, p.rows.Count - 1);
             if (input.confirm) Activate(p.rows[p.sel]);
             if (PointerTick(p)) zone = 1;
@@ -430,6 +432,7 @@ namespace Sandspike.UI
         {
             match.difficulty = (AIDifficulty)diff;
             match.SetOptions(Points[pts], cap, sets == 1 ? 2 : 1);
+            CourtTimes.Apply((CourtTime)court);
         }
 
         /// <summary>A match began (from the Setup screen, or from a script): the menus step aside.</summary>

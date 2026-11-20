@@ -14,6 +14,9 @@ namespace Sandspike.Art
 #if UNITY_EDITOR
         [UnityEditor.InitializeOnLoadMethod]
 #endif
-        public static void Apply() => Shader.SetGlobalColor(ShadowTintId, Palette.Shadow);
+        public static void Apply() => SetShade(Palette.Shadow);
+
+        /// <summary>Changes the toon shade tint (CourtTime uses this for evening and night).</summary>
+        public static void SetShade(Color c) => Shader.SetGlobalColor(ShadowTintId, c);
     }
 }

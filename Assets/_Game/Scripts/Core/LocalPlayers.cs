@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Sandspike.Art;
 using Sandspike.CameraRig;
 using Sandspike.Controls;
 using Sandspike.Players;
@@ -162,6 +163,7 @@ namespace Sandspike.Core
             savedSlots = Slots.Snapshot();
             Slots.Clear();
             Slots.Join(deviceId);                      // the first free slot: slot 0, team A
+            CourtTimes.Apply(CourtTime.Day);               // practice is always daytime
             Apply();
             match.StartPractice(Drill.Receive);
             shell?.MatchStarted();
@@ -231,6 +233,7 @@ namespace Sandspike.Core
         public void ReturnToJoin()
         {
             match.EndPractice();
+            CourtTimes.Apply(CourtTime.Day);       // back at the menus it is daytime again
             if (savedSlots != null) { Slots.Restore(savedSlots); savedSlots = null; }
             TearDown();
             match.ApplyBrains();

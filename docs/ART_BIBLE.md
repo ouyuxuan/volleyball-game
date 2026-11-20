@@ -15,6 +15,7 @@
    | Ball, score pops, highlights | Accent (sun yellow) | `#FFC53D` |
 
    Character parts (skin tones, hair, shorts, waistband, eyes) are blends of these, defined in `Palette.cs`.
+   Evening and night court variants are blends too, defined in `Palette.cs` under "Court times".
 
 3. **Characters:** friendly stylized cartoon people with big heads, simple faces and normal limbs, in
    a coral or indigo shirt with navy shorts. The style target is `docs/concepts/concept-a-soft-toon.png`
