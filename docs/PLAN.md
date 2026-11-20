@@ -487,6 +487,14 @@ game-audio). Primitive-built players with team colours and idle/run/jump motion,
 shake on spikes, sand puffs, ball trail, synthesized placeholder sounds and a music loop, mixer with
 volume parameters.
 - **Context dive poses:** forward, sideways and backward dives each get their own pose.
+  *Done: the body keeps facing where it faced before the dive and falls toward the dive: a belly-flop forward, a roll onto the
+  side, or a fall onto the back, with the arms past the head toward the ball (`PlayerController.DiveAngle`, `PlayerVisual.DivePose`).
+  Visual only: the dive itself and the dig are unchanged. Captures: `docs/captures/dive-forward.png`, `dive-sideways.png`, `dive-backward.png`.*
+- **Toon look (done 2026-11-19):** one soft toon shader for the whole court, `Shaders/SandspikeToon.shader` ("Sandspike/Toon"), on every
+  scene material and on the characters. The lit side takes the warm sun; the shade blends toward the bible's Shadow blue (a global set
+  from `Palette.Shadow` by `Art/ToonGlobals.cs`), with a soft step so faceted models read rounder. The sand and lines shade strongly
+  blue; people and props keep their colours, darker and a little cooler. No ink outlines (the concept art has none). Captures:
+  `docs/captures/toon-gameplay.png`, `toon-closeup.png`.
 - **Outline check:** the ball's outline must stay clean at every camera distance. Optional rim
   shading on characters is decided by capture in M8, not by default.
 
@@ -555,6 +563,9 @@ The default-colour scan flagged nothing (no default materials, untinted particle
 *Fix pass: a cooler ambient light (sky and side light toward Shadow blue) was tried and dropped: it dulled the sand without making
 shadows read blue. All six axes are at 3 or better, with 0 console errors. Not scored: the 1st-person view, split screen, and the
 built game. Left open: bluer shadows would need a shader or shadow-colour change, which belongs with the toon look in M5.*
+
+*Rescored after the toon look (same day): style uniformity 4/5 (one shader family across people, props and sand, softer and closer
+to the concept), lighting depth 4/5 (warm lit sides, cast shadows on the sand now read cool blue). The other four axes are unchanged.*
 
 Also for M8, optional: **time-of-day variants** of the court (evening, night) made with lighting and
 sky colours only, picked on the match setup screen.
