@@ -497,6 +497,9 @@ volume parameters.
   `docs/captures/toon-gameplay.png`, `toon-closeup.png`.
 - **Outline check:** the ball's outline must stay clean at every camera distance. Optional rim
   shading on characters is decided by capture in M8, not by default.
+  *Checked 2026-11-19: a clean dark rim up close (1.5 m) and in gameplay frames across the court. The rim is a fixed world-space
+  hull, so it thins with distance and is under a pixel only beyond about 25 m, where the ball itself is a few pixels. No rim shading
+  on characters: the toon look reads without it.*
 
 **M6 — Shell.** Title screen, match setup (mode, difficulty, match length), pause, results screen,
 volume settings, scene transitions (craft floor: game-shell).

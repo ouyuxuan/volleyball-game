@@ -4,17 +4,17 @@ An arcade 2v2 beach volleyball game made in Unity, in a bright low-poly style. I
 prototype: you play full matches with a bot teammate against two bot opponents, with serving, rally
 scoring, three difficulty levels and blocking at the net.
 
-![A jump serve, just after the hit](docs/captures/toss-serve.png)
+![A spike from the far side, with the hit burst and the landing ring](docs/captures/toon-gameplay.png)
 
 | | |
 |---|---|
-| ![A spike at the net, seen from the side](docs/captures/chars-closeup.png) | ![Blocking at the net](docs/captures/m3-block-pose.png) |
-| A bot goes up for a spike | Jump at the net and hold Bump to block |
+| ![A player up close in the soft toon look](docs/captures/toon-closeup.png) | ![A sideways dive](docs/captures/dive-sideways.png) |
+| Soft toon shading, cool blue shadows | A sideways dive, reaching for the ball |
 
 ## The look
 
-The style is soft, flat-coloured low-poly with a small fixed palette (see `docs/ART_BIBLE.md`). This
-concept painting set the direction, and the game is still catching up to it.
+The style is soft, flat-coloured low-poly with a small fixed palette (see `docs/ART_BIBLE.md`), drawn
+with one soft toon shader for the whole court. This concept painting set the direction.
 
 ![Concept art: soft toon beach court](docs/concepts/concept-a-soft-toon.png)
 
