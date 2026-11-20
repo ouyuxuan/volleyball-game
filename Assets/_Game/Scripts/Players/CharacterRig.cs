@@ -32,6 +32,7 @@ namespace Sandspike.Players
         [SerializeField] float bumpArmsInward = 0.35f;      // how much the arms close together for a bump
         [SerializeField] float setHandsInward = 0.45f;      // hands meet above the forehead for a set
         [SerializeField] float diveArmDegrees = -150f;      // arms reach ahead in a dive
+        [SerializeField] float diveReachDegrees = -178f;    // sideways and backward dives: arms straight past the head, toward the ball
         [SerializeField] float bumpForwardDegrees = 35f;    // bump platform: arms at least this far forward of hanging
         [SerializeField] float setRaiseDegrees = 20f;       // set: hands this much higher than the shared pose
         [SerializeField] float blockArmDegrees = -165f;     // block: both arms up, tipped slightly over the net
@@ -154,7 +155,13 @@ namespace Sandspike.Players
             HitType type = swinging ? player.LastReport.type : queued ? player.QueuedHitType : player.WindUpType;
             float left, right;
             if (hitPose) PlayerVisual.ArmPose(type, player.SpikeCharge.Value, false, out left, out right);   // the wind-up pose
-            else { left = right = blocking ? blockArmDegrees : diveArmDegrees; type = HitType.Bump; }
+            else
+            {
+                // The dive body is rolled or tipped toward the ball, so arms past the head point along the dive.
+                float dive = Mathf.Lerp(diveArmDegrees, diveReachDegrees, Mathf.Clamp01(Mathf.Abs(player.DiveAngle) / 90f));
+                left = right = blocking ? blockArmDegrees : dive;
+                type = HitType.Bump;
+            }
 
             // The shared pose table was tuned for the primitive body. On this model a bump needs the arms held
             // forward as a platform (never hanging down), and a set needs the hands a little higher.
@@ -221,14 +228,15 @@ namespace Sandspike.Players
             bone.rotation = Quaternion.Slerp(bone.rotation, target, Mathf.SmoothStep(0f, 1f, poseWeight));   // eased, so arms never snap in or out of a pose
         }
 
-        // A matte material in one palette colour, shared by every part that uses that colour.
+        // A soft toon material in one palette colour, shared by every part that uses that colour.
         static Material Flat(Color c)
         {
             if (materialCache.TryGetValue(c, out var m) && m != null) return m;
-            // Shader.Find, not the pipeline's defaultMaterial: that one is null in a built player (Lit is in Always Included Shaders).
-            m = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name ="Character " + ColorUtility.ToHtmlStringRGB(c) };
+            // The scene's own materials use this shader, so a build always includes it for Shader.Find.
+            m = new Material(Shader.Find("Sandspike/Toon")) { name ="Character " + ColorUtility.ToHtmlStringRGB(c) };
             m.SetColor("_BaseColor", c);
-            m.SetFloat("_Smoothness", 0.15f);
+            m.SetFloat("_ShadowDepth", 0.18f);   // people keep their colours in the shade: darker and only a little cooler than the sand's blue shadows
+            m.SetFloat("_ShadeDarken", 0.7f);
             materialCache[c] = m;
             return m;
         }

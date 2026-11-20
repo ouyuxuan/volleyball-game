@@ -196,6 +196,8 @@ namespace Sandspike.Players
         bool jumpedAndAirborne;
         public event Action<PlayerController> OnDiveEnded;  // the dive lunge finished
         public bool IsDiving => diving;
+        /// <summary>The last dive's direction against where the player faced just before it: 0 forward, +90 right, -90 left, 180 back. Only the visuals use it.</summary>
+        public float DiveAngle { get; private set; }
         public bool HasQueuedHit => pending.active;          // a released hit is waiting for the ball (the visual holds its pose)
         public HitType QueuedHitType => pending.type;
         public bool IsRecovering => recoverLeft > 0f;
@@ -440,6 +442,7 @@ namespace Sandspike.Players
                 Debug.Log($"[Dive] p{PlayerId} burnout={burnoutPending}");
                 stamina.SpendDive();
                 diveDir = move.sqrMagnitude > 0.01f ? new Vector3(move.x, 0f, move.y).normalized : FlatForward();
+                DiveAngle = Vector3.SignedAngle(FlatForward(), diveDir, Vector3.up);   // measured before the body turns to the dive
                 transform.rotation = Quaternion.LookRotation(diveDir, Vector3.up);
                 diving = true;
                 diveLeft = diveSeconds;

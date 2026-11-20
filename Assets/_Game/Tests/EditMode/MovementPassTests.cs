@@ -137,6 +137,16 @@ namespace Sandspike.Tests
         // ---------------- dive and burnout ----------------
 
         [Test]
+        public void DiveAngle_IsMeasuredFromTheFacingBeforeTheDive()
+        {
+            playerGo.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+            brain.move = Vector2.right;
+            Press(ref brain.dive);
+            Assert.AreEqual(90f, player.DiveAngle, 1f, "right of a player facing +z");
+            Assert.AreEqual(1f, Vector3.Dot(playerGo.transform.forward, Vector3.right), 1e-3f, "the body still turns to the dive (digs unchanged)");
+        }
+
+        [Test]
         public void Dive_WithEnoughStamina_NoBurnout()
         {
             Press(ref brain.dive);

@@ -36,6 +36,8 @@ namespace Sandspike.Players
         [SerializeField] float armsUpDegrees = 160f;
         [SerializeField] float swingSeconds = 0.12f;   // length of the hit swing
         [SerializeField] float diveLeanDegrees = 78f;      // the whole body tips forward this far in a dive
+        [SerializeField] float diveSideDegrees = 72f;      // a sideways dive rolls the body onto its side this far
+        [SerializeField] float diveBackDegrees = 62f;      // a dive behind falls back this far (a sprawl onto the back)
 
         Vector3 bodyBase;
         Vector3 rootScaleBase;
@@ -118,10 +120,20 @@ namespace Sandspike.Players
             if (grounded && player.JumpCharge.IsCharging) sy = Mathf.Lerp(1f, crouchAtFullCharge, player.JumpCharge.Value);   // crouch while charging a jump
             float dive = player.DiveAmount;                      // lunging: tip the whole body forward, a little flatter
             sy = Mathf.Lerp(sy, 0.92f, dive);
-            transform.localRotation = Quaternion.Slerp(transform.localRotation, Quaternion.Euler(diveLeanDegrees * dive, 0f, 0f), dt * 22f);
+            transform.localRotation = Quaternion.Slerp(transform.localRotation, DivePose(player.DiveAngle, dive), dt * 22f);
             float sxz = 1f / Mathf.Sqrt(sy);                   // keep the volume roughly constant
             Vector3 target = new Vector3(rootScaleBase.x * sxz, rootScaleBase.y * sy, rootScaleBase.z * sxz);
             transform.localScale = Vector3.Lerp(transform.localScale, target, dt * 18f);
+        }
+
+        // Context dive: the root has turned to face the dive, so first turn the body back to where it faced before (-angle),
+        // then tip it toward the dive: a belly-flop forward, a roll onto the side, or a fall onto the back for a ball behind.
+        internal Quaternion DivePose(float angle, float amount)
+        {
+            float side = Mathf.Abs(angle);
+            float tip = side <= 90f ? Mathf.Lerp(diveLeanDegrees, diveSideDegrees, side / 90f)
+                                    : Mathf.Lerp(diveSideDegrees, diveBackDegrees, (side - 90f) / 90f);
+            return Quaternion.Euler(tip * amount, 0f, 0f) * Quaternion.Euler(0f, -angle * amount, 0f);
         }
 
         // Arm angles in degrees about the shoulder (0 = hanging down, negative = raised forward / up, -180 = straight up).
