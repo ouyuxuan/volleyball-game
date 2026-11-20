@@ -27,13 +27,13 @@ namespace Sandspike.Art
             /* Day     */ new Look { shade = Palette.Shadow },
             /* Evening */ new Look
             {
-                sunRotation = new Vector3(12f, 300f, 0f), sunColour = Palette.SunEvening, sunIntensity = 1.0f,
+                sunRotation = new Vector3(14f, 300f, 0f), sunColour = Palette.SunEvening, sunIntensity = 1.05f,
                 ambientSky = Palette.AmbientEveningSky, ambientMid = Palette.AmbientEveningMid, ambientGround = Palette.AmbientEveningGround,
-                skyTint = Palette.SkyEvening, exposure = 1.1f, atmosphere = 1.6f, sunSize = -1f, shade = Palette.ShadowEvening,
+                skyTint = Palette.SkyEvening, exposure = 1.0f, atmosphere = 1.0f, sunSize = -1f, shade = Palette.ShadowEvening,
             },
             /* Night   */ new Look
             {
-                sunRotation = new Vector3(50f, 300f, 0f), sunColour = Palette.MoonLight, sunIntensity = 0.55f,
+                sunRotation = new Vector3(50f, 300f, 0f), sunColour = Palette.MoonLight, sunIntensity = 0.75f,
                 ambientSky = Palette.AmbientNightSky, ambientMid = Palette.AmbientNightMid, ambientGround = Palette.AmbientNightGround,
                 skyTint = Palette.SkyNight, exposure = 0.35f, atmosphere = 0.4f, sunSize = 0.03f, shade = Palette.ShadowNight,
             },

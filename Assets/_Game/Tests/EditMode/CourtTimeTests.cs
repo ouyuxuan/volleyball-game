@@ -50,7 +50,7 @@ namespace Sandspike.Tests
             Quaternion rot = lightGo.transform.rotation;
             CourtTimes.Apply(CourtTime.Night);
             Assert.AreNotEqual(sky, RenderSettings.skybox, "night uses a copy of the sky");
-            Assert.AreEqual(0.55f, l.intensity);
+            Assert.AreEqual(CourtTimes.Table[(int)CourtTime.Night].sunIntensity, l.intensity);
             CourtTimes.Apply(CourtTime.Day);
             Assert.AreEqual(Palette.SunLight, l.color);
             Assert.AreEqual(1.3f, l.intensity);

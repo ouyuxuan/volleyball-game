@@ -56,13 +56,13 @@ namespace Sandspike.Art
         public static readonly Color UiMuted     = Color.Lerp(Shadow, CourtLines, 0.6f);                              // greyed-out text (an action that can't be used now; use at 50% alpha)
 
         // ---- Court times (evening and night variants; CourtTime.cs reads these, tune them here) ----
-        public static readonly Color SunEvening  = Color.Lerp(Accent, TeamA, 0.35f);         // low warm orange sun
-        public static readonly Color SkyEvening  = Color.Lerp(Sky, TeamA, 0.45f);            // skybox tint at evening
-        public static readonly Color AmbientEveningSky    = Color.Lerp(Sky, TeamA, 0.25f);    // evening light from above
-        public static readonly Color AmbientEveningMid    = Color.Lerp(Shadow, TeamA, 0.25f); // evening equator
+        public static readonly Color SunEvening  = Color.Lerp(SunLight, TeamA, 0.30f);       // low warm golden sun
+        public static readonly Color SkyEvening  = Color.Lerp(Sky, TeamA, 0.22f);            // skybox tint at evening
+        public static readonly Color AmbientEveningSky    = Color.Lerp(Sky, TeamA, 0.20f);    // evening light from above
+        public static readonly Color AmbientEveningMid    = Color.Lerp(Shadow, TeamA, 0.20f); // evening equator
         public static readonly Color AmbientEveningGround = Color.Lerp(Sand, Shadow, 0.55f);  // evening bounce from the sand
         public static readonly Color ShadowEvening = Color.Lerp(Shadow, TeamB, 0.25f);       // toon shade tint at evening (purple-blue)
-        public static readonly Color MoonLight   = Color.Lerp(CourtLines, Shadow, 0.45f);    // cool pale moon
+        public static readonly Color MoonLight   = Color.Lerp(CourtLines, Shadow, 0.35f);    // cool pale moon
         public static readonly Color SkyNight    = Color.Lerp(Shadow, BallOutline, 0.5f);    // skybox tint at night
         public static readonly Color AmbientNightSky    = Color.Lerp(Shadow, TeamB, 0.35f);   // night light from above
         public static readonly Color AmbientNightMid    = Shadow;                             // night equator

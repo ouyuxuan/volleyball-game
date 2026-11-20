@@ -108,6 +108,7 @@ Shader "Sandspike/Toon"
 
                 // Shade blends TOWARD the blue tint (not multiplied by it): warm sand times blue would go olive, not blue.
                 half3 shade = lerp(base.rgb * _ShadeDarken, _SandspikeShadowTint.rgb, _ShadowDepth);
+                shade *= saturate(Luminance(sun.color));    // a dim evening or night light dims the shade too (the day sun is brighter than 1: no change)
                 half3 colour = lerp(shade, base.rgb * sun.color, lit) * ao;
                 colour += base.rgb * SampleSH(n) * _Ambient * ao;
                 #if defined(_EMISSION)

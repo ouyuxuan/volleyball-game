@@ -572,6 +572,12 @@ to the concept), lighting depth 4/5 (warm lit sides, cast shadows on the sand no
 
 Also for M8, optional: **time-of-day variants** of the court (evening, night) made with lighting and
 sky colours only, picked on the match setup screen.
+*Done 2026-11-19: COURT (Day / Evening / Night) is the first box of the second Setup row. `Art/CourtTime.cs` holds the numbers
+(sun angle, colour and brightness, ambient light, sky, toon shade tint) and the colours are blends in `Palette.cs` under "Court
+times". Day restores the scene's own values exactly; the sky asset is never changed (a runtime copy is). Practice and the title stay
+Day. The toon shader now dims its shade with the light, so evening and night shadows stay darker than the lit sand. Evening: a low
+golden sun with long cool shadows; Night: a pale moon, dim but with lines, net and ball readable. Captures: `docs/captures/court-evening.png`,
+`court-night.png`. Not checked: split screen and 1st person at evening and night.*
 
 Open test to add: a bot's dive target for a fast ball landing within 2 m of the net stays on its own
 side and within dive range.
