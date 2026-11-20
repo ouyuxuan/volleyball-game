@@ -542,6 +542,20 @@ Windows, Web and macOS builds with `unity build`. Web-specific check via the `op
 below 3, confirm zero console errors. Includes a **court clarity** check: lines, ball and players
 read clearly against the sand and props from both camera views.
 
+*Status (2026-11-19): scorecard run on an all-bot Hard match (`docs/captures/m8-gameplay.png`, `m8-closeup.png`, `m8-spike.png`).
+The default-colour scan flagged nothing (no default materials, untinted particles or plain HUD panels; custom sky).*
+- *Palette discipline: 4/5 — every material, particle and HUD colour comes from `Palette.cs`; nothing default.*
+- *Style uniformity: 3/5 — chunky low-poly people, props and palms agree; the faceted characters are sharper than the soft concept target.*
+- *Lighting depth: 3/5 — warm high key light and soft shadows; shadows read olive grey on the sand, not the bible's cool blue.*
+- *Silhouette: 4/5 — big heads, hair and team shirts read at the gameplay distance.*
+- *UI intentionality: 4/5 — score in team colours, serve dots and combo pips, styled text on the palette.*
+- *Feedback visibility: 4/5 — the spike frame shows the hit burst, the landing marker on the far court, the combo pips and the jump tilt.*
+- *Court clarity: lines, net, ball and players read against the sand from the 3rd-person view.*
+
+*Fix pass: a cooler ambient light (sky and side light toward Shadow blue) was tried and dropped: it dulled the sand without making
+shadows read blue. All six axes are at 3 or better, with 0 console errors. Not scored: the 1st-person view, split screen, and the
+built game. Left open: bluer shadows would need a shader or shadow-colour change, which belongs with the toon look in M5.*
+
 Also for M8, optional: **time-of-day variants** of the court (evening, night) made with lighting and
 sky colours only, picked on the match setup screen.
 
